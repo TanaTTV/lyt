@@ -115,6 +115,42 @@ yt4 --max-height 1080 "URL_1" "URL_2"
 To update after pulling new changes, just run `npm.cmd install -g .` again. To
 remove the commands, run `npm.cmd uninstall -g yt2audio-fast`.
 
+## Easy Install (less terminal)
+
+Helper scripts in the `install/` folder wrap the steps above.
+
+### Windows
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\install\install.ps1
+```
+
+This installs `yt3` / `yt4` / `yt2audio` and warns you if `yt-dlp` or `ffmpeg`
+is missing.
+
+Then, optionally, add right-click menu entries so you never touch a terminal:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\install\windows-context-menu.ps1
+```
+
+Now anyone can:
+
+1. Copy a YouTube link (`Ctrl+C`).
+2. Right-click inside the folder where they want the file.
+3. Choose **Download audio here** or **Download video here**.
+
+The download uses the copied link and saves into that folder. Copy several
+links at once and it grabs them all. Remove the entries later with the same
+script and `-Remove`. It only touches your own user settings, so it needs no
+administrator rights.
+
+### macOS / Linux
+
+```bash
+bash install/install.sh
+```
+
 ## Quick Start
 
 Fastest mode, preserving the native audio format when possible:
