@@ -66,6 +66,47 @@ test("max-height is ignored without video mode", () => {
   assert.equal(normalizeOptions({ maxHeight: "1080" }).maxHeight, null);
 });
 
+test("video quality presets map to a max height", () => {
+  assert.equal(normalizeOptions({ video: true, quality: "8k" }).maxHeight, 4320);
+  assert.equal(normalizeOptions({ video: true, quality: "4k" }).maxHeight, 2160);
+  assert.equal(normalizeOptions({ video: true, quality: "1080p" }).maxHeight, 1080);
+  assert.equal(normalizeOptions({ video: true, quality: "720" }).maxHeight, 720);
+});
+
+test("video 'best' quality means no resolution cap", () => {
+  const options = normalizeOptions({ video: true, quality: "best" });
+  const args = buildYtDlpArgs("u", options);
+
+  assert.equal(options.maxHeight, null);
+  assert.equal(args[args.indexOf("-f") + 1], "bestvideo+bestaudio/best");
+});
+
+test("--max-height wins over -q in video mode", () => {
+  const options = normalizeOptions({ video: true, quality: "4k", maxHeight: "720p" });
+  assert.equal(options.maxHeight, 720);
+});
+
+test("invalid video quality is rejected with exit code 2", () => {
+  try {
+    normalizeOptions({ video: true, quality: "ultra" });
+    assert.fail("expected throw");
+  } catch (error) {
+    assert.match(error.message, /quality must/);
+    assert.equal(error.exitCode, 2);
+  }
+});
+
+test("-q stays an MP3 bitrate in audio mode", () => {
+  const options = normalizeOptions({ mp3: true, quality: "320k" });
+  assert.equal(options.quality, "320K");
+  assert.equal(options.maxHeight, null);
+});
+
+test("-L sets the list-formats flag", () => {
+  assert.equal(parseArgs(["-L", "u"]).options.listFormats, true);
+  assert.equal(parseArgs(["--list-formats", "u"]).options.listFormats, true);
+});
+
 test("yt4-style video default still parses multiple urls", () => {
   const parsed = parseArgs(["one", "two", "three"]);
   const merged = normalizeOptions({ ...{ video: true }, ...parsed.options });

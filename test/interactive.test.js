@@ -7,16 +7,19 @@ function scripted(answers) {
   const input = new PassThrough();
   const output = new PassThrough();
   const queue = [...answers];
+  let buffer = "";
 
-  // Feed one answer per prompt: readline/promises only delivers a line while a
-  // question() is actively listening, so we reply each time it writes a prompt.
-  output.on("data", () => {
-    if (queue.length === 0) {
-      return;
+  // Reply only when the program is actually waiting for input, i.e. it just
+  // wrote a prompt ending in ": ". Menu lines (ending in newline) accumulate
+  // without consuming an answer, so the picker's output doesn't desync us.
+  output.on("data", (chunk) => {
+    buffer += chunk.toString();
+
+    if (buffer.endsWith(": ") && queue.length > 0) {
+      buffer = "";
+      const answer = queue.shift();
+      setImmediate(() => input.write(`${answer}\n`));
     }
-
-    const answer = queue.shift();
-    setImmediate(() => input.write(`${answer}\n`));
   });
 
   return { input, output };
@@ -42,20 +45,68 @@ test("collects a multi-url mp3 job from prompts", async () => {
   assert.equal(job.options.jobs, "4");
 });
 
-test("collects a video job and skips the mp3 prompts", async () => {
-  const { input, output } = scripted(["https://v", "video", "1080", "clips"]);
+test("collects a video job with a quality preset and skips mp3 prompts", async () => {
+  const { input, output } = scripted(["https://v", "video", "1080p", "clips"]);
 
   const job = await promptForJob({ input, output });
 
   assert.deepEqual(job.urls, ["https://v"]);
   assert.equal(job.options.video, true);
-  assert.equal(job.options.maxHeight, "1080");
+  assert.equal(job.options.maxHeight, "1080p");
   assert.equal(job.options.mp3, undefined);
   assert.equal(job.options.outputDir, "clips");
 });
 
+test("video 'best' quality leaves maxHeight unset", async () => {
+  const { input, output } = scripted(["https://v", "video", "best", "downloads"]);
+
+  const job = await promptForJob({ input, output });
+
+  assert.equal(job.options.video, true);
+  assert.equal(job.options.maxHeight, undefined);
+});
+
+test("lists real qualities and picks one by number", async () => {
+  const { input, output } = scripted([
+    "https://v",
+    "video",
+    "y", // List available qualities?
+    "2", // pick the second listed height
+    "downloads",
+  ]);
+
+  const fetchFormats = async () => ({
+    title: "Demo",
+    heights: [2160, 1080, 720],
+    audioBitrates: [128],
+  });
+
+  const job = await promptForJob({ input, output, fetchFormats });
+
+  assert.equal(job.options.video, true);
+  assert.equal(job.options.maxHeight, "1080");
+});
+
+test("falls back to manual prompt when format lookup fails", async () => {
+  const { input, output } = scripted([
+    "https://v",
+    "video",
+    "y", // try listing
+    "4k", // manual fallback answer
+    "downloads",
+  ]);
+
+  const fetchFormats = async () => {
+    throw new Error("yt-dlp not installed");
+  };
+
+  const job = await promptForJob({ input, output, fetchFormats });
+
+  assert.equal(job.options.maxHeight, "4k");
+});
+
 test("defaults the type prompt to video when invoked from yt4", async () => {
-  const { input, output } = scripted(["https://v", "", "", "downloads"]);
+  const { input, output } = scripted(["https://v", "", "best", "downloads"]);
 
   const job = await promptForJob({ input, output, defaults: { video: true } });
 
