@@ -1,10 +1,10 @@
 {
-  "name": "@tanattv/ytgrab",
+  "name": "lyt",
   "version": "0.5.0",
   "description": "Fast, friendly CLI to download YouTube audio and video with yt-dlp and ffmpeg.",
   "type": "module",
   "bin": {
-    "ytgrab": "./bin/ytgrab.js",
+    "lyt": "./bin/lyt.js",
     "yt3": "./bin/yt3.js",
     "yt4": "./bin/yt4.js"
   },
@@ -40,8 +40,5 @@
     "mp3",
     "cli"
   ],
-  "publishConfig": {
-    "access": "public"
-  },
   "license": "MIT"
 }

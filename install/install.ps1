@@ -1,4 +1,4 @@
-# Installs the ytgrab commands (ytgrab, yt3, yt4) onto your PATH.
+# Installs the lyt commands (lyt, yt3, yt4) onto your PATH.
 #
 # Run from anywhere:
 #   powershell -ExecutionPolicy Bypass -File .\install\install.ps1
@@ -8,7 +8,7 @@ $ErrorActionPreference = "Stop"
 
 $root = Split-Path -Parent $PSScriptRoot
 
-Write-Host "Installing ytgrab commands (ytgrab, yt3, yt4)..." -ForegroundColor Cyan
+Write-Host "Installing lyt commands (lyt, yt3, yt4)..." -ForegroundColor Cyan
 
 if (-not (Get-Command node -ErrorAction SilentlyContinue)) {
     Write-Error "Node.js 20+ is required. Install it with: winget install OpenJS.NodeJS"

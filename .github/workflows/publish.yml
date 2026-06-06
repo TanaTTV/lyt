@@ -2,7 +2,7 @@ name: Publish to npm
 
 # Publishes the package when you create a GitHub Release.
 # Requires an NPM_TOKEN secret (Settings -> Secrets -> Actions) with an
-# automation token from your npm account that can publish @tanattv/ytgrab.
+# automation token from your npm account that can publish lyt.
 
 on:
   release:

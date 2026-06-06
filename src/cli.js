@@ -37,7 +37,7 @@ export async function main(argv, defaults = {}) {
   }
 
   if (parsed.version) {
-    console.log(`ytgrab ${VERSION}`);
+    console.log(`lyt ${VERSION}`);
     return;
   }
 

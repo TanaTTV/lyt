@@ -1,6 +1,6 @@
-# ytgrab
+# lyt
 
-**ytgrab** is a tiny, fast, friendly command-line tool for downloading YouTube
+**lyt** is a tiny, fast, friendly command-line tool for downloading YouTube
 audio and video. It wraps [`yt-dlp`](https://github.com/yt-dlp/yt-dlp) and
 [`ffmpeg`](https://ffmpeg.org/) and stays out of the way: sensible defaults,
 short commands, and quality you can pick by name instead of memorizing numbers.
@@ -10,7 +10,7 @@ yt3 "https://www.youtube.com/watch?v=VIDEO_ID"      # audio
 yt4 -q 1080p "https://www.youtube.com/watch?v=VIDEO_ID"  # video
 ```
 
-- **`yt3`** grabs audio, **`yt4`** grabs video, **`ytgrab`** is the full CLI.
+- **`yt3`** grabs audio, **`yt4`** grabs video, **`lyt`** is the full CLI.
 - Friendly quality: `-q 1080p`, `-q 4k`, `-q 8k`, `-q best`, or list what a
   video actually offers with `--list-formats`.
 - Download many links at once, in parallel, with a clean progress display.
@@ -39,7 +39,7 @@ this tool.
 | macOS | `brew install yt-dlp ffmpeg` |
 | Linux | Use your distro's package manager (e.g. `apt install ffmpeg`) and install `yt-dlp` from its docs. |
 
-On Windows, ytgrab also tries common WinGet-installed `yt-dlp.exe` and
+On Windows, lyt also tries common WinGet-installed `yt-dlp.exe` and
 `C:\ffmpeg\bin\ffmpeg.exe` locations if your current shell has not picked up PATH
 changes yet.
 
@@ -48,14 +48,14 @@ changes yet.
 ### From npm (recommended)
 
 ```bash
-npm install -g @tanattv/ytgrab
+npm install -g lyt
 ```
 
-This puts three commands on your PATH — `ytgrab`, `yt3`, and `yt4` — usable in
+This puts three commands on your PATH — `lyt`, `yt3`, and `yt4` — usable in
 PowerShell, cmd, bash, or zsh. Update later with:
 
 ```bash
-npm update -g @tanattv/ytgrab
+npm update -g lyt
 ```
 
 ### From GitHub (no npm account needed)
@@ -132,7 +132,7 @@ yt3 "URL_1" "URL_2" "URL_3"
 yt4 --jobs 3 -q 1080p "URL_1" "URL_2" "URL_3"
 ```
 
-When several downloads run at once in a terminal, ytgrab shows one tidy progress
+When several downloads run at once in a terminal, lyt shows one tidy progress
 bar per download instead of letting yt-dlp's output interleave. In a pipe or CI
 it falls back to plain per-item status lines.
 
@@ -173,11 +173,11 @@ Some Video Title
 
 ## Interactive Mode
 
-Run with `-i`, or just run a command with no URL in a terminal, and ytgrab asks
+Run with `-i`, or just run a command with no URL in a terminal, and lyt asks
 you what you want:
 
 ```bash
-ytgrab -i
+lyt -i
 ```
 
 It prompts for the URL(s), audio vs video, quality, output directory, and (for
@@ -188,7 +188,7 @@ Enter through the prompts uses the same defaults as the plain commands.
 ## Command Reference
 
 ```text
-ytgrab [options] <youtube-url> [more-urls...]
+lyt [options] <youtube-url> [more-urls...]
 yt3 <url>   # audio shortcut
 yt4 <url>   # video shortcut
 ```
@@ -198,7 +198,7 @@ yt4 <url>   # video shortcut
 | `--mp3` | Convert extracted audio to MP3 with `ffmpeg`. |
 | `--native` | Save the native audio stream when possible. Default for audio. |
 | `--video` | Download video (best video+audio, muxed to mp4). Default for `yt4`. |
-| `--audio` | Download audio only. Default for `ytgrab`/`yt3`. |
+| `--audio` | Download audio only. Default for `lyt`/`yt3`. |
 | `-q, --quality <value>` | Audio: MP3 bitrate (`128K`, `192K`, `320K`, `0`). Video: a resolution like `1080p`, `720p`, `4k`, `8k`, or `best`. |
 | `--max-height <value>` | Cap video resolution; alias of `-q` in video mode. |
 | `-L, --list-formats` | List the qualities available for each URL, then exit. |
@@ -283,7 +283,7 @@ yt4 --template "%(uploader)s - %(title).120B [%(id)s].%(ext)s" "URL"
 ## Updating
 
 ```bash
-npm update -g @tanattv/ytgrab        # if installed from npm
+npm update -g lyt        # if installed from npm
 npm install -g github:TanaTTV/yt2audio-fast   # if installed from GitHub
 ```
 
@@ -315,7 +315,7 @@ node bin/yt4.js --dry-run -q 4k "URL"   # run without installing
 ### Project Structure
 
 ```text
-bin/ytgrab.js            CLI entry point (full CLI, audio default)
+bin/lyt.js            CLI entry point (full CLI, audio default)
 bin/yt3.js               Audio shortcut command
 bin/yt4.js               Video shortcut command
 src/cli.js               Runtime command orchestration
