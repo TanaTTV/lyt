@@ -75,6 +75,11 @@ export function parseArgs(argv) {
       continue;
     }
 
+    if (arg === "--json") {
+      options.json = true;
+      continue;
+    }
+
     if (arg === "--embed-metadata") {
       options.embedMetadata = true;
       continue;
@@ -174,6 +179,7 @@ export function normalizeOptions(options = {}) {
     template: options.template ?? DEFAULT_OUTPUT_TEMPLATE,
     downloader: options.downloader ?? null,
     downloaderArgs: options.downloaderArgs ?? null,
+    json: options.json ?? false,
   };
 }
 
@@ -181,7 +187,7 @@ export function buildYtDlpArgs(url, options) {
   const args = [
     "--newline",
     "--no-warnings",
-    "--progress",
+    options.json ? "--no-progress" : "--progress",
     "--concurrent-fragments",
     String(options.fragments),
     "-f",
@@ -294,6 +300,7 @@ Options:
   --force-overwrite         Replace existing files
   --print-command           Print yt-dlp commands before running
   --dry-run                 Print commands without running
+  --json                    Emit machine-readable JSON on stdout (scripts, MCP)
   -i, --interactive         Prompt for options interactively
   -h, --help                Show this help
   -v, --version             Show version`;

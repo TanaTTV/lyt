@@ -21,7 +21,17 @@ const MAX_PROGRESS_BARS = 20;
 
 export function run(argv, defaults = {}) {
   return main(argv, defaults).catch((error) => {
-    console.error(error instanceof Error ? error.message : String(error));
+    const jsonMode = argv.includes("--json");
+
+    if (jsonMode) {
+      console.log(JSON.stringify({
+        ok: false,
+        error: error instanceof Error ? error.message : String(error),
+      }, null, 2));
+    } else {
+      console.error(error instanceof Error ? error.message : String(error));
+    }
+
     process.exitCode = (error && error.exitCode) ?? 1;
   });
 }
@@ -47,7 +57,8 @@ export async function main(argv, defaults = {}) {
     (parsed.urls.length === 0 &&
       process.stdin.isTTY &&
       !parsed.options.dryRun &&
-      !parsed.options.printCommand);
+      !parsed.options.printCommand &&
+      !parsed.options.json);
 
   if (wantsInteractive) {
     const job = await promptForJob({ defaults: parsed.options });
@@ -78,6 +89,16 @@ export async function main(argv, defaults = {}) {
   }));
 
   if (options.printCommand || options.dryRun) {
+    if (options.json) {
+      const payload = {
+        dryRun: Boolean(options.dryRun),
+        version: VERSION,
+        commands: tasks.map((task) => formatCommand("yt-dlp", task.args)),
+      };
+      console.log(JSON.stringify(payload, null, 2));
+      return;
+    }
+
     for (const task of tasks) {
       console.log(formatCommand("yt-dlp", task.args));
     }
@@ -109,28 +130,34 @@ export async function main(argv, defaults = {}) {
     jobs > 1 &&
     process.stderr.isTTY &&
     !options.printCommand &&
+    !options.json &&
     urls.length <= MAX_PROGRESS_BARS;
   const renderer = useRenderer
     ? createProgressRenderer(tasks.map((task) => shortLabel(task.url)))
+    : null;
+  const results = options.json
+    ? tasks.map((task) => ({
+        url: task.url,
+        status: "pending",
+        file: null,
+        error: null,
+      }))
     : null;
 
   async function worker() {
     while (queue.length > 0) {
       const task = queue.shift();
-      const lineHandler = renderer
-        ? (line) => {
-            const info = parseProgressLine(line);
-
-            if (info) {
-              renderer.update(task.index, info);
-            }
-          }
-        : undefined;
+      const lineHandler = buildLineHandler(task, renderer, results);
 
       try {
         await runCommand(ytDlpCommand, task.args, { onLine: lineHandler });
+        results?.[task.index] && (results[task.index].status = "ok");
         renderer?.done(task.index, true);
       } catch (error) {
+        if (results?.[task.index]) {
+          results[task.index].status = "error";
+          results[task.index].error = error.message;
+        }
         renderer?.done(task.index, false);
         failures.push({ url: task.url, error });
       }
@@ -140,12 +167,81 @@ export async function main(argv, defaults = {}) {
   await Promise.all(Array.from({ length: jobs }, () => worker()));
   renderer?.finish();
 
+  if (options.json) {
+    const payload = {
+      ok: failures.length === 0,
+      version: VERSION,
+      results: results.map(({ url, status, file, error }) => ({
+        url,
+        status,
+        ...(file ? { file } : {}),
+        ...(error ? { error } : {}),
+      })),
+    };
+    console.log(JSON.stringify(payload, null, 2));
+  }
+
   if (failures.length > 0) {
+    if (options.json) {
+      process.exitCode = 1;
+      return;
+    }
+
     const lines = failures.map(({ url, error }) => `- ${url}: ${error.message}`);
     const error = new Error(`Download failed:\n${lines.join("\n")}`);
     error.exitCode = 1;
     throw error;
   }
+}
+
+function buildLineHandler(task, renderer, results) {
+  if (!renderer && !results) {
+    return undefined;
+  }
+
+  const captureFile = Boolean(results);
+
+  return (line) => {
+    if (renderer) {
+      const info = parseProgressLine(line);
+
+      if (info) {
+        renderer.update(task.index, info);
+      }
+    }
+
+    if (!captureFile) {
+      return;
+    }
+
+    const destination = parseDestinationLine(line);
+
+    if (destination) {
+      results[task.index].file = destination;
+    }
+  };
+}
+
+export function parseDestinationLine(line) {
+  const download = /\[download\]\s+Destination:\s*(.+)/.exec(line);
+
+  if (download) {
+    return download[1].trim();
+  }
+
+  const extract = /\[ExtractAudio\]\s+Destination:\s*(.+)/.exec(line);
+
+  if (extract) {
+    return extract[1].trim();
+  }
+
+  const merge = /\[Merger\]\s+Merging formats into "(.+)"/.exec(line);
+
+  if (merge) {
+    return merge[1].trim();
+  }
+
+  return null;
 }
 
 function ensureCommand(command, installHint) {
