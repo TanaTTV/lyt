@@ -4,6 +4,8 @@
 
 The main idea is simple: let `yt-dlp` do the hard download work, keep the wrapper small, and avoid slow extras by default.
 
+**Copy link → run `yt3` → file appears.** You still need the URL from somewhere (browser, chat, notes), but the download itself stays on your PC — terminal, right-click menu, clipboard watcher, or an AI agent via MCP. No YouTube download UI, no extra browser tabs.
+
 ## What It Does
 
 - Downloads audio by default, or video with `--video` (or the `yt4` command).
@@ -115,6 +117,36 @@ yt4 --max-height 1080 "URL_1" "URL_2"
 To update after pulling new changes, just run `npm.cmd install -g .` again. To
 remove the commands, run `npm.cmd uninstall -g yt2audio-fast`.
 
+## Local-First Integration
+
+Ways to download without opening a browser's save dialog:
+
+| Method | How |
+| --- | --- |
+| **Terminal** | `yt3 "URL"` or `yt3 -i` for prompts |
+| **Right-click** | Windows context menu — copy link, right-click folder, pick **Download audio here** |
+| **Clipboard watcher** | `install/clipboard-watcher.ps1` — copy a link, file downloads automatically |
+| **Parallel batch** | Paste several URLs: `yt3 --jobs 3 URL1 URL2 URL3` |
+| **MCP agent** | `mcp/` server lets Cursor/Claude call `download_audio` (see `mcp/README.md`) |
+
+### Clipboard watcher (Windows)
+
+After installing `yt3` globally:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\install\clipboard-watcher.ps1
+```
+
+Copy any YouTube link (`Ctrl+C`) and the watcher runs `yt3` in the background. Add `-Mp3` for MP3 conversion or `-OutputDir` to choose a folder.
+
+### Windows right-click menu
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\install\windows-context-menu.ps1
+```
+
+Copy a link, right-click inside a folder, choose **Download audio here** or **Download video here**.
+
 ## Easy Install (less terminal)
 
 Helper scripts in the `install/` folder wrap the steps above.
@@ -220,6 +252,9 @@ Options:
 | `--force-overwrite` | Replace existing files. |
 | `--print-command` | Print generated `yt-dlp` commands before running. |
 | `--dry-run` | Print generated commands without running downloads. |
+| `--json` | Emit machine-readable JSON on stdout (for scripts and MCP). |
+| `--cookies-from-browser <browser>` | Use browser cookies (`chrome`, `firefox`, `edge`, etc.). |
+| `--cookies <file>` | Netscape cookie file for restricted videos. |
 | `-h, --help` | Show help. |
 | `-v, --version` | Show version. |
 
