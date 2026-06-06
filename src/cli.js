@@ -13,13 +13,20 @@ import {
 import { promptForJob } from "./interactive.js";
 import { createProgressRenderer, parseProgressLine } from "./progress.js";
 
-const VERSION = "0.2.0";
+const VERSION = "0.3.0";
 
 // Above this many URLs we skip the aggregated bar block (it would scroll the
 // terminal) and fall back to yt-dlp's own inherited progress output.
 const MAX_PROGRESS_BARS = 20;
 
-export async function main(argv) {
+export function run(argv, defaults = {}) {
+  return main(argv, defaults).catch((error) => {
+    console.error(error instanceof Error ? error.message : String(error));
+    process.exitCode = (error && error.exitCode) ?? 1;
+  });
+}
+
+export async function main(argv, defaults = {}) {
   const parsed = parseArgs(argv);
 
   if (parsed.help) {
@@ -32,6 +39,9 @@ export async function main(argv) {
     return;
   }
 
+  // Defaults set by the entry point (e.g. yt4 -> video). Explicit flags win.
+  parsed.options = { ...defaults, ...parsed.options };
+
   const wantsInteractive =
     parsed.options.interactive ||
     (parsed.urls.length === 0 &&
@@ -40,7 +50,7 @@ export async function main(argv) {
       !parsed.options.printCommand);
 
   if (wantsInteractive) {
-    const job = await promptForJob();
+    const job = await promptForJob({ defaults: parsed.options });
 
     if (!job) {
       return;

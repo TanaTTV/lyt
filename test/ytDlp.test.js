@@ -30,6 +30,50 @@ test("mp3 mode adds extraction and audio quality flags", () => {
   assert.ok(args.includes("128K"));
 });
 
+test("video mode selects best video+audio and muxes to mp4", () => {
+  const options = normalizeOptions({ video: true });
+  const args = buildYtDlpArgs("https://youtube.test/video", options);
+
+  assert.equal(args[args.indexOf("-f") + 1], "bestvideo+bestaudio/best");
+  assert.equal(args[args.indexOf("--merge-output-format") + 1], "mp4");
+  assert.equal(args.includes("-x"), false);
+});
+
+test("video max-height caps the selected resolution", () => {
+  const options = normalizeOptions({ video: true, maxHeight: "1080" });
+  const args = buildYtDlpArgs("https://youtube.test/video", options);
+
+  assert.equal(
+    args[args.indexOf("-f") + 1],
+    "bestvideo[height<=1080]+bestaudio/best[height<=1080]",
+  );
+});
+
+test("video mode forces audio extraction off even if mp3 is set", () => {
+  const options = normalizeOptions({ video: true, mp3: true });
+
+  assert.equal(options.mp3, false);
+  assert.equal(buildYtDlpArgs("u", options).includes("--audio-format"), false);
+});
+
+test("--audio after --video selects audio (explicit flags win)", () => {
+  const parsed = parseArgs(["--video", "--audio", "u"]);
+
+  assert.equal(parsed.options.video, false);
+});
+
+test("max-height is ignored without video mode", () => {
+  assert.equal(normalizeOptions({ maxHeight: "1080" }).maxHeight, null);
+});
+
+test("yt4-style video default still parses multiple urls", () => {
+  const parsed = parseArgs(["one", "two", "three"]);
+  const merged = normalizeOptions({ ...{ video: true }, ...parsed.options });
+
+  assert.deepEqual(parsed.urls, ["one", "two", "three"]);
+  assert.equal(merged.video, true);
+});
+
 test("parses multiple urls and speed options", () => {
   const parsed = parseArgs([
     "--mp3",

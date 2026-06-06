@@ -1,10 +1,12 @@
 {
   "name": "yt2audio-fast",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Fast CLI wrapper around yt-dlp and ffmpeg for YouTube audio downloads.",
   "type": "module",
   "bin": {
-    "yt2audio": "./bin/yt2audio.js"
+    "yt2audio": "./bin/yt2audio.js",
+    "yt3": "./bin/yt3.js",
+    "yt4": "./bin/yt4.js"
   },
   "scripts": {
     "test": "node --test"
