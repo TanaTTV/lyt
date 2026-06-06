@@ -10,7 +10,9 @@ The main idea is simple: let `yt-dlp` do the hard download work, keep the wrappe
 - Defaults to native audio for maximum speed.
 - Converts to MP3 when you pass `--mp3`.
 - Uses concurrent fragments to speed up segmented downloads.
-- Supports multiple URLs with parallel workers.
+- Optionally hands downloads to an external downloader such as `aria2c` for big speedups on throttled hosts.
+- Supports multiple URLs with parallel workers and a clean aggregated progress display.
+- Offers an interactive prompt mode (`-i`, or just run it with no URL in a terminal).
 - Avoids metadata and thumbnail embedding unless you explicitly request them.
 - Keeps downloaded audio files out of git with `.gitignore`.
 
@@ -101,6 +103,18 @@ Preview the exact `yt-dlp` command without downloading:
 yt2audio --dry-run --mp3 "https://www.youtube.com/watch?v=VIDEO_ID"
 ```
 
+## Interactive Mode
+
+If you would rather be asked than remember flags, run the CLI with `-i`, or simply run it with no URL in a terminal:
+
+```powershell
+yt2audio -i
+```
+
+It asks for the URL(s), native vs MP3, quality, output directory, and (for multiple URLs) the number of parallel jobs, then runs the download. Defaults match the normal command-line defaults, so pressing Enter through every prompt behaves like a plain `yt2audio <url>`.
+
+When you pass several URLs with `--jobs`, the CLI renders one aggregated progress bar per download instead of letting `yt-dlp`'s parallel output interleave. In a non-interactive context (a pipe or CI), it falls back to plain per-item status lines.
+
 ## Command Reference
 
 ```text
@@ -118,6 +132,10 @@ Options:
 | `-j, --jobs <n>` | Parallel downloads for multiple URLs. Default is `1`. |
 | `-o, --output-dir <dir>` | Output directory. Default is `downloads`. |
 | `--template <template>` | Custom `yt-dlp` output template. |
+| `--downloader <name>` | External downloader to hand files to, e.g. `aria2c`. |
+| `--downloader-args <args>` | Arguments for the external downloader, e.g. `"-x16 -s16 -k1M"`. |
+| `--no-part` | Write directly to the output file instead of a `.part` file. |
+| `-i, --interactive` | Prompt for options interactively. |
 | `--playlist` | Allow playlist downloads. |
 | `--no-playlist` | Download only the single video URL. This is the default. |
 | `--embed-metadata` | Embed metadata. This may add time. |
@@ -158,7 +176,17 @@ Use `--quality 0`:
 yt2audio --mp3 --quality 0 "https://www.youtube.com/watch?v=VIDEO_ID"
 ```
 
-This gives the best MP3 quality setting, but it may create larger files and take longer to convert.
+A numeric value like `0` selects `ffmpeg`'s best **VBR** (variable bitrate) setting: high quality with a smaller, faster-to-produce file. A value like `320K` forces a constant high bitrate, which makes larger files and can take a little longer. Both are passed straight through to `yt-dlp`'s `--audio-quality`.
+
+### External Downloader (aria2c)
+
+`--concurrent-fragments` only helps segmented (DASH/HLS) streams. For audio served as a single progressive stream, YouTube's per-connection throttling caps the speed. Handing the download to `aria2c`, which opens several connections per file, often gives a 2–5x speedup:
+
+```powershell
+yt2audio --downloader aria2c --downloader-args "-x16 -s16 -k1M" "https://www.youtube.com/watch?v=VIDEO_ID"
+```
+
+This is opt-in because `aria2c` is a separate install and some hosts reject large connection counts. If a download becomes unstable, lower `-x`/`-s` or drop the flag.
 
 ### Multiple URLs
 
@@ -239,10 +267,14 @@ node .\bin\yt2audio.js --dry-run --mp3 "https://www.youtube.com/watch?v=VIDEO_ID
 ## Project Structure
 
 ```text
-bin/yt2audio.js      CLI entry point
-src/cli.js           Runtime command orchestration
-src/ytDlp.js         Argument parsing and yt-dlp command construction
-test/ytDlp.test.js   Node test runner coverage
+bin/yt2audio.js          CLI entry point
+src/cli.js               Runtime command orchestration
+src/ytDlp.js             Argument parsing and yt-dlp command construction
+src/interactive.js       Interactive prompt mode (node:readline)
+src/progress.js          Progress parsing and aggregated multi-bar rendering
+test/ytDlp.test.js       Argument and command-builder coverage
+test/progress.test.js    Progress parser and renderer coverage
+test/interactive.test.js Interactive prompt coverage
 ```
 
 ## Troubleshooting
