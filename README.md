@@ -1,151 +1,103 @@
-# yt2audio-fast
+# ytgrab
 
-`yt2audio-fast` is a tiny Node.js CLI for downloading YouTube audio quickly with `yt-dlp` and converting to MP3 with `ffmpeg` when needed.
+**ytgrab** is a tiny, fast, friendly command-line tool for downloading YouTube
+audio and video. It wraps [`yt-dlp`](https://github.com/yt-dlp/yt-dlp) and
+[`ffmpeg`](https://ffmpeg.org/) and stays out of the way: sensible defaults,
+short commands, and quality you can pick by name instead of memorizing numbers.
 
-The main idea is simple: let `yt-dlp` do the hard download work, keep the wrapper small, and avoid slow extras by default.
+```bash
+yt3 "https://www.youtube.com/watch?v=VIDEO_ID"      # audio
+yt4 -q 1080p "https://www.youtube.com/watch?v=VIDEO_ID"  # video
+```
 
-## What It Does
-
-- Downloads audio by default, or video with `--video` (or the `yt4` command).
-- Ships short commands: `yt3` for audio, `yt4` for video.
-- Defaults to native audio for maximum speed.
-- Converts to MP3 when you pass `--mp3`.
-- Uses concurrent fragments to speed up segmented downloads.
-- Optionally hands downloads to an external downloader such as `aria2c` for big speedups on throttled hosts.
-- Supports multiple URLs with parallel workers and a clean aggregated progress display.
-- Offers an interactive prompt mode (`-i`, or just run it with no URL in a terminal).
-- Avoids metadata and thumbnail embedding unless you explicitly request them.
-- Keeps downloaded audio files out of git with `.gitignore`.
+- **`yt3`** grabs audio, **`yt4`** grabs video, **`ytgrab`** is the full CLI.
+- Friendly quality: `-q 1080p`, `-q 4k`, `-q 8k`, `-q best`, or list what a
+  video actually offers with `--list-formats`.
+- Download many links at once, in parallel, with a clean progress display.
+- Interactive mode for when you would rather be asked than remember flags.
+- Zero runtime dependencies. The wrapper is small on purpose.
 
 ## Important Usage Note
 
-Only download content you own, have permission to download, or are otherwise allowed to use. Downloading from YouTube may violate YouTube's Terms of Service depending on the content and use.
+Only download content you own, have permission to download, or are otherwise
+allowed to use. Downloading from YouTube may violate YouTube's Terms of Service
+depending on the content and how you use it. You are responsible for how you use
+this tool.
 
 ## Requirements
 
-- Node.js 20 or newer
-- `yt-dlp`
-- `ffmpeg` for MP3 conversion
+- [Node.js](https://nodejs.org/) 20 or newer
+- [`yt-dlp`](https://github.com/yt-dlp/yt-dlp#installation)
+- [`ffmpeg`](https://ffmpeg.org/) — required for MP3 conversion and for muxing
+  video+audio into a single file
 
-On Windows, this CLI also tries to find common WinGet-installed `yt-dlp.exe` and `C:\ffmpeg\bin\ffmpeg.exe` locations when the current shell has not picked up PATH changes yet.
+### Installing yt-dlp and ffmpeg
 
-## Install Dependencies
+| Platform | Command |
+| --- | --- |
+| Windows | `winget install yt-dlp.yt-dlp` and `winget install Gyan.FFmpeg` |
+| macOS | `brew install yt-dlp ffmpeg` |
+| Linux | Use your distro's package manager (e.g. `apt install ffmpeg`) and install `yt-dlp` from its docs. |
 
-### Windows
+On Windows, ytgrab also tries common WinGet-installed `yt-dlp.exe` and
+`C:\ffmpeg\bin\ffmpeg.exe` locations if your current shell has not picked up PATH
+changes yet.
 
-Install `yt-dlp`:
+## Install
 
-```powershell
-winget install yt-dlp.yt-dlp
-```
-
-Install Node.js if needed:
-
-```powershell
-winget install OpenJS.NodeJS
-```
-
-After installing command-line tools with WinGet, open a new terminal so PATH changes are loaded.
-
-### macOS
+### From npm (recommended)
 
 ```bash
-brew install node yt-dlp ffmpeg
+npm install -g @tanattv/ytgrab
 ```
 
-### Linux
+This puts three commands on your PATH — `ytgrab`, `yt3`, and `yt4` — usable in
+PowerShell, cmd, bash, or zsh. Update later with:
 
-Use your distro package manager for Node.js and `ffmpeg`, then install `yt-dlp` from your package manager or from the official project instructions.
-
-## Install This CLI Locally
-
-From the project folder:
-
-```powershell
-npm.cmd install
-npm.cmd link
+```bash
+npm update -g @tanattv/ytgrab
 ```
 
-After linking, run:
+### From GitHub (no npm account needed)
 
-```powershell
-yt2audio --version
+```bash
+npm install -g github:TanaTTV/yt2audio-fast
 ```
 
-If you do not want to link it globally, run it directly:
+Re-run the same command to update.
 
-```powershell
-node .\bin\yt2audio.js --version
+### From source
+
+```bash
+git clone https://github.com/TanaTTV/yt2audio-fast.git
+cd yt2audio-fast
+npm install -g .
 ```
 
-## Install Globally (use `yt3` / `yt4` anywhere)
+### Easy install (less terminal)
 
-From the project folder, install the commands onto your PATH so they work in any
-PowerShell, cmd, bash, or zsh window:
+Helper scripts in [`install/`](install/) wrap the steps above.
 
-```powershell
-npm.cmd install -g .
-```
-
-(On macOS/Linux: `npm install -g .`)
-
-This adds three commands:
-
-| Command | Does |
-| --- | --- |
-| `yt3` | Download audio (same as `yt2audio`). |
-| `yt4` | Download video (best video+audio, muxed to mp4). |
-| `yt2audio` | The full CLI; defaults to audio. |
-
-Then, from anywhere:
-
-```powershell
-yt3 "https://www.youtube.com/watch?v=VIDEO_ID"
-yt4 "https://www.youtube.com/watch?v=VIDEO_ID"
-```
-
-You can pass several URLs at once to either command, and use `--jobs` to fetch
-them in parallel:
-
-```powershell
-yt3 --jobs 3 "URL_1" "URL_2" "URL_3"
-yt4 --max-height 1080 "URL_1" "URL_2"
-```
-
-To update after pulling new changes, just run `npm.cmd install -g .` again. To
-remove the commands, run `npm.cmd uninstall -g yt2audio-fast`.
-
-## Easy Install (less terminal)
-
-Helper scripts in the `install/` folder wrap the steps above.
-
-### Windows
+**Windows:**
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\install\install.ps1
 ```
 
-This installs `yt3` / `yt4` / `yt2audio` and warns you if `yt-dlp` or `ffmpeg`
-is missing.
-
-Then, optionally, add right-click menu entries so you never touch a terminal:
+Then, optionally, add right-click menu entries so a non-technical user never
+touches a terminal:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\install\windows-context-menu.ps1
 ```
 
-Now anyone can:
+Now anyone can **copy a YouTube link**, **right-click inside a folder**, and
+choose **Download audio here** or **Download video here**. Copy several links at
+once and it grabs them all. Remove the entries later with the same script and
+`-Remove`. It only touches your own user settings, so it needs no administrator
+rights.
 
-1. Copy a YouTube link (`Ctrl+C`).
-2. Right-click inside the folder where they want the file.
-3. Choose **Download audio here** or **Download video here**.
-
-The download uses the copied link and saves into that folder. Copy several
-links at once and it grabs them all. Remove the entries later with the same
-script and `-Remove`. It only touches your own user settings, so it needs no
-administrator rights.
-
-### macOS / Linux
+**macOS / Linux:**
 
 ```bash
 bash install/install.sh
@@ -153,58 +105,102 @@ bash install/install.sh
 
 ## Quick Start
 
-Fastest mode, preserving the native audio format when possible:
+```bash
+# Audio (native format, fastest)
+yt3 "https://www.youtube.com/watch?v=VIDEO_ID"
 
-```powershell
-yt2audio "https://www.youtube.com/watch?v=VIDEO_ID"
+# Audio as MP3
+yt3 --mp3 "https://www.youtube.com/watch?v=VIDEO_ID"
+
+# Video at 1080p
+yt4 -q 1080p "https://www.youtube.com/watch?v=VIDEO_ID"
+
+# Save somewhere specific
+yt3 --mp3 -o "$HOME/Music" "https://www.youtube.com/watch?v=VIDEO_ID"
+
+# Preview the exact yt-dlp command without downloading
+yt4 --dry-run "https://www.youtube.com/watch?v=VIDEO_ID"
 ```
 
-MP3 mode:
+## Multiple Downloads
 
-```powershell
-yt2audio --mp3 "https://www.youtube.com/watch?v=VIDEO_ID"
+Pass as many URLs as you like to `yt3` or `yt4`, and use `--jobs` to download
+them in parallel:
+
+```bash
+yt3 "URL_1" "URL_2" "URL_3"
+yt4 --jobs 3 -q 1080p "URL_1" "URL_2" "URL_3"
 ```
 
-Save to your Downloads folder:
+When several downloads run at once in a terminal, ytgrab shows one tidy progress
+bar per download instead of letting yt-dlp's output interleave. In a pipe or CI
+it falls back to plain per-item status lines.
 
-```powershell
-yt2audio --mp3 --output-dir "$env:USERPROFILE\Downloads" "https://www.youtube.com/watch?v=VIDEO_ID"
+## Choosing Quality
+
+You do not have to memorize resolution numbers. In video mode, `-q` (or
+`--quality`) takes friendly names:
+
+```bash
+yt4 -q 1080p "URL"     # Full HD
+yt4 -q 4k "URL"        # 2160p
+yt4 -q 8k "URL"        # 4320p, when the video offers it
+yt4 -q best "URL"      # highest available (default)
 ```
 
-Preview the exact `yt-dlp` command without downloading:
+Accepted video values: `144p`, `240p`, `360p`, `480p`, `720p`/`hd`,
+`1080p`/`fhd`, `1440p`/`2k`, `2160p`/`4k`, `4320p`/`8k`, plain numbers like
+`1080`, and `best`. If a video is not available at the size you ask for, yt-dlp
+automatically falls back to the closest lower quality.
 
-```powershell
-yt2audio --dry-run --mp3 "https://www.youtube.com/watch?v=VIDEO_ID"
+In audio mode, `-q` is the MP3 bitrate (`128K`, `192K`, `320K`, or `0` for best
+VBR — see the Speed Guide).
+
+### See what a video actually offers
+
+Not sure how high a video goes? List its real qualities:
+
+```bash
+yt4 --list-formats "URL"
+```
+
+```text
+Some Video Title
+  video: 2160p (4K), 1440p (2K), 1080p (Full HD), 720p (HD)
+  download best with: yt4 -q 2160p -- "URL"
+  audio: 160k, 128k, 70k
 ```
 
 ## Interactive Mode
 
-If you would rather be asked than remember flags, run the CLI with `-i`, or simply run it with no URL in a terminal:
+Run with `-i`, or just run a command with no URL in a terminal, and ytgrab asks
+you what you want:
 
-```powershell
-yt2audio -i
+```bash
+ytgrab -i
 ```
 
-It asks for the URL(s), native vs MP3, quality, output directory, and (for multiple URLs) the number of parallel jobs, then runs the download. Defaults match the normal command-line defaults, so pressing Enter through every prompt behaves like a plain `yt2audio <url>`.
-
-When you pass several URLs with `--jobs`, the CLI renders one aggregated progress bar per download instead of letting `yt-dlp`'s parallel output interleave. In a non-interactive context (a pipe or CI), it falls back to plain per-item status lines.
+It prompts for the URL(s), audio vs video, quality, output directory, and (for
+multiple URLs) the number of parallel jobs. In video mode it can **list the
+real available qualities and let you pick one from a numbered menu**. Pressing
+Enter through the prompts uses the same defaults as the plain commands.
 
 ## Command Reference
 
 ```text
-yt2audio [options] <youtube-url> [more-urls...]
+ytgrab [options] <youtube-url> [more-urls...]
+yt3 <url>   # audio shortcut
+yt4 <url>   # video shortcut
 ```
-
-Options:
 
 | Option | Description |
 | --- | --- |
 | `--mp3` | Convert extracted audio to MP3 with `ffmpeg`. |
-| `--native` | Save native audio stream when possible. This is the default. |
+| `--native` | Save the native audio stream when possible. Default for audio. |
 | `--video` | Download video (best video+audio, muxed to mp4). Default for `yt4`. |
-| `--audio` | Download audio only. This is the default for `yt2audio`/`yt3`. |
+| `--audio` | Download audio only. Default for `ytgrab`/`yt3`. |
 | `-q, --quality <value>` | Audio: MP3 bitrate (`128K`, `192K`, `320K`, `0`). Video: a resolution like `1080p`, `720p`, `4k`, `8k`, or `best`. |
-| `--max-height <value>` | Cap video resolution; alias of `-q` in video mode (accepts `1080`, `1080p`, `4k`, …). |
+| `--max-height <value>` | Cap video resolution; alias of `-q` in video mode. |
 | `-L, --list-formats` | List the qualities available for each URL, then exit. |
 | `-f, --fragments <n>` | Concurrent fragments per download. Default is `8`. |
 | `-j, --jobs <n>` | Parallel downloads for multiple URLs. Default is `1`. |
@@ -216,113 +212,58 @@ Options:
 | `-i, --interactive` | Prompt for options interactively. |
 | `--playlist` | Allow playlist downloads. |
 | `--no-playlist` | Download only the single video URL. This is the default. |
-| `--embed-metadata` | Embed metadata. This may add time. |
-| `--embed-thumbnail` | Embed thumbnail. This may add time. |
+| `--embed-metadata` | Embed metadata. May add time. |
+| `--embed-thumbnail` | Embed thumbnail. May add time. |
 | `--force-overwrite` | Replace existing files. |
-| `--print-command` | Print generated `yt-dlp` commands before running. |
-| `--dry-run` | Print generated commands without running downloads. |
+| `--print-command` | Print the generated `yt-dlp` commands before running. |
+| `--dry-run` | Print the generated commands without running downloads. |
 | `-h, --help` | Show help. |
 | `-v, --version` | Show version. |
 
-## Choosing Quality
-
-You do not have to memorize resolution numbers. In video mode, `-q` (or
-`--quality`) takes friendly names:
-
-```powershell
-yt4 -q 1080p "URL"     # Full HD
-yt4 -q 4k "URL"        # 2160p
-yt4 -q 8k "URL"        # 4320p, when the video offers it
-yt4 -q best "URL"      # highest available (default)
-```
-
-Accepted video values: `144p`, `240p`, `360p`, `480p`, `720p`/`hd`,
-`1080p`/`fhd`, `1440p`/`2k`, `2160p`/`4k`, `4320p`/`8k`, plain numbers like
-`1080`, and `best`. If a video is not available at the size you ask for,
-`yt-dlp` automatically falls back to the closest lower quality.
-
-In audio mode, `-q` stays the MP3 bitrate (`128K`, `192K`, `320K`, or `0` for
-best VBR).
-
-### See what a video actually offers
-
-Not sure how high a video goes (does it have 4K? 8K?). List its real qualities:
-
-```powershell
-yt4 --list-formats "URL"
-```
-
-```text
-Some Video Title
-  video: 2160p (4K), 1440p (2K), 1080p (Full HD), 720p (HD)
-  download best with: yt4 -q 2160p -- "URL"
-  audio: 160k, 128k, 70k
-```
-
-The interactive mode (`yt4 -i`) can do this for you too: it offers to list the
-available qualities and lets you pick one from a numbered menu.
-
 ## Speed Guide
 
-### Fastest Possible
+### Native audio is fastest
 
-Use native audio:
-
-```powershell
-yt2audio "https://www.youtube.com/watch?v=VIDEO_ID"
+```bash
+yt3 "URL"
 ```
 
-This avoids conversion entirely. YouTube commonly serves audio as `m4a` or `webm`, and keeping that format is usually faster than converting it.
+YouTube commonly serves audio as `m4a` or `webm`. Keeping that native format
+avoids a conversion step and is usually fastest.
 
-### Fast MP3
+### MP3 quality
 
-Use the default MP3 quality:
-
-```powershell
-yt2audio --mp3 "https://www.youtube.com/watch?v=VIDEO_ID"
+```bash
+yt3 --mp3 -q 320K "URL"   # constant 320 kbps
+yt3 --mp3 -q 0 "URL"      # best VBR: high quality, smaller, fast
 ```
 
-The CLI downloads the best available audio stream, then asks `ffmpeg` to produce a `192K` MP3.
+A numeric `0` selects `ffmpeg`'s best **VBR** (variable bitrate). A value like
+`320K` forces a constant bitrate, producing larger files.
 
-### Maximum MP3 Quality
+### External downloader (aria2c)
 
-Use `--quality 0`:
+`--fragments` only helps segmented (DASH/HLS) streams. For audio served as a
+single progressive stream, YouTube's per-connection throttling caps the speed.
+Handing the download to `aria2c`, which opens several connections per file, can
+give a 2–5x speedup:
 
-```powershell
-yt2audio --mp3 --quality 0 "https://www.youtube.com/watch?v=VIDEO_ID"
+```bash
+yt3 --downloader aria2c --downloader-args "-x16 -s16 -k1M" "URL"
 ```
 
-A numeric value like `0` selects `ffmpeg`'s best **VBR** (variable bitrate) setting: high quality with a smaller, faster-to-produce file. A value like `320K` forces a constant high bitrate, which makes larger files and can take a little longer. Both are passed straight through to `yt-dlp`'s `--audio-quality`.
+This is opt-in because `aria2c` is a separate install and some hosts reject
+large connection counts. If a download becomes unstable, lower `-x`/`-s` or drop
+the flag.
 
-### External Downloader (aria2c)
+### Fragment concurrency
 
-`--concurrent-fragments` only helps segmented (DASH/HLS) streams. For audio served as a single progressive stream, YouTube's per-connection throttling caps the speed. Handing the download to `aria2c`, which opens several connections per file, often gives a 2–5x speedup:
-
-```powershell
-yt2audio --downloader aria2c --downloader-args "-x16 -s16 -k1M" "https://www.youtube.com/watch?v=VIDEO_ID"
+```bash
+yt4 --fragments 16 "URL"
 ```
 
-This is opt-in because `aria2c` is a separate install and some hosts reject large connection counts. If a download becomes unstable, lower `-x`/`-s` or drop the flag.
-
-### Multiple URLs
-
-Use jobs to download several URLs at the same time:
-
-```powershell
-yt2audio --mp3 --jobs 4 "URL_1" "URL_2" "URL_3" "URL_4"
-```
-
-`--jobs` parallelizes separate URLs. It does not split a single video into multiple independent conversions.
-
-### Fragment Concurrency
-
-Increase fragment concurrency for segmented streams:
-
-```powershell
-yt2audio --fragments 16 "https://www.youtube.com/watch?v=VIDEO_ID"
-```
-
-Higher values can be faster on strong connections, but they are not always better. If downloads become unstable, lower the value.
+Higher values can be faster on strong connections, but are not always better. If
+downloads become unstable, lower the value.
 
 ## Output Naming
 
@@ -333,111 +274,60 @@ The default output template is:
 ```
 
 That keeps filenames readable while including the video ID to avoid collisions.
-
 Use a custom template:
 
-```powershell
-yt2audio --template "%(uploader)s - %(title).120B [%(id)s].%(ext)s" "URL"
+```bash
+yt4 --template "%(uploader)s - %(title).120B [%(id)s].%(ext)s" "URL"
 ```
 
-## Examples
+## Updating
 
-Download native audio to the project `downloads` folder:
-
-```powershell
-yt2audio "https://youtu.be/Ls1thq--vEg"
-```
-
-Download MP3 to your Downloads folder:
-
-```powershell
-yt2audio --mp3 --output-dir "$env:USERPROFILE\Downloads" "https://youtu.be/Ls1thq--vEg"
-```
-
-Download a playlist:
-
-```powershell
-yt2audio --playlist --mp3 "https://www.youtube.com/playlist?list=PLAYLIST_ID"
-```
-
-Embed metadata and thumbnail:
-
-```powershell
-yt2audio --mp3 --embed-metadata --embed-thumbnail "https://www.youtube.com/watch?v=VIDEO_ID"
-```
-
-## Development
-
-Run tests:
-
-```powershell
-npm.cmd test
-```
-
-Run the CLI without linking:
-
-```powershell
-node .\bin\yt2audio.js --dry-run --mp3 "https://www.youtube.com/watch?v=VIDEO_ID"
-```
-
-## Project Structure
-
-```text
-bin/yt2audio.js          CLI entry point (audio default)
-bin/yt3.js               Audio shortcut command
-bin/yt4.js               Video shortcut command
-src/cli.js               Runtime command orchestration
-src/ytDlp.js             Argument parsing and yt-dlp command construction
-src/interactive.js       Interactive prompt mode (node:readline)
-src/progress.js          Progress parsing and aggregated multi-bar rendering
-src/quality.js           Friendly video-quality presets and labels
-src/formats.js           Reads available qualities from yt-dlp (-J)
-test/ytDlp.test.js       Argument and command-builder coverage
-test/progress.test.js    Progress parser and renderer coverage
-test/interactive.test.js Interactive prompt coverage
-test/quality.test.js     Quality preset coverage
-test/formats.test.js     Format parsing coverage
+```bash
+npm update -g @tanattv/ytgrab        # if installed from npm
+npm install -g github:TanaTTV/yt2audio-fast   # if installed from GitHub
 ```
 
 ## Troubleshooting
 
-### `yt-dlp was not found on PATH`
+**`yt-dlp was not found on PATH`** — Install it and open a new terminal:
 
-Install it and open a new terminal:
-
-```powershell
-winget install yt-dlp.yt-dlp
+```bash
+winget install yt-dlp.yt-dlp   # Windows
+brew install yt-dlp            # macOS
 ```
 
-Then verify:
+**`ffmpeg was not found on PATH`** — Required for `--mp3` and for video. Install
+it, then verify with `ffmpeg -version`.
 
-```powershell
-yt-dlp --version
+**Downloads are slower than expected** — Try native audio instead of `--mp3`,
+avoid `--embed-metadata`/`--embed-thumbnail`, try the `aria2c` downloader, or
+adjust `--fragments`.
+
+**PowerShell blocks `npm`** — Use `npm.cmd` instead of `npm`.
+
+## Development
+
+```bash
+npm test                 # run the test suite (node --test)
+node bin/yt4.js --dry-run -q 4k "URL"   # run without installing
 ```
 
-### `ffmpeg was not found on PATH`
+### Project Structure
 
-Install `ffmpeg`, then verify:
-
-```powershell
-ffmpeg -version
+```text
+bin/ytgrab.js            CLI entry point (full CLI, audio default)
+bin/yt3.js               Audio shortcut command
+bin/yt4.js               Video shortcut command
+src/cli.js               Runtime command orchestration
+src/ytDlp.js             Argument parsing and yt-dlp command construction
+src/quality.js           Friendly video-quality presets and labels
+src/formats.js           Reads available qualities from yt-dlp (-J)
+src/interactive.js       Interactive prompt mode (node:readline)
+src/progress.js          Progress parsing and aggregated multi-bar rendering
+install/                 Install scripts and Windows right-click menu
+test/                    Node test runner coverage
 ```
-
-### PowerShell blocks `npm`
-
-Use `npm.cmd` instead of `npm`:
-
-```powershell
-npm.cmd test
-```
-
-### Downloads are slower than expected
-
-- Try native mode instead of `--mp3`.
-- Avoid `--embed-metadata` and `--embed-thumbnail`.
-- Try `--fragments 16` on fast connections.
-- Use `--jobs` only when downloading multiple URLs.
 
 ## License
 
-MIT
+[MIT](LICENSE)

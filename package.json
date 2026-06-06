@@ -1,18 +1,47 @@
 {
-  "name": "yt2audio-fast",
-  "version": "0.4.0",
-  "description": "Fast CLI wrapper around yt-dlp and ffmpeg for YouTube audio downloads.",
+  "name": "@tanattv/ytgrab",
+  "version": "0.5.0",
+  "description": "Fast, friendly CLI to download YouTube audio and video with yt-dlp and ffmpeg.",
   "type": "module",
   "bin": {
-    "yt2audio": "./bin/yt2audio.js",
+    "ytgrab": "./bin/ytgrab.js",
     "yt3": "./bin/yt3.js",
     "yt4": "./bin/yt4.js"
   },
   "scripts": {
     "test": "node --test"
   },
+  "files": [
+    "bin",
+    "src",
+    "install",
+    "README.md",
+    "LICENSE"
+  ],
   "engines": {
     "node": ">=20"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/TanaTTV/yt2audio-fast.git"
+  },
+  "homepage": "https://github.com/TanaTTV/yt2audio-fast#readme",
+  "bugs": {
+    "url": "https://github.com/TanaTTV/yt2audio-fast/issues"
+  },
+  "keywords": [
+    "youtube",
+    "yt-dlp",
+    "ffmpeg",
+    "download",
+    "downloader",
+    "audio",
+    "video",
+    "mp3",
+    "cli"
+  ],
+  "publishConfig": {
+    "access": "public"
   },
   "license": "MIT"
 }

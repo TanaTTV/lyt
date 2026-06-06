@@ -20,15 +20,15 @@ $ErrorActionPreference = "Stop"
 $base = "HKCU:\Software\Classes\Directory\Background\shell"
 
 $entries = @(
-    @{ Key = "yt2audio_audio"; Label = "Download audio here (yt3)"; Command = "yt3" },
-    @{ Key = "yt2audio_video"; Label = "Download video here (yt4)"; Command = "yt4" }
+    @{ Key = "ytgrab_audio"; Label = "Download audio here (yt3)"; Command = "yt3" },
+    @{ Key = "ytgrab_video"; Label = "Download video here (yt4)"; Command = "yt4" }
 )
 
 if ($Remove) {
     foreach ($entry in $entries) {
         Remove-Item -Path "$base\$($entry.Key)" -Recurse -Force -ErrorAction SilentlyContinue
     }
-    Write-Host "Removed yt2audio right-click menu entries." -ForegroundColor Green
+    Write-Host "Removed ytgrab right-click menu entries." -ForegroundColor Green
     return
 }
 

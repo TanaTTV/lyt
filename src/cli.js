@@ -15,7 +15,7 @@ import { createProgressRenderer, parseProgressLine } from "./progress.js";
 import { listFormats } from "./formats.js";
 import { labelHeight } from "./quality.js";
 
-const VERSION = "0.4.0";
+const VERSION = "0.5.0";
 
 // Above this many URLs we skip the aggregated bar block (it would scroll the
 // terminal) and fall back to yt-dlp's own inherited progress output.
@@ -37,7 +37,7 @@ export async function main(argv, defaults = {}) {
   }
 
   if (parsed.version) {
-    console.log(`yt2audio ${VERSION}`);
+    console.log(`ytgrab ${VERSION}`);
     return;
   }
 
