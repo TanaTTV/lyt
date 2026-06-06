@@ -136,6 +136,16 @@ export function parseArgs(argv) {
       continue;
     }
 
+    if (arg === "--cookies-from-browser") {
+      options.cookiesFromBrowser = readValue(argv, ++index, arg);
+      continue;
+    }
+
+    if (arg === "--cookies") {
+      options.cookies = readValue(argv, ++index, arg);
+      continue;
+    }
+
     if (arg.startsWith("-")) {
       const error = new Error(`Unknown option: ${arg}`);
       error.exitCode = 2;
@@ -174,6 +184,8 @@ export function normalizeOptions(options = {}) {
     template: options.template ?? DEFAULT_OUTPUT_TEMPLATE,
     downloader: options.downloader ?? null,
     downloaderArgs: options.downloaderArgs ?? null,
+    cookiesFromBrowser: options.cookiesFromBrowser ?? null,
+    cookies: options.cookies ?? null,
   };
 }
 
@@ -237,6 +249,14 @@ export function buildYtDlpArgs(url, options) {
     args.push("--embed-thumbnail");
   }
 
+  if (options.cookiesFromBrowser) {
+    args.push("--cookies-from-browser", options.cookiesFromBrowser);
+  }
+
+  if (options.cookies) {
+    args.push("--cookies", options.cookies);
+  }
+
   // Isolate the positional URL behind `--` so a URL that looks like a flag
   // (e.g. "--exec=...") can never be interpreted as a yt-dlp option.
   args.push("--", url);
@@ -286,6 +306,8 @@ Options:
   --template <template>     yt-dlp output template
   --downloader <name>       External downloader, e.g. aria2c (faster on throttled hosts)
   --downloader-args <args>  Args for the external downloader, e.g. "-x16 -s16 -k1M"
+  --cookies-from-browser <b>  Use browser cookies (chrome, firefox, edge, etc.)
+  --cookies <file>          Netscape cookie file for age-restricted or private videos
   --no-part                 Write directly to the output file (skip .part)
   --playlist                Allow playlist downloads
   --no-playlist             Download only the single video URL (default)

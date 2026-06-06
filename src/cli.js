@@ -15,6 +15,9 @@ import { createProgressRenderer, parseProgressLine } from "./progress.js";
 
 const VERSION = "0.3.0";
 
+// yt-dlp releases are dated; warn when the installed build looks stale.
+const MIN_YTDLP_VERSION = "2024.10.01";
+
 // Above this many URLs we skip the aggregated bar block (it would scroll the
 // terminal) and fall back to yt-dlp's own inherited progress output.
 const MAX_PROGRESS_BARS = 20;
@@ -169,7 +172,47 @@ function ensureCommand(command, installHint) {
     throw error;
   }
 
+  if (command === "yt-dlp") {
+    warnIfYtDlpStale(probe.stdout ?? probe.stderr ?? "");
+  }
+
   return executable;
+}
+
+export function warnIfYtDlpStale(versionOutput, { out = process.stderr } = {}) {
+  if (process.env.YT2AUDIO_SKIP_VERSION_CHECK) {
+    return;
+  }
+
+  const match = /(\d{4}\.\d{2}\.\d{2})/.exec(versionOutput);
+
+  if (!match || match[1] >= MIN_YTDLP_VERSION) {
+    return;
+  }
+
+  out.write(
+    `Warning: yt-dlp ${match[1]} may be outdated (recommended >= ${MIN_YTDLP_VERSION}). ` +
+      "Update with: yt-dlp -U\n",
+  );
+}
+
+export function suggestAuthHint(recentLines) {
+  const text = recentLines.join("\n").toLowerCase();
+
+  if (
+    text.includes("sign in") ||
+    text.includes("login") ||
+    text.includes("private video") ||
+    text.includes("members only") ||
+    text.includes("age-restricted")
+  ) {
+    return (
+      "\nHint: try --cookies-from-browser chrome (or firefox/edge) for signed-in or " +
+      "restricted videos."
+    );
+  }
+
+  return "";
 }
 
 function resolveWindowsCommand(command) {
@@ -275,7 +318,8 @@ function settle(resolve, reject, command, code, recent = []) {
   }
 
   const detail = recent.length > 0 ? `\n${recent.join("\n")}` : "";
-  const error = new Error(`${command} exited with code ${code}${detail}`);
+  const hint = suggestAuthHint(recent);
+  const error = new Error(`${command} exited with code ${code}${detail}${hint}`);
   error.exitCode = code;
   reject(error);
 }
