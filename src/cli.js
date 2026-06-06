@@ -716,6 +716,29 @@ export function runCommand(command, args, { onLine, quiet = false, cwd = process
   });
 }
 
+// yt-dlp reports sign-in and age gates as ordinary failures, so surface the
+// cookie flags on the errors that those gates actually produce.
+export function suggestAuthHint(recentLines) {
+  // yt-dlp hyphenates inconsistently ("members-only", "age-restricted"), so
+  // flatten hyphens and match a single spaced form of each phrase.
+  const text = recentLines.join("\n").toLowerCase().replace(/-/g, " ");
+
+  if (
+    text.includes("sign in") ||
+    text.includes("login") ||
+    text.includes("private video") ||
+    text.includes("members only") ||
+    text.includes("age restricted")
+  ) {
+    return (
+      "\nHint: try --cookies-from-browser chrome (or firefox/edge) for signed-in or " +
+      "restricted videos."
+    );
+  }
+
+  return "";
+}
+
 function settle(resolve, reject, command, code, recent = [], outcome = { files: [] }) {
   if (code === 0) {
     resolve(outcome);
@@ -723,7 +746,8 @@ function settle(resolve, reject, command, code, recent = [], outcome = { files: 
   }
 
   const detail = recent.length > 0 ? `\n${recent.join("\n")}` : "";
-  const error = new Error(`${command} exited with code ${code}${detail}`);
+  const hint = suggestAuthHint(recent);
+  const error = new Error(`${command} exited with code ${code}${detail}${hint}`);
   error.exitCode = code;
   reject(error);
 }

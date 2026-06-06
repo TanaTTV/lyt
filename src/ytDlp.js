@@ -201,6 +201,16 @@ export function parseArgs(argv) {
       continue;
     }
 
+    if (arg === "--cookies-from-browser") {
+      options.cookiesFromBrowser = readValue(argv, ++index, arg);
+      continue;
+    }
+
+    if (arg === "--cookies") {
+      options.cookies = readValue(argv, ++index, arg);
+      continue;
+    }
+
     if (arg === "--max-filesize") {
       options.maxFilesize = readValue(argv, ++index, arg);
       continue;
@@ -273,6 +283,8 @@ export function normalizeOptions(options = {}) {
     downloader: options.downloader ?? null,
     downloaderArgs: options.downloaderArgs ?? null,
     maxFilesize: normalizeSize(options.maxFilesize),
+    cookiesFromBrowser: options.cookiesFromBrowser ?? null,
+    cookies: options.cookies ?? null,
   };
 }
 
@@ -343,6 +355,14 @@ export function buildYtDlpArgs(
 
   if (options.embedThumbnail) {
     args.push("--embed-thumbnail");
+  }
+
+  if (options.cookiesFromBrowser) {
+    args.push("--cookies-from-browser", options.cookiesFromBrowser);
+  }
+
+  if (options.cookies) {
+    args.push("--cookies", options.cookies);
   }
 
   for (const section of options.clips ?? []) {
@@ -495,6 +515,8 @@ Options:
   --downloader <name>       External downloader, e.g. aria2c (faster on throttled hosts)
   --downloader-args <args>  Args for the external downloader, e.g. "-x16 -s16 -k1M"
   --max-filesize <size>     Skip media larger than a yt-dlp size such as 2G
+  --cookies-from-browser <b> Use browser cookies (chrome, firefox, edge, etc.)
+  --cookies <file>          Netscape cookie file for age-restricted or private videos
   --no-part                 Write directly to the output file (skip .part)
   --playlist                Allow playlist downloads
   --no-playlist             Download only the single video URL (default)

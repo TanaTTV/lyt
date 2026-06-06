@@ -416,3 +416,27 @@ test("explicit flags win over profile options when merged after", () => {
   assert.equal(options.mp3, true);
   assert.equal(options.quality, "128K");
 });
+
+test("cookies flags are passed through to yt-dlp", () => {
+  const options = normalizeOptions({
+    cookiesFromBrowser: "chrome",
+    cookies: "cookies.txt",
+  });
+  const args = buildYtDlpArgs("u", options);
+
+  assert.equal(args[args.indexOf("--cookies-from-browser") + 1], "chrome");
+  assert.equal(args[args.indexOf("--cookies") + 1], "cookies.txt");
+});
+
+test("parses --cookies-from-browser and --cookies", () => {
+  const parsed = parseArgs([
+    "--cookies-from-browser",
+    "firefox",
+    "--cookies",
+    "cookies.txt",
+    "u",
+  ]);
+
+  assert.equal(parsed.options.cookiesFromBrowser, "firefox");
+  assert.equal(parsed.options.cookies, "cookies.txt");
+});
