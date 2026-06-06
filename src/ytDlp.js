@@ -40,6 +40,16 @@ export function parseArgs(argv) {
       continue;
     }
 
+    if (arg === "--video") {
+      options.video = true;
+      continue;
+    }
+
+    if (arg === "--audio") {
+      options.video = false;
+      continue;
+    }
+
     if (arg === "--playlist") {
       options.playlist = true;
       continue;
@@ -110,6 +120,11 @@ export function parseArgs(argv) {
       continue;
     }
 
+    if (arg === "--max-height") {
+      options.maxHeight = readValue(argv, ++index, arg);
+      continue;
+    }
+
     if (arg === "--downloader") {
       options.downloader = readValue(argv, ++index, arg);
       continue;
@@ -134,8 +149,15 @@ export function parseArgs(argv) {
 }
 
 export function normalizeOptions(options = {}) {
+  const video = options.video ?? false;
+
   return {
-    mp3: options.mp3 ?? false,
+    video,
+    // Video downloads keep the muxed file; audio extraction never applies.
+    mp3: video ? false : (options.mp3 ?? false),
+    maxHeight: video && options.maxHeight != null
+      ? normalizePositiveInteger(options.maxHeight, "max-height")
+      : null,
     outputDir: options.outputDir ?? "downloads",
     quality: normalizeQuality(options.quality ?? "192K"),
     fragments: normalizePositiveInteger(options.fragments ?? 8, "fragments"),
@@ -163,10 +185,15 @@ export function buildYtDlpArgs(url, options) {
     "--concurrent-fragments",
     String(options.fragments),
     "-f",
-    options.mp3 ? "bestaudio" : "bestaudio[ext=m4a]/bestaudio[ext=webm]/bestaudio",
+    selectFormat(options),
     "-o",
     join(options.outputDir, options.template),
   ];
+
+  if (options.video) {
+    // Ensure a single playable file when the best video/audio come separately.
+    args.push("--merge-output-format", "mp4");
+  }
 
   if (!options.playlist) {
     args.push("--no-playlist");
@@ -216,6 +243,19 @@ export function buildYtDlpArgs(url, options) {
   return args;
 }
 
+function selectFormat(options) {
+  if (options.video) {
+    const cap = options.maxHeight ? `[height<=${options.maxHeight}]` : "";
+    return `bestvideo${cap}+bestaudio/best${cap}`;
+  }
+
+  if (options.mp3) {
+    return "bestaudio";
+  }
+
+  return "bestaudio[ext=m4a]/bestaudio[ext=webm]/bestaudio";
+}
+
 export function formatCommand(command, args) {
   return [command, ...args].map(quoteArg).join(" ");
 }
@@ -236,6 +276,9 @@ Interactive mode (also auto-starts when run with no URL in a terminal):
 Options:
   --mp3                     Convert extracted audio to MP3 with ffmpeg
   --native                  Save native audio stream when possible (default)
+  --video                   Download video (best video+audio, muxed to mp4)
+  --audio                   Download audio only (default)
+  --max-height <n>          Cap video resolution, e.g. 1080 or 720 (video mode)
   -q, --quality <value>     MP3 quality, e.g. 128K, 192K, 320K, or 0 (default: 192K)
   -f, --fragments <n>       Concurrent fragments per download (default: 8)
   -j, --jobs <n>            Parallel downloads for multiple URLs (default: 1)

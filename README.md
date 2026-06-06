@@ -6,7 +6,8 @@ The main idea is simple: let `yt-dlp` do the hard download work, keep the wrappe
 
 ## What It Does
 
-- Downloads audio only, not video.
+- Downloads audio by default, or video with `--video` (or the `yt4` command).
+- Ships short commands: `yt3` for audio, `yt4` for video.
 - Defaults to native audio for maximum speed.
 - Converts to MP3 when you pass `--mp3`.
 - Uses concurrent fragments to speed up segmented downloads.
@@ -77,6 +78,43 @@ If you do not want to link it globally, run it directly:
 node .\bin\yt2audio.js --version
 ```
 
+## Install Globally (use `yt3` / `yt4` anywhere)
+
+From the project folder, install the commands onto your PATH so they work in any
+PowerShell, cmd, bash, or zsh window:
+
+```powershell
+npm.cmd install -g .
+```
+
+(On macOS/Linux: `npm install -g .`)
+
+This adds three commands:
+
+| Command | Does |
+| --- | --- |
+| `yt3` | Download audio (same as `yt2audio`). |
+| `yt4` | Download video (best video+audio, muxed to mp4). |
+| `yt2audio` | The full CLI; defaults to audio. |
+
+Then, from anywhere:
+
+```powershell
+yt3 "https://www.youtube.com/watch?v=VIDEO_ID"
+yt4 "https://www.youtube.com/watch?v=VIDEO_ID"
+```
+
+You can pass several URLs at once to either command, and use `--jobs` to fetch
+them in parallel:
+
+```powershell
+yt3 --jobs 3 "URL_1" "URL_2" "URL_3"
+yt4 --max-height 1080 "URL_1" "URL_2"
+```
+
+To update after pulling new changes, just run `npm.cmd install -g .` again. To
+remove the commands, run `npm.cmd uninstall -g yt2audio-fast`.
+
 ## Quick Start
 
 Fastest mode, preserving the native audio format when possible:
@@ -127,6 +165,9 @@ Options:
 | --- | --- |
 | `--mp3` | Convert extracted audio to MP3 with `ffmpeg`. |
 | `--native` | Save native audio stream when possible. This is the default. |
+| `--video` | Download video (best video+audio, muxed to mp4). Default for `yt4`. |
+| `--audio` | Download audio only. This is the default for `yt2audio`/`yt3`. |
+| `--max-height <n>` | Cap video resolution, e.g. `1080` or `720` (video mode). |
 | `-q, --quality <value>` | MP3 quality, such as `128K`, `192K`, `320K`, or `0`. Default is `192K`. |
 | `-f, --fragments <n>` | Concurrent fragments per download. Default is `8`. |
 | `-j, --jobs <n>` | Parallel downloads for multiple URLs. Default is `1`. |
@@ -267,7 +308,9 @@ node .\bin\yt2audio.js --dry-run --mp3 "https://www.youtube.com/watch?v=VIDEO_ID
 ## Project Structure
 
 ```text
-bin/yt2audio.js          CLI entry point
+bin/yt2audio.js          CLI entry point (audio default)
+bin/yt3.js               Audio shortcut command
+bin/yt4.js               Video shortcut command
 src/cli.js               Runtime command orchestration
 src/ytDlp.js             Argument parsing and yt-dlp command construction
 src/interactive.js       Interactive prompt mode (node:readline)
