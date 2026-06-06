@@ -9,12 +9,25 @@ export function parseArgs(argv) {
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
 
+    if (arg === "--") {
+      // Everything after `--` is a positional URL, even if it starts with "-".
+      for (index += 1; index < argv.length; index += 1) {
+        urls.push(requireUrl(argv[index]));
+      }
+      break;
+    }
+
     if (arg === "-h" || arg === "--help") {
       return { help: true, options, urls };
     }
 
     if (arg === "-v" || arg === "--version") {
       return { version: true, options, urls };
+    }
+
+    if (arg === "-i" || arg === "--interactive") {
+      options.interactive = true;
+      continue;
     }
 
     if (arg === "--mp3") {
@@ -34,6 +47,11 @@ export function parseArgs(argv) {
 
     if (arg === "--no-playlist") {
       options.playlist = false;
+      continue;
+    }
+
+    if (arg === "--no-part") {
+      options.noPart = true;
       continue;
     }
 
@@ -92,13 +110,24 @@ export function parseArgs(argv) {
       continue;
     }
 
+    if (arg === "--downloader") {
+      options.downloader = readValue(argv, ++index, arg);
+      continue;
+    }
+
+    if (arg === "--downloader-args") {
+      // Downloader args routinely start with "-" (e.g. "-x16 -s16"), so allow it.
+      options.downloaderArgs = readValue(argv, ++index, arg, { allowDash: true });
+      continue;
+    }
+
     if (arg.startsWith("-")) {
       const error = new Error(`Unknown option: ${arg}`);
       error.exitCode = 2;
       throw error;
     }
 
-    urls.push(arg);
+    urls.push(requireUrl(arg));
   }
 
   return { options, urls };
@@ -112,13 +141,17 @@ export function normalizeOptions(options = {}) {
     fragments: normalizePositiveInteger(options.fragments ?? 8, "fragments"),
     jobs: normalizePositiveInteger(options.jobs ?? 1, "jobs"),
     playlist: options.playlist ?? false,
+    noPart: options.noPart ?? false,
     dryRun: options.dryRun ?? false,
     printCommand: options.printCommand ?? false,
+    interactive: options.interactive ?? false,
     embedMetadata: options.embedMetadata ?? false,
     embedThumbnail: options.embedThumbnail ?? false,
     continueDownloads: options.continueDownloads ?? true,
     forceOverwrite: options.forceOverwrite ?? false,
     template: options.template ?? DEFAULT_OUTPUT_TEMPLATE,
+    downloader: options.downloader ?? null,
+    downloaderArgs: options.downloaderArgs ?? null,
   };
 }
 
@@ -137,6 +170,24 @@ export function buildYtDlpArgs(url, options) {
 
   if (!options.playlist) {
     args.push("--no-playlist");
+  }
+
+  if (options.noPart) {
+    args.push("--no-part");
+  }
+
+  if (options.downloader) {
+    args.push("--downloader", options.downloader);
+
+    if (options.downloaderArgs) {
+      // yt-dlp expects external downloader args as "NAME:ARGS".
+      const value = options.downloaderArgs.includes(":")
+        ? options.downloaderArgs
+        : `${options.downloader}:${options.downloaderArgs}`;
+      args.push("--downloader-args", value);
+    }
+  } else if (options.downloaderArgs) {
+    args.push("--downloader-args", options.downloaderArgs);
   }
 
   if (options.continueDownloads && !options.forceOverwrite) {
@@ -159,7 +210,9 @@ export function buildYtDlpArgs(url, options) {
     args.push("--embed-thumbnail");
   }
 
-  args.push(url);
+  // Isolate the positional URL behind `--` so a URL that looks like a flag
+  // (e.g. "--exec=...") can never be interpreted as a yt-dlp option.
+  args.push("--", url);
   return args;
 }
 
@@ -177,29 +230,46 @@ Fast native audio by default:
 MP3 conversion:
   yt2audio --mp3 -q 192K "https://www.youtube.com/watch?v=..."
 
+Interactive mode (also auto-starts when run with no URL in a terminal):
+  yt2audio -i
+
 Options:
-  --mp3                  Convert extracted audio to MP3 with ffmpeg
-  --native               Save native audio stream when possible (default)
-  -q, --quality <value>  MP3 quality, e.g. 128K, 192K, 320K, or 0 (default: 192K)
-  -f, --fragments <n>    Concurrent fragments per download (default: 8)
-  -j, --jobs <n>         Parallel downloads for multiple URLs (default: 1)
-  -o, --output-dir <dir> Output directory (default: downloads)
-  --template <template>  yt-dlp output template
-  --playlist             Allow playlist downloads
-  --no-playlist          Download only the single video URL (default)
-  --embed-metadata       Embed metadata; may add time
-  --embed-thumbnail      Embed thumbnail; may add time
-  --force-overwrite      Replace existing files
-  --print-command        Print yt-dlp commands before running
-  --dry-run              Print commands without running
-  -h, --help             Show this help
-  -v, --version          Show version`;
+  --mp3                     Convert extracted audio to MP3 with ffmpeg
+  --native                  Save native audio stream when possible (default)
+  -q, --quality <value>     MP3 quality, e.g. 128K, 192K, 320K, or 0 (default: 192K)
+  -f, --fragments <n>       Concurrent fragments per download (default: 8)
+  -j, --jobs <n>            Parallel downloads for multiple URLs (default: 1)
+  -o, --output-dir <dir>    Output directory (default: downloads)
+  --template <template>     yt-dlp output template
+  --downloader <name>       External downloader, e.g. aria2c (faster on throttled hosts)
+  --downloader-args <args>  Args for the external downloader, e.g. "-x16 -s16 -k1M"
+  --no-part                 Write directly to the output file (skip .part)
+  --playlist                Allow playlist downloads
+  --no-playlist             Download only the single video URL (default)
+  --embed-metadata          Embed metadata; may add time
+  --embed-thumbnail         Embed thumbnail; may add time
+  --force-overwrite         Replace existing files
+  --print-command           Print yt-dlp commands before running
+  --dry-run                 Print commands without running
+  -i, --interactive         Prompt for options interactively
+  -h, --help                Show this help
+  -v, --version             Show version`;
 }
 
-function readValue(argv, index, optionName) {
+function requireUrl(value) {
+  if (value === undefined || value.trim() === "") {
+    const error = new Error("Empty URL argument.");
+    error.exitCode = 2;
+    throw error;
+  }
+
+  return value;
+}
+
+function readValue(argv, index, optionName, { allowDash = false } = {}) {
   const value = argv[index];
 
-  if (!value || value.startsWith("-")) {
+  if (value === undefined || (!allowDash && value.startsWith("-"))) {
     const error = new Error(`${optionName} needs a value.`);
     error.exitCode = 2;
     throw error;
@@ -221,9 +291,10 @@ function normalizeQuality(value) {
 }
 
 function normalizePositiveInteger(value, name) {
-  const parsed = Number.parseInt(String(value), 10);
+  const str = String(value).trim();
+  const parsed = Number(str);
 
-  if (!Number.isInteger(parsed) || parsed < 1) {
+  if (!/^\d+$/.test(str) || !Number.isInteger(parsed) || parsed < 1) {
     const error = new Error(`${name} must be a positive integer.`);
     error.exitCode = 2;
     throw error;
