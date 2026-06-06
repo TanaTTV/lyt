@@ -12,8 +12,10 @@ import {
 } from "./ytDlp.js";
 import { promptForJob } from "./interactive.js";
 import { createProgressRenderer, parseProgressLine } from "./progress.js";
+import { listFormats } from "./formats.js";
+import { labelHeight } from "./quality.js";
 
-const VERSION = "0.3.0";
+const VERSION = "0.4.0";
 
 // Above this many URLs we skip the aggregated bar block (it would scroll the
 // terminal) and fall back to yt-dlp's own inherited progress output.
@@ -50,7 +52,15 @@ export async function main(argv, defaults = {}) {
       !parsed.options.printCommand);
 
   if (wantsInteractive) {
-    const job = await promptForJob({ defaults: parsed.options });
+    const fetchFormats = (url) =>
+      listFormats(url, {
+        command: ensureCommand(
+          "yt-dlp",
+          "Install yt-dlp first: https://github.com/yt-dlp/yt-dlp#installation",
+        ),
+      });
+
+    const job = await promptForJob({ defaults: parsed.options, fetchFormats });
 
     if (!job) {
       return;
@@ -67,6 +77,23 @@ export async function main(argv, defaults = {}) {
     const error = new Error(`${usage()}\n\nMissing URL.`);
     error.exitCode = 2;
     throw error;
+  }
+
+  if (options.listFormats) {
+    const command = ensureCommand(
+      "yt-dlp",
+      "Install yt-dlp first: https://github.com/yt-dlp/yt-dlp#installation",
+    );
+
+    for (const url of urls) {
+      try {
+        printFormats(url, await listFormats(url, { command }));
+      } catch (error) {
+        console.error(`- ${url}: ${error.message}`);
+      }
+    }
+
+    return;
   }
 
   // Build each command exactly once and reuse it for both printing and running
@@ -278,6 +305,27 @@ function settle(resolve, reject, command, code, recent = []) {
   const error = new Error(`${command} exited with code ${code}${detail}`);
   error.exitCode = code;
   reject(error);
+}
+
+function printFormats(url, formats) {
+  console.log(formats.title ? `${formats.title}` : url);
+
+  if (formats.heights.length > 0) {
+    const labels = formats.heights.map((height) => labelHeight(height));
+    console.log(`  video: ${labels.join(", ")}`);
+    const best = formats.heights[0];
+    console.log(`  download best with: yt4 -q ${best}p -- "${url}"`);
+  }
+
+  if (formats.audioBitrates.length > 0) {
+    console.log(`  audio: ${formats.audioBitrates.map((rate) => `${rate}k`).join(", ")}`);
+  }
+
+  if (formats.heights.length === 0 && formats.audioBitrates.length === 0) {
+    console.log("  no downloadable formats reported");
+  }
+
+  console.log("");
 }
 
 function shortLabel(url) {

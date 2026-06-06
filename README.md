@@ -203,8 +203,9 @@ Options:
 | `--native` | Save native audio stream when possible. This is the default. |
 | `--video` | Download video (best video+audio, muxed to mp4). Default for `yt4`. |
 | `--audio` | Download audio only. This is the default for `yt2audio`/`yt3`. |
-| `--max-height <n>` | Cap video resolution, e.g. `1080` or `720` (video mode). |
-| `-q, --quality <value>` | MP3 quality, such as `128K`, `192K`, `320K`, or `0`. Default is `192K`. |
+| `-q, --quality <value>` | Audio: MP3 bitrate (`128K`, `192K`, `320K`, `0`). Video: a resolution like `1080p`, `720p`, `4k`, `8k`, or `best`. |
+| `--max-height <value>` | Cap video resolution; alias of `-q` in video mode (accepts `1080`, `1080p`, `4k`, …). |
+| `-L, --list-formats` | List the qualities available for each URL, then exit. |
 | `-f, --fragments <n>` | Concurrent fragments per download. Default is `8`. |
 | `-j, --jobs <n>` | Parallel downloads for multiple URLs. Default is `1`. |
 | `-o, --output-dir <dir>` | Output directory. Default is `downloads`. |
@@ -222,6 +223,44 @@ Options:
 | `--dry-run` | Print generated commands without running downloads. |
 | `-h, --help` | Show help. |
 | `-v, --version` | Show version. |
+
+## Choosing Quality
+
+You do not have to memorize resolution numbers. In video mode, `-q` (or
+`--quality`) takes friendly names:
+
+```powershell
+yt4 -q 1080p "URL"     # Full HD
+yt4 -q 4k "URL"        # 2160p
+yt4 -q 8k "URL"        # 4320p, when the video offers it
+yt4 -q best "URL"      # highest available (default)
+```
+
+Accepted video values: `144p`, `240p`, `360p`, `480p`, `720p`/`hd`,
+`1080p`/`fhd`, `1440p`/`2k`, `2160p`/`4k`, `4320p`/`8k`, plain numbers like
+`1080`, and `best`. If a video is not available at the size you ask for,
+`yt-dlp` automatically falls back to the closest lower quality.
+
+In audio mode, `-q` stays the MP3 bitrate (`128K`, `192K`, `320K`, or `0` for
+best VBR).
+
+### See what a video actually offers
+
+Not sure how high a video goes (does it have 4K? 8K?). List its real qualities:
+
+```powershell
+yt4 --list-formats "URL"
+```
+
+```text
+Some Video Title
+  video: 2160p (4K), 1440p (2K), 1080p (Full HD), 720p (HD)
+  download best with: yt4 -q 2160p -- "URL"
+  audio: 160k, 128k, 70k
+```
+
+The interactive mode (`yt4 -i`) can do this for you too: it offers to list the
+available qualities and lets you pick one from a numbered menu.
 
 ## Speed Guide
 
@@ -351,9 +390,13 @@ src/cli.js               Runtime command orchestration
 src/ytDlp.js             Argument parsing and yt-dlp command construction
 src/interactive.js       Interactive prompt mode (node:readline)
 src/progress.js          Progress parsing and aggregated multi-bar rendering
+src/quality.js           Friendly video-quality presets and labels
+src/formats.js           Reads available qualities from yt-dlp (-J)
 test/ytDlp.test.js       Argument and command-builder coverage
 test/progress.test.js    Progress parser and renderer coverage
 test/interactive.test.js Interactive prompt coverage
+test/quality.test.js     Quality preset coverage
+test/formats.test.js     Format parsing coverage
 ```
 
 ## Troubleshooting

@@ -1,4 +1,5 @@
 import { join } from "node:path";
+import { resolveHeight } from "./quality.js";
 
 const DEFAULT_OUTPUT_TEMPLATE = "%(title).180B [%(id)s].%(ext)s";
 
@@ -62,6 +63,11 @@ export function parseArgs(argv) {
 
     if (arg === "--no-part") {
       options.noPart = true;
+      continue;
+    }
+
+    if (arg === "--list-formats" || arg === "-L") {
+      options.listFormats = true;
       continue;
     }
 
@@ -151,15 +157,23 @@ export function parseArgs(argv) {
 export function normalizeOptions(options = {}) {
   const video = options.video ?? false;
 
+  // In video mode, -q/--quality (and --max-height) pick a resolution, e.g.
+  // "1080p" or "4k". In audio mode, -q/--quality is the MP3 bitrate.
+  let maxHeight = null;
+
+  if (video) {
+    const token = options.maxHeight ?? options.quality;
+    maxHeight = token != null ? resolveHeight(token) : null;
+  }
+
   return {
     video,
     // Video downloads keep the muxed file; audio extraction never applies.
     mp3: video ? false : (options.mp3 ?? false),
-    maxHeight: video && options.maxHeight != null
-      ? normalizePositiveInteger(options.maxHeight, "max-height")
-      : null,
+    maxHeight,
+    listFormats: options.listFormats ?? false,
     outputDir: options.outputDir ?? "downloads",
-    quality: normalizeQuality(options.quality ?? "192K"),
+    quality: video ? null : normalizeQuality(options.quality ?? "192K"),
     fragments: normalizePositiveInteger(options.fragments ?? 8, "fragments"),
     jobs: normalizePositiveInteger(options.jobs ?? 1, "jobs"),
     playlist: options.playlist ?? false,
@@ -278,8 +292,10 @@ Options:
   --native                  Save native audio stream when possible (default)
   --video                   Download video (best video+audio, muxed to mp4)
   --audio                   Download audio only (default)
-  --max-height <n>          Cap video resolution, e.g. 1080 or 720 (video mode)
-  -q, --quality <value>     MP3 quality, e.g. 128K, 192K, 320K, or 0 (default: 192K)
+  -q, --quality <value>     Audio: MP3 bitrate (128K/192K/320K/0). Video: a
+                            resolution like 1080p, 720p, 4k, 8k, or best
+  --max-height <value>      Cap video resolution (alias of -q in video mode)
+  -L, --list-formats        List the qualities available for each URL and exit
   -f, --fragments <n>       Concurrent fragments per download (default: 8)
   -j, --jobs <n>            Parallel downloads for multiple URLs (default: 1)
   -o, --output-dir <dir>    Output directory (default: downloads)

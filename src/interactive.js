@@ -1,10 +1,17 @@
 import { createInterface } from "node:readline/promises";
 import { stdin, stdout } from "node:process";
+import { labelHeight } from "./quality.js";
 
 // Prompts for a download job and returns a `{ urls, options }` shape that
 // matches `parseArgs`, so the answers flow through the same normalize +
-// validation path as command-line flags. Streams are injectable for testing.
-export async function promptForJob({ input = stdin, output = stdout, defaults = {} } = {}) {
+// validation path as command-line flags. Streams (and the optional format
+// lookup) are injectable for testing.
+export async function promptForJob({
+  input = stdin,
+  output = stdout,
+  defaults = {},
+  fetchFormats = null,
+} = {}) {
   const rl = createInterface({ input, output });
 
   try {
@@ -21,10 +28,10 @@ export async function promptForJob({ input = stdin, output = stdout, defaults = 
     const options = { video };
 
     if (video) {
-      const height = await ask(rl, "Max height (e.g. 1080, blank=best)", "");
+      const quality = await pickVideoQuality(rl, output, urls[0], fetchFormats);
 
-      if (height) {
-        options.maxHeight = height;
+      if (quality && !/^best$/i.test(quality)) {
+        options.maxHeight = quality;
       }
     } else {
       const format = await ask(rl, "Format [native/mp3]", "native");
@@ -45,6 +52,40 @@ export async function promptForJob({ input = stdin, output = stdout, defaults = 
   } finally {
     rl.close();
   }
+}
+
+// Offers to list the real qualities available for the URL and pick one;
+// otherwise (or on any failure) falls back to a free-form preset prompt.
+async function pickVideoQuality(rl, output, url, fetchFormats) {
+  if (fetchFormats) {
+    const wantList = await ask(rl, "List available qualities? [Y/n]", "Y");
+
+    if (/^y/i.test(wantList)) {
+      try {
+        const { heights } = await fetchFormats(url);
+
+        if (heights.length > 0) {
+          output.write("Available video qualities:\n");
+          heights.forEach((height, index) => {
+            output.write(`  ${index + 1}) ${labelHeight(height)}\n`);
+          });
+
+          const choice = await ask(rl, `Pick 1-${heights.length} or 'best'`, "best");
+
+          if (/^\d+$/.test(choice)) {
+            const height = heights[Number(choice) - 1];
+            return height ? String(height) : "best";
+          }
+
+          return choice;
+        }
+      } catch {
+        // Fall through to the manual prompt below.
+      }
+    }
+  }
+
+  return ask(rl, "Quality (8k/4k/1080p/720p/best)", "best");
 }
 
 async function ask(rl, label, fallback) {
