@@ -276,16 +276,20 @@ export function formatCommand(command, args) {
 
 export function usage() {
   return `Usage:
-  yt2audio [options] <youtube-url> [more-urls...]
+  lyt [options] <youtube-url> [more-urls...]
+  yt3 <url>   audio shortcut        yt4 <url>   video shortcut
 
-Fast native audio by default:
-  yt2audio "https://www.youtube.com/watch?v=..."
+Audio (default):
+  lyt "https://www.youtube.com/watch?v=..."
 
 MP3 conversion:
-  yt2audio --mp3 -q 192K "https://www.youtube.com/watch?v=..."
+  lyt --mp3 -q 192K "https://www.youtube.com/watch?v=..."
+
+Video at a chosen quality:
+  yt4 -q 1080p "https://www.youtube.com/watch?v=..."
 
 Interactive mode (also auto-starts when run with no URL in a terminal):
-  yt2audio -i
+  lyt -i
 
 Options:
   --mp3                     Convert extracted audio to MP3 with ffmpeg

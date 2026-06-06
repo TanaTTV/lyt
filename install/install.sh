@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Installs the yt2audio commands (yt3, yt4, yt2audio) onto your PATH.
+# Installs the lyt commands (lyt, yt3, yt4) onto your PATH.
 #
 # Run from anywhere:
 #   bash install/install.sh
@@ -8,7 +8,7 @@ set -euo pipefail
 
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
-echo "Installing yt2audio commands (yt3, yt4, yt2audio)..."
+echo "Installing lyt commands (lyt, yt3, yt4)..."
 
 if ! command -v node >/dev/null 2>&1; then
   echo "Error: Node.js 20+ is required." >&2
