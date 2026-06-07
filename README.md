@@ -1,47 +1,67 @@
 # lyt
 
-**lyt** is a tiny, fast, friendly command-line tool for downloading YouTube
-audio and video. It wraps [`yt-dlp`](https://github.com/yt-dlp/yt-dlp) and
-[`ffmpeg`](https://ffmpeg.org/) and stays out of the way: sensible defaults,
-short commands, and quality you can pick by name instead of memorizing numbers.
+[![npm version](https://img.shields.io/npm/v/lyt)](https://www.npmjs.com/package/lyt)
+[![npm downloads](https://img.shields.io/npm/dm/lyt)](https://www.npmjs.com/package/lyt)
+[![CI](https://github.com/TanaTTV/yt2audio-fast/actions/workflows/ci.yml/badge.svg)](https://github.com/TanaTTV/yt2audio-fast/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-```bash
-yt3 "https://www.youtube.com/watch?v=VIDEO_ID"      # audio
-yt4 -q 1080p "https://www.youtube.com/watch?v=VIDEO_ID"  # video
+Tired of sketchy ad-filled websites just to download a YouTube video?
+
+`lyt` kills that workflow. One command, clean output, no browser needed.
+
+```sh
+yt3 "https://youtube.com/watch?v=VIDEO_ID"           # grab audio
+yt4 -q 1080p "https://youtube.com/watch?v=VIDEO_ID"  # grab video
 ```
 
-- **`yt3`** grabs audio, **`yt4`** grabs video, **`lyt`** is the full CLI.
-- Friendly quality: `-q 1080p`, `-q 4k`, `-q 8k`, `-q best`, or list what a
-  video actually offers with `--list-formats`.
-- Download many links at once, in parallel, with a clean progress display.
-- Interactive mode for when you would rather be asked than remember flags.
-- Zero runtime dependencies. The wrapper is small on purpose.
+- **`yt3`** for audio, **`yt4`** for video, **`lyt`** for the full CLI
+- Pick quality by name — `-q 1080p`, `-q 4k`, `-q best` — no memorizing format codes
+- Download multiple links in parallel with `--jobs`
+- Auto-installs `yt-dlp` and `ffmpeg` on first use — no manual setup
+- Interactive mode if you'd rather be prompted than remember flags
+- Zero runtime npm dependencies. Small on purpose.
 
-## Important Usage Note
+```sh
+npm install -g lyt
+```
 
-Only download content you own, have permission to download, or are otherwise
-allowed to use. Downloading from YouTube may violate YouTube's Terms of Service
-depending on the content and how you use it. You are responsible for how you use
-this tool.
+> **Note:** Only download content you own or have permission to use.
+> Downloading from YouTube may violate their Terms of Service depending on how
+> you use it. You are responsible for your own use of this tool.
+
+---
 
 ## Requirements
 
 - [Node.js](https://nodejs.org/) 20 or newer
-- [`yt-dlp`](https://github.com/yt-dlp/yt-dlp#installation)
-- [`ffmpeg`](https://ffmpeg.org/) — required for MP3 conversion and for muxing
-  video+audio into a single file
 
-### Installing yt-dlp and ffmpeg
+That's it. `lyt` fetches [`yt-dlp`](https://github.com/yt-dlp/yt-dlp) and
+[`ffmpeg`](https://ffmpeg.org/) automatically the first time it needs them — no
+manual setup required.
+
+| OS | Where they're cached |
+| --- | --- |
+| Windows | `%LOCALAPPDATA%\lyt\bin` |
+| macOS | `~/Library/Application Support/lyt/bin` |
+| Linux | `~/.local/share/lyt/bin` |
+
+yt-dlp downloads are verified against the project's published checksums. A
+system-wide install always takes priority — if you already have these tools on
+`PATH`, those are used instead.
+
+### Prefer to install them yourself?
+
+Pass `--no-download` (or set `LYT_NO_DOWNLOAD=1`) to require them on `PATH`:
 
 | Platform | Command |
 | --- | --- |
 | Windows | `winget install yt-dlp.yt-dlp` and `winget install Gyan.FFmpeg` |
 | macOS | `brew install yt-dlp ffmpeg` |
-| Linux | Use your distro's package manager (e.g. `apt install ffmpeg`) and install `yt-dlp` from its docs. |
+| Linux | `sudo apt install ffmpeg` and install yt-dlp from its docs |
 
 On Windows, lyt also tries common WinGet-installed `yt-dlp.exe` and
-`C:\ffmpeg\bin\ffmpeg.exe` locations if your current shell has not picked up PATH
-changes yet.
+`C:\ffmpeg\bin\ffmpeg.exe` locations if your current shell has not picked up
+PATH changes yet.
 
 ## Install
 
@@ -84,18 +104,16 @@ Helper scripts in [`install/`](install/) wrap the steps above.
 powershell -ExecutionPolicy Bypass -File .\install\install.ps1
 ```
 
-Then, optionally, add right-click menu entries so a non-technical user never
-touches a terminal:
+Then, optionally, add right-click menu entries so anyone can download without
+touching a terminal:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\install\windows-context-menu.ps1
 ```
 
-Now anyone can **copy a YouTube link**, **right-click inside a folder**, and
-choose **Download audio here** or **Download video here**. Copy several links at
-once and it grabs them all. Remove the entries later with the same script and
-`-Remove`. It only touches your own user settings, so it needs no administrator
-rights.
+**Copy a YouTube link → right-click inside a folder → Download audio here.**
+Copy several links at once and it grabs them all. Remove the entries later with
+the same script and `-Remove`. No administrator rights needed.
 
 **macOS / Linux:**
 
@@ -206,7 +224,7 @@ yt4 <url>   # video shortcut
 | `-j, --jobs <n>` | Parallel downloads for multiple URLs. Default is `1`. |
 | `-o, --output-dir <dir>` | Output directory. Default is `downloads`. |
 | `--template <template>` | Custom `yt-dlp` output template. |
-| `--downloader <name>` | External downloader to hand files to, e.g. `aria2c`. |
+| `--downloader <name>` | External downloader, e.g. `aria2c`. |
 | `--downloader-args <args>` | Arguments for the external downloader, e.g. `"-x16 -s16 -k1M"`. |
 | `--no-part` | Write directly to the output file instead of a `.part` file. |
 | `-i, --interactive` | Prompt for options interactively. |
@@ -215,6 +233,7 @@ yt4 <url>   # video shortcut
 | `--embed-metadata` | Embed metadata. May add time. |
 | `--embed-thumbnail` | Embed thumbnail. May add time. |
 | `--force-overwrite` | Replace existing files. |
+| `--no-download` | Don't auto-fetch yt-dlp/ffmpeg; require them on PATH instead. |
 | `--print-command` | Print the generated `yt-dlp` commands before running. |
 | `--dry-run` | Print the generated commands without running downloads. |
 | `-h, --help` | Show help. |
@@ -253,8 +272,8 @@ yt3 --downloader aria2c --downloader-args "-x16 -s16 -k1M" "URL"
 ```
 
 This is opt-in because `aria2c` is a separate install and some hosts reject
-large connection counts. If a download becomes unstable, lower `-x`/`-s` or drop
-the flag.
+large connection counts. If a download becomes unstable, lower `-x`/`-s` or
+drop the flag.
 
 ### Fragment concurrency
 
@@ -262,8 +281,8 @@ the flag.
 yt4 --fragments 16 "URL"
 ```
 
-Higher values can be faster on strong connections, but are not always better. If
-downloads become unstable, lower the value.
+Higher values can be faster on strong connections, but are not always better.
+If downloads become unstable, lower the value.
 
 ## Output Naming
 
@@ -280,24 +299,22 @@ Use a custom template:
 yt4 --template "%(uploader)s - %(title).120B [%(id)s].%(ext)s" "URL"
 ```
 
+## Platform Support
+
+| Platform | Audio | Video | MP3 | Auto-installs yt-dlp/ffmpeg |
+| --- | :---: | :---: | :---: | :---: |
+| Windows 10/11 | ✅ | ✅ | ✅ | ✅ |
+| macOS | ✅ | ✅ | ✅ | ✅ |
+| Linux | ✅ | ✅ | ✅ | ✅ |
+
 ## Updating
 
 ```bash
-npm update -g lyt        # if installed from npm
+npm update -g lyt                              # if installed from npm
 npm install -g github:TanaTTV/yt2audio-fast   # if installed from GitHub
 ```
 
 ## Troubleshooting
-
-**`yt-dlp was not found on PATH`** — Install it and open a new terminal:
-
-```bash
-winget install yt-dlp.yt-dlp   # Windows
-brew install yt-dlp            # macOS
-```
-
-**`ffmpeg was not found on PATH`** — Required for `--mp3` and for video. Install
-it, then verify with `ffmpeg -version`.
 
 **Downloads are slower than expected** — Try native audio instead of `--mp3`,
 avoid `--embed-metadata`/`--embed-thumbnail`, try the `aria2c` downloader, or
@@ -305,27 +322,46 @@ adjust `--fragments`.
 
 **PowerShell blocks `npm`** — Use `npm.cmd` instead of `npm`.
 
+**`yt-dlp` or `ffmpeg` errors after auto-install** — Delete the cached binaries
+and let lyt re-fetch them:
+
+```bash
+# Windows
+rmdir /s "%LOCALAPPDATA%\lyt\bin"
+
+# macOS
+rm -rf ~/Library/Application\ Support/lyt/bin
+
+# Linux
+rm -rf ~/.local/share/lyt/bin
+```
+
+**Want to use your own installs instead of the managed ones?** — Pass
+`--no-download` or set `LYT_NO_DOWNLOAD=1`.
+
 ## Development
 
 ```bash
-npm test                 # run the test suite (node --test)
-node bin/yt4.js --dry-run -q 4k "URL"   # run without installing
+npm test                                   # run the test suite (node:test)
+node bin/yt4.js --dry-run -q 4k "URL"     # run without installing globally
 ```
 
 ### Project Structure
 
 ```text
 bin/lyt.js            CLI entry point (full CLI, audio default)
-bin/yt3.js               Audio shortcut command
-bin/yt4.js               Video shortcut command
-src/cli.js               Runtime command orchestration
-src/ytDlp.js             Argument parsing and yt-dlp command construction
-src/quality.js           Friendly video-quality presets and labels
-src/formats.js           Reads available qualities from yt-dlp (-J)
-src/interactive.js       Interactive prompt mode (node:readline)
-src/progress.js          Progress parsing and aggregated multi-bar rendering
-install/                 Install scripts and Windows right-click menu
-test/                    Node test runner coverage
+bin/yt3.js            Audio shortcut command
+bin/yt4.js            Video shortcut command
+src/cli.js            Runtime command orchestration
+src/ytDlp.js          Argument parsing and yt-dlp command construction
+src/quality.js        Friendly video-quality presets and labels
+src/formats.js        Reads available qualities from yt-dlp (-J)
+src/interactive.js    Interactive prompt mode (node:readline)
+src/progress.js       Progress parsing and multi-bar rendering
+src/bootstrap.js      Auto-provisioning of yt-dlp and ffmpeg binaries
+install/              Install scripts and Windows right-click menu
+test/                 Node test runner coverage (63 tests)
+app/                  Tauri desktop app (Rust + webview)
 ```
 
 ## License
