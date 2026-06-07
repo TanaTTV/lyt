@@ -14,6 +14,7 @@ import { promptForJob } from "./interactive.js";
 import { createProgressRenderer, parseProgressLine } from "./progress.js";
 import { listFormats } from "./formats.js";
 import { labelHeight } from "./quality.js";
+import { ensureFfmpeg, ensureYtDlp } from "./bootstrap.js";
 
 const VERSION = "0.5.0";
 
@@ -52,13 +53,8 @@ export async function main(argv, defaults = {}) {
       !parsed.options.printCommand);
 
   if (wantsInteractive) {
-    const fetchFormats = (url) =>
-      listFormats(url, {
-        command: ensureCommand(
-          "yt-dlp",
-          "Install yt-dlp first: https://github.com/yt-dlp/yt-dlp#installation",
-        ),
-      });
+    const command = await resolveYtDlp(parsed.options);
+    const fetchFormats = (url) => listFormats(url, { command });
 
     const job = await promptForJob({ defaults: parsed.options, fetchFormats });
 
@@ -80,10 +76,7 @@ export async function main(argv, defaults = {}) {
   }
 
   if (options.listFormats) {
-    const command = ensureCommand(
-      "yt-dlp",
-      "Install yt-dlp first: https://github.com/yt-dlp/yt-dlp#installation",
-    );
+    const command = await resolveYtDlp(options);
 
     for (const url of urls) {
       try {
@@ -104,23 +97,38 @@ export async function main(argv, defaults = {}) {
     args: buildYtDlpArgs(url, options),
   }));
 
-  if (options.printCommand || options.dryRun) {
+  // Dry-run is a pure preview: print the base command and exit without
+  // resolving (or downloading) any binaries.
+  if (options.dryRun) {
     for (const task of tasks) {
       console.log(formatCommand("yt-dlp", task.args));
     }
 
-    if (options.dryRun) {
-      return;
+    return;
+  }
+
+  const ytDlpCommand = await resolveYtDlp(options);
+
+  // ffmpeg is needed both for MP3 extraction and for muxing separate
+  // video+audio streams into the final mp4. Provision it for either.
+  let ffmpegCommand = null;
+
+  if (options.mp3 || options.video) {
+    ffmpegCommand = await resolveFfmpeg(options);
+  }
+
+  // Point yt-dlp at our managed ffmpeg when it isn't the one on PATH, baking it
+  // into the args before printing so the printed command matches what runs.
+  if (ffmpegCommand && ffmpegCommand !== "ffmpeg") {
+    for (const task of tasks) {
+      task.args = ["--ffmpeg-location", ffmpegCommand, ...task.args];
     }
   }
 
-  const ytDlpCommand = ensureCommand(
-    "yt-dlp",
-    "Install yt-dlp first: https://github.com/yt-dlp/yt-dlp#installation",
-  );
-
-  if (options.mp3) {
-    ensureCommand("ffmpeg", "Install ffmpeg and make sure it is on PATH.");
+  if (options.printCommand) {
+    for (const task of tasks) {
+      console.log(formatCommand("yt-dlp", task.args));
+    }
   }
 
   await mkdir(options.outputDir, { recursive: true });
@@ -175,12 +183,12 @@ export async function main(argv, defaults = {}) {
   }
 }
 
-function ensureCommand(command, installHint) {
+// Find a working binary on PATH (plus the Windows fallback locations), or null
+// if it isn't installed. A single `--version` probe keeps the happy path cheap.
+function probeOnPath(command) {
   let executable = command;
   let probe = spawnSync(executable, ["--version"], { encoding: "utf8" });
 
-  // Only when the bare command is missing do we look in the Windows fallback
-  // locations. This keeps the happy path to a single `--version` probe.
   if (probe.error?.code === "ENOENT" && process.platform === "win32") {
     const fallback = resolveWindowsCommand(command);
 
@@ -190,8 +198,40 @@ function ensureCommand(command, installHint) {
     }
   }
 
-  if (probe.error?.code === "ENOENT") {
-    const error = new Error(`${command} was not found on PATH.\n${installHint}`);
+  return probe.error?.code === "ENOENT" ? null : executable;
+}
+
+async function resolveYtDlp(options) {
+  const executable = await ensureYtDlp({
+    onPath: probeOnPath("yt-dlp"),
+    allowDownload: options.download,
+    log: (message) => console.error(message),
+  });
+
+  if (!executable) {
+    const error = new Error(
+      "yt-dlp was not found and auto-download is disabled.\n" +
+        "Install it (https://github.com/yt-dlp/yt-dlp#installation) or remove --no-download.",
+    );
+    error.exitCode = 127;
+    throw error;
+  }
+
+  return executable;
+}
+
+async function resolveFfmpeg(options) {
+  const executable = await ensureFfmpeg({
+    onPath: probeOnPath("ffmpeg"),
+    allowDownload: options.download,
+    log: (message) => console.error(message),
+  });
+
+  if (!executable) {
+    const error = new Error(
+      "ffmpeg was not found and auto-download is disabled.\n" +
+        "Install ffmpeg and make sure it is on PATH, or remove --no-download.",
+    );
     error.exitCode = 127;
     throw error;
   }

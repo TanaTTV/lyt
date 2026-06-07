@@ -27,11 +27,26 @@ this tool.
 ## Requirements
 
 - [Node.js](https://nodejs.org/) 20 or newer
-- [`yt-dlp`](https://github.com/yt-dlp/yt-dlp#installation)
-- [`ffmpeg`](https://ffmpeg.org/) — required for MP3 conversion and for muxing
-  video+audio into a single file
 
-### Installing yt-dlp and ffmpeg
+That's it. `lyt` depends on [`yt-dlp`](https://github.com/yt-dlp/yt-dlp) and
+[`ffmpeg`](https://ffmpeg.org/), but **you don't have to install them yourself** —
+the first time `lyt` needs one and can't find it on your `PATH`, it downloads the
+official binary into a per-user cache and uses it from there:
+
+| OS | Cache location |
+| --- | --- |
+| Windows | `%LOCALAPPDATA%\lyt\bin` |
+| macOS | `~/Library/Application Support/lyt/bin` |
+| Linux | `~/.local/share/lyt` (`$XDG_DATA_HOME/lyt`) |
+
+yt-dlp downloads are checksum-verified against the project's published
+`SHA2-256SUMS`. A system-wide install always takes priority over the managed
+copy, so if you already have `yt-dlp`/`ffmpeg` on `PATH`, those are used instead.
+
+### Prefer to manage them yourself?
+
+Pass `--no-download` (or set `LYT_NO_DOWNLOAD=1`) to turn auto-fetch off and
+require the tools on `PATH`:
 
 | Platform | Command |
 | --- | --- |

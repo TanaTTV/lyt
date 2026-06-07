@@ -66,6 +66,12 @@ export function parseArgs(argv) {
       continue;
     }
 
+    if (arg === "--no-download") {
+      // Don't auto-fetch yt-dlp/ffmpeg; require them on PATH instead.
+      options.download = false;
+      continue;
+    }
+
     if (arg === "--list-formats" || arg === "-L") {
       options.listFormats = true;
       continue;
@@ -178,6 +184,7 @@ export function normalizeOptions(options = {}) {
     jobs: normalizePositiveInteger(options.jobs ?? 1, "jobs"),
     playlist: options.playlist ?? false,
     noPart: options.noPart ?? false,
+    download: options.download ?? true,
     dryRun: options.dryRun ?? false,
     printCommand: options.printCommand ?? false,
     interactive: options.interactive ?? false,
@@ -307,6 +314,7 @@ Options:
   --downloader <name>       External downloader, e.g. aria2c (faster on throttled hosts)
   --downloader-args <args>  Args for the external downloader, e.g. "-x16 -s16 -k1M"
   --no-part                 Write directly to the output file (skip .part)
+  --no-download             Don't auto-fetch yt-dlp/ffmpeg; require them on PATH
   --playlist                Allow playlist downloads
   --no-playlist             Download only the single video URL (default)
   --embed-metadata          Embed metadata; may add time
