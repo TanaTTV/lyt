@@ -1,5 +1,5 @@
 {
-  "name": "lyt",
+  "name": "@tanattv/lyt",
   "version": "0.5.0",
   "description": "Fast, friendly CLI to download YouTube audio and video with yt-dlp and ffmpeg.",
   "type": "module",
@@ -9,7 +9,8 @@
     "yt4": "./bin/yt4.js"
   },
   "scripts": {
-    "test": "node --test"
+    "test": "node --test",
+    "postinstall": "node -e \"console.log('\\nlyt installed. Make sure yt-dlp and ffmpeg are on your PATH.\\n  yt-dlp: https://github.com/yt-dlp/yt-dlp#installation\\n  ffmpeg: https://ffmpeg.org/download.html\\n')\""
   },
   "files": [
     "bin",
@@ -23,11 +24,11 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/TanaTTV/yt2audio-fast.git"
+    "url": "git+https://github.com/tanattv/lyt.git"
   },
-  "homepage": "https://github.com/TanaTTV/yt2audio-fast#readme",
+  "homepage": "https://github.com/tanattv/lyt#readme",
   "bugs": {
-    "url": "https://github.com/TanaTTV/yt2audio-fast/issues"
+    "url": "https://github.com/tanattv/lyt/issues"
   },
   "keywords": [
     "youtube",
