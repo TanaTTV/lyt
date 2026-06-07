@@ -1,28 +1,23 @@
 # lyt
 
-**lyt** is a tiny, fast, friendly command-line tool for downloading YouTube
-audio and video. It wraps [`yt-dlp`](https://github.com/yt-dlp/yt-dlp) and
-[`ffmpeg`](https://ffmpeg.org/) and stays out of the way: sensible defaults,
-short commands, and quality you can pick by name instead of memorizing numbers.
+Tired of sketchy ad-filled websites just to download a YouTube video?
 
-```bash
-yt3 "https://www.youtube.com/watch?v=VIDEO_ID"      # audio
-yt4 -q 1080p "https://www.youtube.com/watch?v=VIDEO_ID"  # video
+`lyt` kills that workflow. One command, clean output, no browser needed.
+
+```sh
+yt3 "https://youtube.com/watch?v=VIDEO_ID"           # grab audio
+yt4 -q 1080p "https://youtube.com/watch?v=VIDEO_ID"  # grab video
 ```
 
-- **`yt3`** grabs audio, **`yt4`** grabs video, **`lyt`** is the full CLI.
-- Friendly quality: `-q 1080p`, `-q 4k`, `-q 8k`, `-q best`, or list what a
-  video actually offers with `--list-formats`.
-- Download many links at once, in parallel, with a clean progress display.
-- Interactive mode for when you would rather be asked than remember flags.
-- Zero runtime dependencies. The wrapper is small on purpose.
+- **`yt3`** for audio, **`yt4`** for video, **`lyt`** for the full CLI
+- Pick quality by name — `-q 1080p`, `-q 4k`, `-q best` — no memorizing format codes
+- Download multiple links in parallel with `--jobs`
+- Interactive mode if you'd rather be prompted than remember flags
+- Zero runtime dependencies. Small on purpose.
 
-## Important Usage Note
-
-Only download content you own, have permission to download, or are otherwise
-allowed to use. Downloading from YouTube may violate YouTube's Terms of Service
-depending on the content and how you use it. You are responsible for how you use
-this tool.
+```sh
+npm install -g lyt
+```
 
 ## Requirements
 
