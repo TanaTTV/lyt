@@ -26,10 +26,11 @@ struct Progress {
 fn search(query: String) -> Result<Vec<SearchResult>, String> {
     let output = Command::new("yt-dlp")
         .args([
-            &format!("ytsearch20:{query}"),
             "-J",
             "--flat-playlist",
             "--no-warnings",
+            "--",
+            &format!("ytsearch20:{query}"),
         ])
         .output()
         .map_err(|e| format!("Could not run yt-dlp: {e}. Is it installed?"))?;

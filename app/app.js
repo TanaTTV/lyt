@@ -100,8 +100,9 @@ function resultCard(item) {
   const card = document.createElement("article");
   card.className = "card";
 
-  const thumb = item.thumbnail
-    ? `<img src="${escapeHtml(item.thumbnail)}" alt="" loading="lazy" />`
+  const safeSrc = isSafeUrl(item.thumbnail) ? item.thumbnail : "";
+  const thumb = safeSrc
+    ? `<img src="${escapeHtml(safeSrc)}" alt="" loading="lazy" />`
     : `<div class="thumb-fallback" style="--h:${hueFor(item.title)}"></div>`;
 
   card.innerHTML = `
@@ -184,6 +185,11 @@ function hueFor(text) {
 
 function escapeHtml(text) {
   return String(text).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+}
+
+function isSafeUrl(url) {
+  if (!url) return false;
+  try { return ["https:", "http:"].includes(new URL(url).protocol); } catch { return false; }
 }
 
 function emptyResultsMarkup() {
