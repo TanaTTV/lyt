@@ -12,7 +12,9 @@ test("defaults to fast native audio without conversion", () => {
   const args = buildYtDlpArgs("https://youtube.test/video", options);
 
   assert.equal(options.mp3, false);
-  assert.deepEqual(args.slice(0, 2), ["--newline", "--no-warnings"]);
+  // Without progress: true, --newline is omitted; --progress is always first.
+  assert.deepEqual(args.slice(0, 2), ["--progress", "--no-warnings"]);
+  assert.equal(args.includes("--newline"), false);
   assert.ok(args.includes("bestaudio[ext=m4a]/bestaudio[ext=webm]/bestaudio"));
   assert.ok(args.includes("--concurrent-fragments"));
   assert.ok(args.includes("--no-playlist"));
