@@ -191,11 +191,14 @@ export function normalizeOptions(options = {}) {
   };
 }
 
-export function buildYtDlpArgs(url, options) {
+export function buildYtDlpArgs(url, options, { progress = false } = {}) {
+  // --newline switches yt-dlp from carriage-return in-place updates to one
+  // line per update. Only add it when the progress parser is active (renderer
+  // mode); single downloads with inherited stdio look better without it.
   const args = [
-    "--newline",
-    "--no-warnings",
     "--progress",
+    ...(progress ? ["--newline"] : []),
+    "--no-warnings",
     "--concurrent-fragments",
     String(options.fragments),
     "-f",

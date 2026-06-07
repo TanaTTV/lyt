@@ -30,12 +30,12 @@ export function parseProgressLine(line) {
 
 export function createProgressRenderer(labels, { out = process.stderr } = {}) {
   const isTTY = Boolean(out.isTTY);
-  const state = labels.map((label) => ({
-    label,
-    percent: 0,
-    detail: "",
-    finished: false,
-  }));
+  const state = labels.map((label) => {
+    // Pre-compute the fixed-width display name once so formatBar never
+    // allocates during the hot render loop.
+    const name = label.length > 28 ? `${label.slice(0, 27)}…` : label.padEnd(28);
+    return { label, name, percent: 0, detail: "", finished: false };
+  });
 
   if (isTTY) {
     // Reserve one row per download so the cursor can move back up over them.
@@ -49,11 +49,16 @@ export function createProgressRenderer(labels, { out = process.stderr } = {}) {
       return;
     }
 
-    out.write(`\x1B[${state.length}A`);
+    // Build the entire frame as one string and issue a single write() call.
+    // N+1 write() calls per frame (one cursor-up + one per bar) are replaced
+    // by a single syscall, which matters when many downloads update in lockstep.
+    let buf = `\x1B[${state.length}A`;
 
     for (const entry of state) {
-      out.write(`\x1B[2K${formatBar(entry)}\n`);
+      buf += `\x1B[2K${formatBar(entry)}\n`;
     }
+
+    out.write(buf);
   }
 
   return {
@@ -100,13 +105,12 @@ export function createProgressRenderer(labels, { out = process.stderr } = {}) {
   };
 }
 
-function formatBar({ label, percent, detail }) {
+function formatBar({ name, percent, detail }) {
   const width = 24;
   const clamped = Math.max(0, Math.min(100, percent));
   const filled = Math.round((clamped / 100) * width);
   const bar = "#".repeat(filled) + "-".repeat(width - filled);
   const pct = String(Math.round(clamped)).padStart(3);
-  const name = label.length > 28 ? `${label.slice(0, 27)}…` : label.padEnd(28);
 
   return `${name} [${bar}] ${pct}%  ${detail}`.trimEnd();
 }

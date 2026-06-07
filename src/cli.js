@@ -10,9 +10,6 @@ import {
   parseArgs,
   usage,
 } from "./ytDlp.js";
-import { promptForJob } from "./interactive.js";
-import { createProgressRenderer, parseProgressLine } from "./progress.js";
-import { listFormats } from "./formats.js";
 import { labelHeight } from "./quality.js";
 
 const VERSION = "0.5.0";
@@ -20,6 +17,11 @@ const VERSION = "0.5.0";
 // Above this many URLs we skip the aggregated bar block (it would scroll the
 // terminal) and fall back to yt-dlp's own inherited progress output.
 const MAX_PROGRESS_BARS = 20;
+
+// Cache spawnSync("--version") probes so ensureCommand never forks twice for
+// the same binary. Interactive mode calls it once inside the fetchFormats
+// closure and then again in the main download path.
+const commandCache = new Map();
 
 export function run(argv, defaults = {}) {
   return main(argv, defaults).catch((error) => {
@@ -52,6 +54,14 @@ export async function main(argv, defaults = {}) {
       !parsed.options.printCommand);
 
   if (wantsInteractive) {
+    // Lazy-load: readline/promises is non-trivial and only needed in
+    // interactive mode. Importing it on every cold start (the common case of
+    // `lyt URL`) would cost 10-30 ms for no reason.
+    const [{ promptForJob }, { listFormats }] = await Promise.all([
+      import("./interactive.js"),
+      import("./formats.js"),
+    ]);
+
     const fetchFormats = (url) =>
       listFormats(url, {
         command: ensureCommand(
@@ -80,6 +90,8 @@ export async function main(argv, defaults = {}) {
   }
 
   if (options.listFormats) {
+    // Lazy-load: not needed for normal downloads.
+    const { listFormats } = await import("./formats.js");
     const command = ensureCommand(
       "yt-dlp",
       "Install yt-dlp first: https://github.com/yt-dlp/yt-dlp#installation",
@@ -96,12 +108,22 @@ export async function main(argv, defaults = {}) {
     return;
   }
 
+  // Compute concurrency and renderer eligibility before building args so we
+  // can pass the flag to buildYtDlpArgs and include --newline only when the
+  // progress line parser actually needs it.
+  const jobs = Math.min(options.jobs, urls.length);
+  const useRenderer =
+    jobs > 1 &&
+    process.stderr.isTTY &&
+    !options.printCommand &&
+    urls.length <= MAX_PROGRESS_BARS;
+
   // Build each command exactly once and reuse it for both printing and running
   // so the printed command always matches what executes.
   const tasks = urls.map((url, index) => ({
     url,
     index,
-    args: buildYtDlpArgs(url, options),
+    args: buildYtDlpArgs(url, options, { progress: useRenderer }),
   }));
 
   if (options.printCommand || options.dryRun) {
@@ -125,28 +147,24 @@ export async function main(argv, defaults = {}) {
 
   await mkdir(options.outputDir, { recursive: true });
 
-  const jobs = Math.min(options.jobs, urls.length);
-  const queue = [...tasks];
-  const failures = [];
-
   // The aggregated progress block is only worth its complexity when several
   // downloads share one TTY. A single download keeps yt-dlp's native progress
   // (inherited stdio), which is already clean and battle-tested.
-  const useRenderer =
-    jobs > 1 &&
-    process.stderr.isTTY &&
-    !options.printCommand &&
-    urls.length <= MAX_PROGRESS_BARS;
-  const renderer = useRenderer
-    ? createProgressRenderer(tasks.map((task) => shortLabel(task.url)))
+  // Lazy-load: progress module is only needed for the multi-download renderer.
+  const progressMod = useRenderer ? await import("./progress.js") : null;
+  const renderer = progressMod
+    ? progressMod.createProgressRenderer(tasks.map((task) => shortLabel(task.url)))
     : null;
+
+  const queue = [...tasks];
+  const failures = [];
 
   async function worker() {
     while (queue.length > 0) {
       const task = queue.shift();
       const lineHandler = renderer
         ? (line) => {
-            const info = parseProgressLine(line);
+            const info = progressMod.parseProgressLine(line);
 
             if (info) {
               renderer.update(task.index, info);
@@ -176,6 +194,10 @@ export async function main(argv, defaults = {}) {
 }
 
 function ensureCommand(command, installHint) {
+  if (commandCache.has(command)) {
+    return commandCache.get(command);
+  }
+
   let executable = command;
   let probe = spawnSync(executable, ["--version"], { encoding: "utf8" });
 
@@ -196,6 +218,7 @@ function ensureCommand(command, installHint) {
     throw error;
   }
 
+  commandCache.set(command, executable);
   return executable;
 }
 
@@ -278,7 +301,9 @@ function runCommand(command, args, { onLine } = {}) {
         onLine(line);
 
         // Keep a few non-progress lines so a failure can show why.
-        if (line.trim() && !line.startsWith("[download]")) {
+        // Check startsWith first (no allocation) before trim() (allocates).
+        // Progress lines ([download]…) are the vast majority; they skip trim.
+        if (line && !line.startsWith("[download]") && line.trim()) {
           recent.push(line);
 
           if (recent.length > 8) {

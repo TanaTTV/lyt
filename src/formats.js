@@ -39,19 +39,23 @@ export function listFormats(url, { command = "yt-dlp", spawnFn = spawn } = {}) {
     const args = ["-J", "--no-warnings", "--no-playlist", "--", url];
     const child = spawnFn(command, args, { stdio: ["ignore", "pipe", "pipe"] });
 
-    let stdout = "";
-    let stderr = "";
+    // Collect chunks in arrays and join once on close. YouTube's full info JSON
+    // can be 200-500 KB; repeated `+=` on a growing string causes O(n²) string
+    // copies as each chunk forces a new allocation of the entire accumulated value.
+    const stdoutChunks = [];
+    const stderrChunks = [];
 
     child.stdout.setEncoding("utf8").on("data", (chunk) => {
-      stdout += chunk;
+      stdoutChunks.push(chunk);
     });
     child.stderr.setEncoding("utf8").on("data", (chunk) => {
-      stderr += chunk;
+      stderrChunks.push(chunk);
     });
 
     child.on("error", reject);
     child.on("close", (code) => {
       if (code !== 0) {
+        const stderr = stderrChunks.join("");
         const error = new Error(
           `yt-dlp could not read formats for ${url}` +
             (stderr.trim() ? `\n${stderr.trim()}` : ""),
@@ -62,7 +66,7 @@ export function listFormats(url, { command = "yt-dlp", spawnFn = spawn } = {}) {
       }
 
       try {
-        resolve(parseFormats(stdout));
+        resolve(parseFormats(stdoutChunks.join("")));
       } catch {
         reject(new Error(`Could not parse yt-dlp output for ${url}.`));
       }
