@@ -1,5 +1,6 @@
 node_modules/
 downloads/
+.rust-target/
 *.mp3
 *.m4a
 *.webm
