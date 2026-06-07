@@ -1,5 +1,4 @@
-import { spawn, spawnSync } from "node:child_process";
-import { existsSync, readdirSync } from "node:fs";
+import { spawn } from "node:child_process";
 import { mkdir } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import process from "node:process";
@@ -14,6 +13,7 @@ import { promptForJob } from "./interactive.js";
 import { createProgressRenderer, parseProgressLine } from "./progress.js";
 import { listFormats } from "./formats.js";
 import { labelHeight } from "./quality.js";
+import { ensureYtDlp, ensureFfmpeg } from "./bootstrap.js";
 
 const VERSION = "0.5.0";
 
@@ -51,13 +51,13 @@ export async function main(argv, defaults = {}) {
       !parsed.options.dryRun &&
       !parsed.options.printCommand);
 
+  const noDownload =
+    parsed.options.noDownload ?? process.env.LYT_NO_DOWNLOAD === "1";
+
   if (wantsInteractive) {
-    const fetchFormats = (url) =>
+    const fetchFormats = async (url) =>
       listFormats(url, {
-        command: ensureCommand(
-          "yt-dlp",
-          "Install yt-dlp first: https://github.com/yt-dlp/yt-dlp#installation",
-        ),
+        command: await ensureYtDlp({ noDownload }),
       });
 
     const job = await promptForJob({ defaults: parsed.options, fetchFormats });
@@ -80,10 +80,7 @@ export async function main(argv, defaults = {}) {
   }
 
   if (options.listFormats) {
-    const command = ensureCommand(
-      "yt-dlp",
-      "Install yt-dlp first: https://github.com/yt-dlp/yt-dlp#installation",
-    );
+    const command = await ensureYtDlp({ noDownload });
 
     for (const url of urls) {
       try {
@@ -114,13 +111,20 @@ export async function main(argv, defaults = {}) {
     }
   }
 
-  const ytDlpCommand = ensureCommand(
-    "yt-dlp",
-    "Install yt-dlp first: https://github.com/yt-dlp/yt-dlp#installation",
-  );
+  const ytDlpCommand = await ensureYtDlp({ noDownload });
 
-  if (options.mp3) {
-    ensureCommand("ffmpeg", "Install ffmpeg and make sure it is on PATH.");
+  // ffmpeg is only needed for MP3 conversion, video muxing, or embedding.
+  const needsFfmpeg =
+    options.mp3 || options.video || options.embedMetadata || options.embedThumbnail;
+  const ffmpegPath = needsFfmpeg
+    ? await ensureFfmpeg({ noDownload })
+    : null;
+
+  // Tell yt-dlp where ffmpeg lives when it is not on PATH.
+  if (ffmpegPath && ffmpegPath !== "ffmpeg") {
+    for (const task of tasks) {
+      task.args.splice(task.args.indexOf("--"), 0, "--ffmpeg-location", ffmpegPath);
+    }
   }
 
   await mkdir(options.outputDir, { recursive: true });
@@ -175,84 +179,6 @@ export async function main(argv, defaults = {}) {
   }
 }
 
-function ensureCommand(command, installHint) {
-  let executable = command;
-  let probe = spawnSync(executable, ["--version"], { encoding: "utf8" });
-
-  // Only when the bare command is missing do we look in the Windows fallback
-  // locations. This keeps the happy path to a single `--version` probe.
-  if (probe.error?.code === "ENOENT" && process.platform === "win32") {
-    const fallback = resolveWindowsCommand(command);
-
-    if (fallback) {
-      executable = fallback;
-      probe = spawnSync(executable, ["--version"], { encoding: "utf8" });
-    }
-  }
-
-  if (probe.error?.code === "ENOENT") {
-    const error = new Error(`${command} was not found on PATH.\n${installHint}`);
-    error.exitCode = 127;
-    throw error;
-  }
-
-  return executable;
-}
-
-function resolveWindowsCommand(command) {
-  const executable = `${command}.exe`;
-  const knownPaths = [
-    join("C:\\", "ffmpeg", "bin", executable),
-    findWinGetExecutable(command, executable),
-  ].filter(Boolean);
-
-  return knownPaths.find((candidate) => existsSync(candidate)) ?? null;
-}
-
-function findWinGetExecutable(command, executable) {
-  const localAppData = process.env.LOCALAPPDATA;
-
-  if (!localAppData) {
-    return null;
-  }
-
-  const packagesDir = join(localAppData, "Microsoft", "WinGet", "Packages");
-
-  if (!existsSync(packagesDir)) {
-    return null;
-  }
-
-  try {
-    const packageDirs = readdirSync(packagesDir, { withFileTypes: true })
-      .filter((entry) => entry.isDirectory())
-      .map((entry) => entry.name)
-      .filter((name) => name.toLowerCase().startsWith(`${command.toLowerCase()}.`))
-      .sort();
-
-    for (const dir of packageDirs) {
-      const direct = join(packagesDir, dir, executable);
-
-      if (existsSync(direct)) {
-        return direct;
-      }
-
-      // WinGet often nests the binary inside a versioned subfolder.
-      for (const entry of readdirSync(join(packagesDir, dir), { withFileTypes: true })) {
-        if (entry.isDirectory()) {
-          const nested = join(packagesDir, dir, entry.name, executable);
-
-          if (existsSync(nested)) {
-            return nested;
-          }
-        }
-      }
-    }
-
-    return null;
-  } catch {
-    return null;
-  }
-}
 
 function runCommand(command, args, { onLine } = {}) {
   return new Promise((resolve, reject) => {
