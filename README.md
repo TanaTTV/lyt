@@ -1,8 +1,8 @@
 # lyt
 
-[![npm version](https://img.shields.io/npm/v/lyt)](https://www.npmjs.com/package/lyt)
-[![npm downloads](https://img.shields.io/npm/dm/lyt)](https://www.npmjs.com/package/lyt)
-[![CI](https://github.com/TanaTTV/yt2audio-fast/actions/workflows/ci.yml/badge.svg)](https://github.com/TanaTTV/yt2audio-fast/actions/workflows/ci.yml)
+[![npm version](https://img.shields.io/npm/v/@tanattv/lyt)](https://www.npmjs.com/package/@tanattv/lyt)
+[![npm downloads](https://img.shields.io/npm/dm/@tanattv/lyt)](https://www.npmjs.com/package/@tanattv/lyt)
+[![CI](https://github.com/tanattv/lyt/actions/workflows/ci.yml/badge.svg)](https://github.com/tanattv/lyt/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 Tired of sketchy ad-filled websites just to download a YouTube video?
@@ -22,7 +22,7 @@ yt4 -q 1080p "https://youtube.com/watch?v=VIDEO_ID"  # grab video
 - Zero runtime npm dependencies. Small on purpose.
 
 ```sh
-npm install -g lyt
+npm install -g @tanattv/lyt
 ```
 
 > **Note:** Only download content you own or have permission to use.
@@ -68,20 +68,20 @@ PATH changes yet.
 ### From npm (recommended)
 
 ```bash
-npm install -g lyt
+npm install -g @tanattv/lyt
 ```
 
 This puts three commands on your PATH — `lyt`, `yt3`, and `yt4` — usable in
 PowerShell, cmd, bash, or zsh. Update later with:
 
 ```bash
-npm update -g lyt
+npm update -g @tanattv/lyt
 ```
 
 ### From GitHub (no npm account needed)
 
 ```bash
-npm install -g github:TanaTTV/yt2audio-fast
+npm install -g github:tanattv/lyt
 ```
 
 Re-run the same command to update.
@@ -89,8 +89,8 @@ Re-run the same command to update.
 ### From source
 
 ```bash
-git clone https://github.com/TanaTTV/yt2audio-fast.git
-cd yt2audio-fast
+git clone https://github.com/tanattv/lyt.git
+cd lyt
 npm install -g .
 ```
 
@@ -310,8 +310,8 @@ yt4 --template "%(uploader)s - %(title).120B [%(id)s].%(ext)s" "URL"
 ## Updating
 
 ```bash
-npm update -g lyt                              # if installed from npm
-npm install -g github:TanaTTV/yt2audio-fast   # if installed from GitHub
+npm update -g @tanattv/lyt                # if installed from npm
+npm install -g github:tanattv/lyt         # if installed from GitHub
 ```
 
 ## Troubleshooting
