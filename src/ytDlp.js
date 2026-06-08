@@ -101,6 +101,11 @@ export function parseArgs(argv) {
       continue;
     }
 
+    if (arg === "--no-download") {
+      options.noDownload = true;
+      continue;
+    }
+
     if (arg === "-o" || arg === "--output-dir") {
       options.outputDir = readValue(argv, ++index, arg);
       continue;
@@ -185,6 +190,7 @@ export function normalizeOptions(options = {}) {
     embedThumbnail: options.embedThumbnail ?? false,
     continueDownloads: options.continueDownloads ?? true,
     forceOverwrite: options.forceOverwrite ?? false,
+    noDownload: options.noDownload ?? false,
     template: options.template ?? DEFAULT_OUTPUT_TEMPLATE,
     downloader: options.downloader ?? null,
     downloaderArgs: options.downloaderArgs ?? null,
@@ -312,6 +318,7 @@ Options:
   --embed-metadata          Embed metadata; may add time
   --embed-thumbnail         Embed thumbnail; may add time
   --force-overwrite         Replace existing files
+  --no-download             Require yt-dlp/ffmpeg on PATH; skip auto-install
   --print-command           Print yt-dlp commands before running
   --dry-run                 Print commands without running
   -i, --interactive         Prompt for options interactively
