@@ -5,6 +5,7 @@ import {
   formatCommand,
   normalizeOptions,
   parseArgs,
+  parseClip,
 } from "../src/ytDlp.js";
 
 test("defaults to fast native audio without conversion", () => {
@@ -250,4 +251,128 @@ test("jobs and fragments reject non-integer garbage", () => {
 test("formatCommand quotes args with spaces and escapes quotes", () => {
   assert.equal(formatCommand("c", ["a b"]), 'c "a b"');
   assert.equal(formatCommand("c", ['a"b']), 'c "a\\"b"');
+});
+
+// ---------------------------------------------------------------------------
+// Clips (--clip / --download-sections)
+// ---------------------------------------------------------------------------
+
+test("parseClip converts ranges into yt-dlp section syntax", () => {
+  assert.equal(parseClip("1:10-2:45"), "*1:10-2:45");
+  assert.equal(parseClip("90-180"), "*90-180");
+  assert.equal(parseClip("01:02:03-01:05:00"), "*01:02:03-01:05:00");
+  assert.equal(parseClip("1:10-"), "*1:10-inf");
+  assert.equal(parseClip("-2:45"), "*0-2:45");
+  assert.equal(parseClip(" 0:05-0:10 "), "*0:05-0:10");
+});
+
+test("parseClip rejects malformed and inverted ranges", () => {
+  for (const bad of ["", "-", "abc", "1:10", "1;10-2;45", "x-y"]) {
+    assert.throws(() => parseClip(bad), /clip must look like/, bad);
+  }
+
+  assert.throws(() => parseClip("2:45-1:10"), /start must be before/);
+  assert.throws(() => parseClip("90-90"), /start must be before/);
+});
+
+test("--clip is repeatable and emits download-sections with keyframe cuts", () => {
+  const parsed = parseArgs(["--clip", "1:10-2:45", "--clip", "-0:30", "u"]);
+  const options = normalizeOptions(parsed.options);
+  const args = buildYtDlpArgs("u", options);
+
+  assert.deepEqual(options.clips, ["*1:10-2:45", "*0-0:30"]);
+  const first = args.indexOf("--download-sections");
+  assert.equal(args[first + 1], "*1:10-2:45");
+  assert.equal(args[args.indexOf("--download-sections", first + 1) + 1], "*0-0:30");
+  assert.ok(args.includes("--force-keyframes-at-cuts"));
+});
+
+test("no clips means no section flags", () => {
+  const args = buildYtDlpArgs("u", normalizeOptions({}));
+
+  assert.equal(args.includes("--download-sections"), false);
+  assert.equal(args.includes("--force-keyframes-at-cuts"), false);
+});
+
+// ---------------------------------------------------------------------------
+// Chapters (--split-chapters)
+// ---------------------------------------------------------------------------
+
+test("--split-chapters adds chapter splitting with a per-video subfolder", () => {
+  const parsed = parseArgs(["--split-chapters", "u"]);
+  const args = buildYtDlpArgs("u", normalizeOptions(parsed.options));
+
+  assert.ok(args.includes("--split-chapters"));
+  const chapterTemplate = args.find((arg) => arg.startsWith("chapter:"));
+  assert.ok(chapterTemplate.includes("%(section_number)02d"));
+  assert.ok(chapterTemplate.includes("%(section_title)"));
+});
+
+// ---------------------------------------------------------------------------
+// Loudness normalization (--normalize)
+// ---------------------------------------------------------------------------
+
+test("--normalize implies mp3 and adds a loudnorm postprocessor", () => {
+  const options = normalizeOptions({ normalize: true });
+  const args = buildYtDlpArgs("u", options);
+
+  assert.equal(options.mp3, true);
+  assert.ok(args.includes("-x"));
+  const ppaIndex = args.indexOf("--postprocessor-args");
+  assert.match(args[ppaIndex + 1], /loudnorm=I=-16/);
+});
+
+test("--normalize in video mode is rejected", () => {
+  assert.throws(
+    () => normalizeOptions({ video: true, normalize: true }),
+    /audio mode only/,
+  );
+});
+
+// ---------------------------------------------------------------------------
+// Clipboard / watch / history flags
+// ---------------------------------------------------------------------------
+
+test("paste, watch, redownload, and no-history flags parse", () => {
+  const parsed = parseArgs([
+    "--paste",
+    "--watch",
+    "--redownload",
+    "--no-history",
+  ]);
+  const options = normalizeOptions(parsed.options);
+
+  assert.equal(options.paste, true);
+  assert.equal(options.watch, true);
+  assert.equal(options.redownload, true);
+  assert.equal(options.history, false);
+});
+
+test("--queue is an alias for --watch and -p for --paste", () => {
+  assert.equal(parseArgs(["--queue"]).options.watch, true);
+  assert.equal(parseArgs(["-p"]).options.paste, true);
+});
+
+test("history is on by default", () => {
+  assert.equal(normalizeOptions({}).history, true);
+  assert.equal(normalizeOptions({}).redownload, false);
+});
+
+// ---------------------------------------------------------------------------
+// Profiles
+// ---------------------------------------------------------------------------
+
+test("--profile captures the profile name", () => {
+  assert.equal(parseArgs(["--profile", "music", "u"]).options.profile, "music");
+  assert.throws(() => parseArgs(["--profile"]), /needs a value/);
+});
+
+test("explicit flags win over profile options when merged after", () => {
+  // cli.js merges { ...profile, ...explicit }; emulate that here.
+  const explicit = parseArgs(["--quality", "128K", "u"]).options;
+  const merged = { ...{ mp3: true, quality: "0" }, ...explicit };
+  const options = normalizeOptions(merged);
+
+  assert.equal(options.mp3, true);
+  assert.equal(options.quality, "128K");
 });

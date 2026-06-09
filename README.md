@@ -18,6 +18,14 @@ yt4 -q 1080p "https://youtube.com/watch?v=VIDEO_ID"  # grab video
 - Pick quality by name — `-q 1080p`, `-q 4k`, `-q best` — no memorizing format codes
 - Download multiple links in parallel with `--jobs`
 - Auto-installs `yt-dlp` and `ffmpeg` on first use — no manual setup
+- **Zero typing**: `--paste` grabs links straight from your clipboard, `--watch`
+  keeps downloading every link you copy until you stop it
+- **Clips**: `--clip 1:10-2:45` downloads just a slice of a long video
+- **Download history** with instant dedupe — never grab the same video twice
+- `--split-chapters` turns an album/mix video into per-track files
+- `--normalize` evens out loudness (EBU R128) while converting
+- Profiles (`--profile music|podcast|voice`) and persistent defaults (`lyt config`)
+- `lyt doctor` diagnoses your setup, auto-installs missing tools, self-updates yt-dlp
 - Interactive mode if you'd rather be prompted than remember flags
 - Zero runtime npm dependencies. Small on purpose.
 
@@ -104,6 +112,12 @@ Helper scripts in [`install/`](install/) wrap the steps above.
 powershell -ExecutionPolicy Bypass -File .\install\install.ps1
 ```
 
+The Windows installer doesn't just warn about missing tools — it installs
+them: `winget` first, falling back to lyt's managed download (per-user, no
+admin rights, checksum-verified yt-dlp) and adding the tools dir to your user
+`PATH`. It refreshes `PATH` in the current session and ends by printing the
+installed versions of node, yt-dlp, and ffmpeg. Safe to re-run any time.
+
 Then, optionally, add right-click menu entries so anyone can download without
 touching a terminal:
 
@@ -121,6 +135,10 @@ the same script and `-Remove`. No administrator rights needed.
 bash install/install.sh
 ```
 
+The shell installer auto-installs missing tools too: `brew`, `apt`, `dnf`, or
+`pacman` when available, with lyt's managed binary download as the yt-dlp
+fallback. It also verifies and prints installed versions at the end.
+
 ## Quick Start
 
 ```bash
@@ -135,6 +153,12 @@ yt4 -q 1080p "https://www.youtube.com/watch?v=VIDEO_ID"
 
 # Save somewhere specific
 yt3 --mp3 -o "$HOME/Music" "https://www.youtube.com/watch?v=VIDEO_ID"
+
+# Download whatever YouTube links are on your clipboard — zero typing
+yt3 --paste
+
+# Grab just one section of a long video
+yt3 --clip 1:10-2:45 "https://www.youtube.com/watch?v=VIDEO_ID"
 
 # Preview the exact yt-dlp command without downloading
 yt4 --dry-run "https://www.youtube.com/watch?v=VIDEO_ID"
@@ -153,6 +177,120 @@ yt4 --jobs 3 -q 1080p "URL_1" "URL_2" "URL_3"
 When several downloads run at once in a terminal, lyt shows one tidy progress
 bar per download instead of letting yt-dlp's output interleave. In a pipe or CI
 it falls back to plain per-item status lines.
+
+## Zero-Typing Downloads (clipboard)
+
+Copy a YouTube link anywhere, then:
+
+```bash
+yt3 --paste          # downloads every YouTube link currently on the clipboard
+```
+
+`--paste` (or `-p`) reads the clipboard with whatever your OS already ships
+(PowerShell, `pbpaste`, `wl-paste`/`xclip`/`xsel`), extracts every YouTube
+link out of the text — even mixed into a chat message — and dedupes them by
+video ID.
+
+Go one step further and leave it running:
+
+```bash
+yt3 --watch          # (alias: --queue)
+```
+
+Watch mode polls the clipboard and downloads **every YouTube link you copy**
+until you press `Ctrl+C`. Copy links from your browser one after another and
+they all land in your output folder. Pure Node polling — no extra processes,
+no dependencies.
+
+## Clips — download only a section
+
+Need one song from a 3-hour mix? Don't download the whole thing:
+
+```bash
+yt3 --clip 1:10-2:45 "URL"            # just 1:10 to 2:45
+yt4 --clip 12:00- -q 1080p "URL"      # from 12:00 to the end, as video
+yt3 --clip -0:30 "URL"                # the first 30 seconds
+yt3 --clip 1:00-2:00 --clip 5:00-6:00 "URL"   # several slices in one run
+```
+
+Accepts `mm:ss`, `hh:mm:ss`, or plain seconds (`90-180`). Sections are cut
+precisely (`--force-keyframes-at-cuts`), and only the requested ranges are
+downloaded — dramatically faster than grabbing the full video.
+
+## Download History & Instant Dedupe
+
+Every successful download is recorded in a tiny JSONL file in your user data
+dir. If you ask for a video you already downloaded, lyt skips it instantly —
+no network round-trip:
+
+```text
+Skipping (already downloaded): https://youtu.be/…  — use --redownload to force
+```
+
+```bash
+lyt history                 # last 20 downloads
+lyt history lo-fi           # search past downloads
+lyt history --limit 100     # show more
+lyt history --clear         # wipe the history
+yt3 --redownload "URL"      # download even if it's in history
+yt3 --no-history "URL"      # don't record this run
+```
+
+## Split an Album into Tracks
+
+If a video has chapters (albums, mixes, podcasts with timestamps):
+
+```bash
+yt3 --mp3 --split-chapters "URL"
+```
+
+You get one file per chapter, numbered and named after the chapter title, in a
+subfolder named after the video.
+
+## Loudness Normalization
+
+```bash
+yt3 --normalize "URL"
+```
+
+Applies single-pass EBU R128 loudness normalization (`loudnorm`, -16 LUFS)
+during the MP3 conversion, so a playlist of downloads plays at an even volume.
+Audio mode only; implies `--mp3`.
+
+## Profiles & Persistent Defaults
+
+Three curated profiles replace flag soup:
+
+```bash
+yt3 --profile music "URL"     # best VBR MP3 + embedded metadata & cover art
+yt3 --profile podcast "URL"   # 96K MP3, loudness-normalized, metadata
+yt3 --profile voice "URL"     # smallest useful files (64K, normalized)
+```
+
+Set-and-forget defaults with the `config` subcommand (stored as JSON in your
+user data dir):
+
+```bash
+lyt config set quality 320K
+lyt config set output-dir "D:/Music"
+lyt config set profile music       # apply a profile to every run
+lyt config list
+lyt config unset quality
+```
+
+Precedence is sensible: explicit flags beat the profile, which beats your
+config file, which beats built-in defaults.
+
+## Doctor
+
+```bash
+lyt doctor             # check node/yt-dlp/ffmpeg/clipboard + data locations
+lyt doctor --fix       # auto-install whatever is missing
+lyt doctor --update    # self-update yt-dlp (yt-dlp -U)
+```
+
+Prints exactly what is installed, where it lives (PATH vs managed), and what
+to run to fix any problem it finds.
 
 ## Choosing Quality
 
@@ -209,6 +347,10 @@ Enter through the prompts uses the same defaults as the plain commands.
 lyt [options] <youtube-url> [more-urls...]
 yt3 <url>   # audio shortcut
 yt4 <url>   # video shortcut
+
+lyt history [query] [--limit <n>] [--clear]
+lyt config <set|get|unset|list|path> [key] [value]
+lyt doctor [--fix] [--update]
 ```
 
 | Option | Description |
@@ -220,6 +362,14 @@ yt4 <url>   # video shortcut
 | `-q, --quality <value>` | Audio: MP3 bitrate (`128K`, `192K`, `320K`, `0`). Video: a resolution like `1080p`, `720p`, `4k`, `8k`, or `best`. |
 | `--max-height <value>` | Cap video resolution; alias of `-q` in video mode. |
 | `-L, --list-formats` | List the qualities available for each URL, then exit. |
+| `--clip <start-end>` | Download only this section (`1:10-2:45`, `90-180`, `1:10-`, `-2:45`). Repeatable. |
+| `--split-chapters` | Split into one file per chapter, named by chapter. |
+| `--normalize` | Loudness-normalize audio (EBU R128). Implies `--mp3`. Audio mode only. |
+| `-p, --paste` | Add the YouTube URL(s) found on the clipboard. |
+| `--watch`, `--queue` | Watch the clipboard and download every copied link until Ctrl+C. |
+| `--profile <name>` | Apply a preset bundle: `music`, `podcast`, or `voice`. |
+| `--redownload` | Download even if the video is already in history. |
+| `--no-history` | Skip recording this run in the download history. |
 | `-f, --fragments <n>` | Concurrent fragments per download. Default is `8`. |
 | `-j, --jobs <n>` | Parallel downloads for multiple URLs. Default is `1`. |
 | `-o, --output-dir <dir>` | Output directory. Default is `downloads`. |
@@ -316,6 +466,10 @@ npm install -g github:tanattv/lyt         # if installed from GitHub
 
 ## Troubleshooting
 
+**Start with the doctor** — `lyt doctor` checks your whole setup and tells you
+exactly what to run. `lyt doctor --fix` installs anything missing;
+`lyt doctor --update` self-updates yt-dlp.
+
 **Downloads are slower than expected** — Try native audio instead of `--mp3`,
 avoid `--embed-metadata`/`--embed-thumbnail`, try the `aria2c` downloader, or
 adjust `--fragments`.
@@ -352,15 +506,21 @@ node bin/yt4.js --dry-run -q 4k "URL"     # run without installing globally
 bin/lyt.js            CLI entry point (full CLI, audio default)
 bin/yt3.js            Audio shortcut command
 bin/yt4.js            Video shortcut command
-src/cli.js            Runtime command orchestration
+src/cli.js            Runtime command orchestration and subcommands
 src/ytDlp.js          Argument parsing and yt-dlp command construction
 src/quality.js        Friendly video-quality presets and labels
 src/formats.js        Reads available qualities from yt-dlp (-J)
 src/interactive.js    Interactive prompt mode (node:readline)
 src/progress.js       Progress parsing and multi-bar rendering
 src/bootstrap.js      Auto-provisioning of yt-dlp and ffmpeg binaries
+src/paths.js          Per-user data dir resolution
+src/urls.js           YouTube URL extraction and video-ID parsing
+src/clipboard.js      Cross-platform clipboard reading (--paste / --watch)
+src/history.js        JSONL download history and dedupe
+src/config.js         Profiles and persistent config defaults
+src/doctor.js         Environment diagnosis, auto-fix, yt-dlp self-update
 install/              Install scripts and Windows right-click menu
-test/                 Node test runner coverage (63 tests)
+test/                 Node test runner coverage
 app/                  Tauri desktop app (Rust + webview)
 ```
 

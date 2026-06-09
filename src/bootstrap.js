@@ -16,36 +16,14 @@ import { createHash } from "node:crypto";
 import { join } from "node:path";
 import { spawnSync } from "node:child_process";
 import process from "node:process";
+import { binDir } from "./paths.js";
 
 // ---------------------------------------------------------------------------
-// Managed binary directory
+// Managed binary directory (shared with history/config via paths.js)
 // ---------------------------------------------------------------------------
 
 function managedDir() {
-  switch (process.platform) {
-    case "win32":
-      return join(
-        process.env.LOCALAPPDATA ??
-          join(process.env.USERPROFILE ?? "", "AppData", "Local"),
-        "lyt",
-        "bin",
-      );
-    case "darwin":
-      return join(
-        process.env.HOME ?? "",
-        "Library",
-        "Application Support",
-        "lyt",
-        "bin",
-      );
-    default:
-      return join(
-        process.env.XDG_DATA_HOME ??
-          join(process.env.HOME ?? "", ".local", "share"),
-        "lyt",
-        "bin",
-      );
-  }
+  return binDir();
 }
 
 // ---------------------------------------------------------------------------
@@ -243,21 +221,23 @@ async function downloadFfmpegWindows() {
  * @param {{ noDownload?: boolean }} opts
  */
 export async function ensureFfmpeg({ noDownload = false } = {}) {
+  const FFMPEG_PROBE = ["-version"];
+
   // 1. On PATH?
-  if (probeOk("ffmpeg")) return "ffmpeg";
+  if (probeOk("ffmpeg", FFMPEG_PROBE)) return "ffmpeg";
 
   // 2. Windows fallbacks.
   if (process.platform === "win32") {
     const winStatic = join("C:\\", "ffmpeg", "bin", "ffmpeg.exe");
-    if (existsSync(winStatic) && probeOk(winStatic)) return winStatic;
+    if (existsSync(winStatic) && probeOk(winStatic, FFMPEG_PROBE)) return winStatic;
 
-    const winget = resolveWindowsFallback("ffmpeg");
+    const winget = resolveWindowsFallback("ffmpeg", FFMPEG_PROBE);
     if (winget) return winget;
   }
 
   // 3. Managed cache.
   const cached = ffmpegCachedBin();
-  if (existsSync(cached) && probeOk(cached)) return cached;
+  if (existsSync(cached) && probeOk(cached, FFMPEG_PROBE)) return cached;
 
   // 4. macOS / Linux: we don't bundle ffmpeg — provide a clear install hint.
   if (process.platform !== "win32") {
@@ -300,9 +280,12 @@ export async function ensureFfmpeg({ noDownload = false } = {}) {
 // Helpers
 // ---------------------------------------------------------------------------
 
-function probeOk(command) {
+// Note: ffmpeg only understands single-dash `-version`; `--version` makes it
+// exit non-zero with the banner on stderr, which used to make every ffmpeg
+// probe fail (and re-download ffmpeg on each run).
+function probeOk(command, args = ["--version"]) {
   try {
-    const result = spawnSync(command, ["--version"], {
+    const result = spawnSync(command, args, {
       encoding: "utf8",
       timeout: 5000,
       windowsHide: true,
@@ -317,7 +300,7 @@ function probeOk(command) {
  * Search WinGet's Packages directory for a command's executable, since WinGet
  * doesn't always update PATH in the current shell session.
  */
-function resolveWindowsFallback(command) {
+function resolveWindowsFallback(command, probeArgs = ["--version"]) {
   const localAppData = process.env.LOCALAPPDATA;
   if (!localAppData) return null;
 
@@ -325,33 +308,51 @@ function resolveWindowsFallback(command) {
   if (!existsSync(packagesDir)) return null;
 
   const exe = `${command}.exe`;
+  // Package dirs don't always start with the command name: yt-dlp lives in
+  // "yt-dlp.yt-dlp_…" but ffmpeg lives in "Gyan.FFmpeg_…".
+  const needle = command.toLowerCase();
 
   try {
     const dirs = readdirSync(packagesDir, { withFileTypes: true })
-      .filter(
-        (e) =>
-          e.isDirectory() &&
-          e.name.toLowerCase().startsWith(`${command.toLowerCase()}.`),
-      )
+      .filter((e) => e.isDirectory() && e.name.toLowerCase().includes(needle))
       .map((e) => e.name)
       .sort();
 
     for (const dir of dirs) {
-      const direct = join(packagesDir, dir, exe);
-      if (existsSync(direct) && probeOk(direct)) return direct;
-
-      // WinGet sometimes nests the binary in a versioned sub-directory.
-      for (const sub of readdirSync(join(packagesDir, dir), {
-        withFileTypes: true,
-      })) {
-        if (sub.isDirectory()) {
-          const nested = join(packagesDir, dir, sub.name, exe);
-          if (existsSync(nested) && probeOk(nested)) return nested;
-        }
-      }
+      // WinGet nests binaries differently per package; ffmpeg builds sit two
+      // levels down ("<build>/bin/ffmpeg.exe"), so search a few levels deep.
+      const found = findExecutable(join(packagesDir, dir), exe, 3);
+      if (found && probeOk(found, probeArgs)) return found;
     }
   } catch {
     // readdirSync can throw on permission errors; treat as not-found.
+  }
+
+  return null;
+}
+
+function findExecutable(dir, exe, depth) {
+  let entries;
+
+  try {
+    entries = readdirSync(dir, { withFileTypes: true });
+  } catch {
+    return null;
+  }
+
+  for (const entry of entries) {
+    if (entry.isFile() && entry.name.toLowerCase() === exe.toLowerCase()) {
+      return join(dir, entry.name);
+    }
+  }
+
+  if (depth <= 0) return null;
+
+  for (const entry of entries) {
+    if (entry.isDirectory()) {
+      const found = findExecutable(join(dir, entry.name), exe, depth - 1);
+      if (found) return found;
+    }
   }
 
   return null;
