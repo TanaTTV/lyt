@@ -14,12 +14,34 @@ import { createProgressRenderer, parseProgressLine } from "./progress.js";
 import { listFormats } from "./formats.js";
 import { labelHeight } from "./quality.js";
 import { ensureYtDlp, ensureFfmpeg } from "./bootstrap.js";
+import { readClipboard } from "./clipboard.js";
+import { extractVideoId, extractYouTubeUrls } from "./urls.js";
+import {
+  clearHistory,
+  historyPath,
+  loadHistory,
+  recordDownload,
+  searchHistory,
+  splitByHistory,
+} from "./history.js";
+import {
+  assertConfigKey,
+  configPath,
+  configToOptions,
+  loadConfig,
+  resolveProfile,
+  saveConfig,
+} from "./config.js";
+import { runDoctor } from "./doctor.js";
 
-const VERSION = "0.5.0";
+const VERSION = "0.6.0";
 
 // Above this many URLs we skip the aggregated bar block (it would scroll the
 // terminal) and fall back to yt-dlp's own inherited progress output.
 const MAX_PROGRESS_BARS = 20;
+
+// Clipboard polling cadence for --watch mode.
+const WATCH_INTERVAL_MS = 1500;
 
 export function run(argv, defaults = {}) {
   return main(argv, defaults).catch((error) => {
@@ -29,6 +51,19 @@ export function run(argv, defaults = {}) {
 }
 
 export async function main(argv, defaults = {}) {
+  // Subcommands take the first positional slot and never look like URLs.
+  switch (argv[0]) {
+    case "history":
+      return runHistoryCommand(argv.slice(1));
+    case "config":
+      return runConfigCommand(argv.slice(1));
+    case "doctor":
+      return runDoctor({
+        fix: argv.includes("--fix"),
+        update: argv.includes("--update") || argv.includes("-U"),
+      });
+  }
+
   const parsed = parseArgs(argv);
 
   if (parsed.help) {
@@ -41,12 +76,38 @@ export async function main(argv, defaults = {}) {
     return;
   }
 
-  // Defaults set by the entry point (e.g. yt4 -> video). Explicit flags win.
-  parsed.options = { ...defaults, ...parsed.options };
+  // Option precedence (lowest to highest): entry-point defaults (yt4 ->
+  // video), persistent config file, --profile bundle, explicit flags.
+  const userConfig = loadConfig();
+  const profileName = parsed.options.profile ?? userConfig.profile ?? null;
+  const profileOptions = profileName ? resolveProfile(profileName) : {};
+  parsed.options = {
+    ...defaults,
+    ...configToOptions(userConfig),
+    ...profileOptions,
+    ...parsed.options,
+  };
+
+  if (parsed.options.paste) {
+    const fromClipboard = extractYouTubeUrls(readClipboard());
+
+    if (fromClipboard.length === 0 && parsed.urls.length === 0 && !parsed.options.watch) {
+      const error = new Error("No YouTube URLs found on the clipboard.");
+      error.exitCode = 2;
+      throw error;
+    }
+
+    parsed.urls = dedupeUrls([...parsed.urls, ...fromClipboard]);
+
+    if (fromClipboard.length > 0) {
+      console.error(`Picked up ${fromClipboard.length} URL(s) from the clipboard.`);
+    }
+  }
 
   const wantsInteractive =
     parsed.options.interactive ||
     (parsed.urls.length === 0 &&
+      !parsed.options.watch &&
       process.stdin.isTTY &&
       !parsed.options.dryRun &&
       !parsed.options.printCommand);
@@ -73,7 +134,7 @@ export async function main(argv, defaults = {}) {
   const options = normalizeOptions(parsed.options);
   const urls = parsed.urls;
 
-  if (urls.length === 0) {
+  if (urls.length === 0 && !options.watch) {
     const error = new Error(`${usage()}\n\nMissing URL.`);
     error.exitCode = 2;
     throw error;
@@ -93,32 +154,79 @@ export async function main(argv, defaults = {}) {
     return;
   }
 
-  // Build each command exactly once and reuse it for both printing and running
-  // so the printed command always matches what executes.
-  const tasks = urls.map((url, index) => ({
+  if (options.dryRun) {
+    for (const url of urls) {
+      console.log(formatCommand("yt-dlp", buildYtDlpArgs(url, options)));
+    }
+
+    return;
+  }
+
+  const tools = await prepareTools(options, noDownload);
+
+  if (options.watch) {
+    return runWatchMode(urls, options, tools);
+  }
+
+  const failures = await downloadUrls(urls, options, tools);
+
+  if (failures.length > 0) {
+    const lines = failures.map(({ url, error }) => `- ${url}: ${error.message}`);
+    const error = new Error(`Download failed:\n${lines.join("\n")}`);
+    error.exitCode = 1;
+    throw error;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Download machinery
+// ---------------------------------------------------------------------------
+
+async function prepareTools(options, noDownload) {
+  const ytDlpCommand = await ensureYtDlp({ noDownload });
+
+  // ffmpeg is needed for conversion, muxing, embedding, accurate clip cuts,
+  // chapter splitting, and loudness normalization.
+  const needsFfmpeg =
+    options.mp3 ||
+    options.video ||
+    options.embedMetadata ||
+    options.embedThumbnail ||
+    options.normalize ||
+    options.splitChapters ||
+    options.clips.length > 0;
+  const ffmpegPath = needsFfmpeg ? await ensureFfmpeg({ noDownload }) : null;
+
+  return { ytDlpCommand, ffmpegPath };
+}
+
+// Downloads a batch of URLs. Returns the failures instead of throwing so
+// watch mode can keep going after a bad link.
+async function downloadUrls(urls, options, { ytDlpCommand, ffmpegPath }) {
+  let targets = urls;
+
+  // Instant dedupe against the download history (by video ID).
+  if (!options.redownload && options.history) {
+    const { fresh, skipped } = splitByHistory(urls, loadHistory());
+
+    for (const url of skipped) {
+      console.error(`Skipping (already downloaded): ${url}  - use --redownload to force`);
+    }
+
+    targets = fresh;
+  }
+
+  if (targets.length === 0) {
+    return [];
+  }
+
+  // Build each command exactly once and reuse it for both printing and
+  // running so the printed command always matches what executes.
+  const tasks = targets.map((url, index) => ({
     url,
     index,
     args: buildYtDlpArgs(url, options),
   }));
-
-  if (options.printCommand || options.dryRun) {
-    for (const task of tasks) {
-      console.log(formatCommand("yt-dlp", task.args));
-    }
-
-    if (options.dryRun) {
-      return;
-    }
-  }
-
-  const ytDlpCommand = await ensureYtDlp({ noDownload });
-
-  // ffmpeg is only needed for MP3 conversion, video muxing, or embedding.
-  const needsFfmpeg =
-    options.mp3 || options.video || options.embedMetadata || options.embedThumbnail;
-  const ffmpegPath = needsFfmpeg
-    ? await ensureFfmpeg({ noDownload })
-    : null;
 
   // Tell yt-dlp where ffmpeg lives when it is not on PATH.
   if (ffmpegPath && ffmpegPath !== "ffmpeg") {
@@ -127,9 +235,15 @@ export async function main(argv, defaults = {}) {
     }
   }
 
+  if (options.printCommand) {
+    for (const task of tasks) {
+      console.log(formatCommand(ytDlpCommand, task.args));
+    }
+  }
+
   await mkdir(options.outputDir, { recursive: true });
 
-  const jobs = Math.min(options.jobs, urls.length);
+  const jobs = Math.min(options.jobs, targets.length);
   const queue = [...tasks];
   const failures = [];
 
@@ -140,7 +254,7 @@ export async function main(argv, defaults = {}) {
     jobs > 1 &&
     process.stderr.isTTY &&
     !options.printCommand &&
-    urls.length <= MAX_PROGRESS_BARS;
+    targets.length <= MAX_PROGRESS_BARS;
   const renderer = useRenderer
     ? createProgressRenderer(tasks.map((task) => shortLabel(task.url)))
     : null;
@@ -161,6 +275,16 @@ export async function main(argv, defaults = {}) {
       try {
         await runCommand(ytDlpCommand, task.args, { onLine: lineHandler });
         renderer?.done(task.index, true);
+
+        if (options.history) {
+          recordDownload({
+            ts: new Date().toISOString(),
+            id: extractVideoId(task.url),
+            url: task.url,
+            mode: options.video ? "video" : "audio",
+            dir: options.outputDir,
+          });
+        }
       } catch (error) {
         renderer?.done(task.index, false);
         failures.push({ url: task.url, error });
@@ -171,14 +295,192 @@ export async function main(argv, defaults = {}) {
   await Promise.all(Array.from({ length: jobs }, () => worker()));
   renderer?.finish();
 
-  if (failures.length > 0) {
-    const lines = failures.map(({ url, error }) => `- ${url}: ${error.message}`);
-    const error = new Error(`Download failed:\n${lines.join("\n")}`);
-    error.exitCode = 1;
-    throw error;
+  return failures;
+}
+
+// --watch: poll the clipboard and download every new YouTube link the user
+// copies until Ctrl+C. Pure Node polling — no external watcher process.
+async function runWatchMode(initialUrls, options, tools) {
+  const handled = new Set();
+  let stopped = false;
+
+  const stop = () => {
+    stopped = true;
+    process.stderr.write("\nStopped watching the clipboard.\n");
+  };
+  process.once("SIGINT", stop);
+  process.once("SIGTERM", stop);
+
+  console.error("Watching the clipboard for YouTube links - press Ctrl+C to stop.");
+
+  const processBatch = async (urls) => {
+    const fresh = urls.filter((url) => {
+      const key = extractVideoId(url) ?? url;
+
+      if (handled.has(key)) {
+        return false;
+      }
+
+      handled.add(key);
+      return true;
+    });
+
+    if (fresh.length === 0) {
+      return;
+    }
+
+    const failures = await downloadUrls(fresh, options, tools);
+
+    for (const { url, error } of failures) {
+      console.error(`- ${url}: ${error.message}`);
+    }
+  };
+
+  // Whatever is on the clipboard right now counts too — the user probably
+  // copied it just before launching watch mode.
+  await processBatch(dedupeUrls([...initialUrls, ...extractYouTubeUrls(readClipboard())]));
+
+  while (!stopped) {
+    await sleep(WATCH_INTERVAL_MS);
+
+    if (stopped) {
+      break;
+    }
+
+    await processBatch(extractYouTubeUrls(readClipboard()));
   }
 }
 
+// ---------------------------------------------------------------------------
+// Subcommands
+// ---------------------------------------------------------------------------
+
+function runHistoryCommand(argv) {
+  if (argv.includes("--clear")) {
+    clearHistory();
+    console.log("Download history cleared.");
+    return;
+  }
+
+  const query = argv.filter((arg) => !arg.startsWith("-")).join(" ");
+  const limitFlag = argv.indexOf("--limit");
+  const limit = limitFlag >= 0 ? Number(argv[limitFlag + 1]) || 20 : 20;
+
+  const entries = searchHistory(loadHistory(), query);
+
+  if (entries.length === 0) {
+    console.log(query ? `No history entries match "${query}".` : "No downloads recorded yet.");
+    console.log(`(history file: ${historyPath()})`);
+    return;
+  }
+
+  for (const entry of entries.slice(-limit)) {
+    const when = String(entry.ts ?? "").replace("T", " ").slice(0, 16);
+    const mode = (entry.mode ?? "?").padEnd(5);
+    console.log(`${when}  ${mode}  ${entry.url ?? entry.id ?? "?"}`);
+  }
+
+  if (entries.length > limit) {
+    console.log(`(${entries.length - limit} older entries not shown - use --limit <n>)`);
+  }
+}
+
+function runConfigCommand(argv) {
+  const [action, key, ...rest] = argv;
+  const config = loadConfig();
+
+  switch (action) {
+    case "set": {
+      if (!key || rest.length === 0) {
+        throw usageError("Usage: lyt config set <key> <value>");
+      }
+
+      assertConfigKey(key);
+      config[key] = rest.join(" ");
+      saveConfig(config);
+      console.log(`${key} = ${config[key]}`);
+      return;
+    }
+
+    case "get": {
+      if (!key) {
+        throw usageError("Usage: lyt config get <key>");
+      }
+
+      assertConfigKey(key);
+      console.log(config[key] !== undefined ? `${key} = ${config[key]}` : `${key} is not set`);
+      return;
+    }
+
+    case "unset": {
+      if (!key) {
+        throw usageError("Usage: lyt config unset <key>");
+      }
+
+      assertConfigKey(key);
+      delete config[key];
+      saveConfig(config);
+      console.log(`${key} unset`);
+      return;
+    }
+
+    case "list":
+    case undefined: {
+      const keys = Object.keys(config);
+
+      if (keys.length === 0) {
+        console.log("No config values set. Try: lyt config set quality 320K");
+      } else {
+        for (const k of keys.sort()) {
+          console.log(`${k} = ${config[k]}`);
+        }
+      }
+
+      console.log(`(config file: ${configPath()})`);
+      return;
+    }
+
+    case "path": {
+      console.log(configPath());
+      return;
+    }
+
+    default:
+      throw usageError(
+        `Unknown config action: ${action}. Use set, get, unset, list, or path.`,
+      );
+  }
+}
+
+function usageError(message) {
+  const error = new Error(message);
+  error.exitCode = 2;
+  return error;
+}
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+function dedupeUrls(urls) {
+  const seen = new Set();
+  const unique = [];
+
+  for (const url of urls) {
+    const key = extractVideoId(url) ?? url;
+
+    if (!seen.has(key)) {
+      seen.add(key);
+      unique.push(url);
+    }
+  }
+
+  return unique;
+}
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
 
 function runCommand(command, args, { onLine } = {}) {
   return new Promise((resolve, reject) => {
