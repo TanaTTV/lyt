@@ -5,8 +5,9 @@ description: Download audio or video from YouTube and other yt-dlp supported sit
 
 # Downloading video/audio with lyt
 
-`lyt` wraps yt-dlp + ffmpeg with a friendly CLI. It auto-installs both tools on
-first use, so no manual setup is needed.
+`lyt` wraps yt-dlp + ffmpeg with a friendly CLI. It auto-installs yt-dlp on
+first use and auto-provisions ffmpeg on Windows. On macOS/Linux, install
+ffmpeg separately if it is missing.
 
 ## Finding the command
 
@@ -60,7 +61,8 @@ default), `--embed-metadata` / `--embed-thumbnail`, `--force-overwrite`,
    downloaded file to the user (e.g. with the SendUserFile tool) since they
    can't reach the container's filesystem; warn that very large videos may be
    impractical to transfer.
-4. First run may take longer while lyt fetches yt-dlp/ffmpeg into its cache.
+4. First run may take longer while lyt fetches yt-dlp (and ffmpeg on Windows)
+   into its cache.
    If the environment forbids downloads, retry with `--no-download` only when
    yt-dlp and ffmpeg are already on PATH.
 
