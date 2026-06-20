@@ -341,6 +341,38 @@ multiple URLs) the number of parallel jobs. In video mode it can **list the
 real available qualities and let you pick one from a numbered menu**. Pressing
 Enter through the prompts uses the same defaults as the plain commands.
 
+## Use with Claude Code
+
+lyt ships with a [Claude Code](https://claude.com/claude-code) skill, so you
+can just paste a link into Claude and say *"download the audio of this"* —
+Claude picks the right `lyt` command for you, including quality flags and
+output location.
+
+Inside this repository it works out of the box: Claude Code automatically
+loads the skill from [`.claude/skills/lyt/`](.claude/skills/lyt/SKILL.md).
+
+To make it available in **every** project on your machine, copy the skill to
+your personal skills folder (and install lyt globally if you haven't):
+
+```bash
+npm install -g @tanattv/lyt
+mkdir -p ~/.claude/skills/lyt
+curl -fsSL https://raw.githubusercontent.com/tanattv/lyt/main/.claude/skills/lyt/SKILL.md \
+  -o ~/.claude/skills/lyt/SKILL.md
+```
+
+Then, in any Claude Code session:
+
+```text
+> get me the audio of https://www.youtube.com/watch?v=VIDEO_ID as mp3
+> download this in 1080p and put it in ~/Videos: https://youtu.be/VIDEO_ID
+> what qualities does this video come in? https://youtu.be/VIDEO_ID
+```
+
+The skill works best in Claude Code running locally on your machine. Remote
+sandboxes (like Claude Code on the web) often have network policies that block
+YouTube.
+
 ## Command Reference
 
 ```text
