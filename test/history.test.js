@@ -33,6 +33,10 @@ test("records and loads history entries in order", () => {
   }
 });
 
+test("recordDownload rejects relative target paths", () => {
+  assert.throws(() => recordDownload({}, "history.jsonl"), /must be absolute/);
+});
+
 test("loadHistory skips corrupt lines instead of throwing", () => {
   const { file, cleanup } = tempHistoryFile();
 
@@ -78,6 +82,7 @@ test("searchHistory filters case-insensitively across fields", () => {
   assert.equal(searchHistory(entries, "youtu.be").length, 2);
   assert.equal(searchHistory(entries, "").length, 2);
   assert.equal(searchHistory(entries, "nope").length, 0);
+  assert.equal(searchHistory([{ id: "a", metadata: "secret" }], "metadata").length, 0);
 });
 
 test("clearHistory removes the file and tolerates a missing one", () => {

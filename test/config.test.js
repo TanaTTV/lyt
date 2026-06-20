@@ -51,6 +51,10 @@ test("profile options normalize cleanly (podcast implies mp3 + normalize)", () =
   assert.equal(options.quality, "96K");
 });
 
+test("saveConfig rejects relative target paths", () => {
+  assert.throws(() => saveConfig({}, "config.json"), /must be absolute/);
+});
+
 test("config round-trips through save and load", () => {
   const { file, cleanup } = tempConfigFile();
 

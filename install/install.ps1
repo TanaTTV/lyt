@@ -13,10 +13,20 @@ $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $PSScriptRoot
 
 function Refresh-SessionPath {
-    # Pick up PATH changes made by winget/installers without a new terminal.
+    # Pick up installer changes without losing process-only entries from dev
+    # shells, portable installs, or CI bootstrap steps.
     $machine = [Environment]::GetEnvironmentVariable("Path", "Machine")
     $user = [Environment]::GetEnvironmentVariable("Path", "User")
-    $env:Path = "$machine;$user"
+    $seen = [System.Collections.Generic.HashSet[string]]::new(
+        [System.StringComparer]::OrdinalIgnoreCase
+    )
+    $merged = foreach ($pathValue in @($env:Path, $machine, $user)) {
+        foreach ($segment in ($pathValue -split ";")) {
+            $clean = $segment.Trim()
+            if ($clean -and $seen.Add($clean)) { $clean }
+        }
+    }
+    $env:Path = $merged -join ";"
 }
 
 Write-Host "Installing lyt commands (lyt, yt3, yt4)..." -ForegroundColor Cyan
@@ -103,7 +113,8 @@ foreach ($tool in $tools) {
     }
 
     if ($exe) {
-        $version = (& $exe --version 2>$null | Select-Object -First 1)
+        $versionFlag = if ($tool.Name -eq "ffmpeg") { "-version" } else { "--version" }
+        $version = (& $exe $versionFlag 2>$null | Select-Object -First 1)
         if ($tool.Name -eq "ffmpeg") { $version = ($version -replace "^ffmpeg version\s+", "") -split " " | Select-Object -First 1 }
         Write-Host "  $($tool.Name.PadRight(7)) $version"
     } else {

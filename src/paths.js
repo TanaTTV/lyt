@@ -10,25 +10,44 @@ import process from "node:process";
 
 export function dataDir() {
   switch (process.platform) {
-    case "win32":
+    case "win32": {
+      if (!process.env.LOCALAPPDATA && !process.env.USERPROFILE) {
+        throw new Error(
+          "LOCALAPPDATA and USERPROFILE are undefined; cannot determine the lyt data directory.",
+        );
+      }
+
       return join(
         process.env.LOCALAPPDATA ??
-          join(process.env.USERPROFILE ?? "", "AppData", "Local"),
+          join(process.env.USERPROFILE, "AppData", "Local"),
         "lyt",
       );
-    case "darwin":
+    }
+    case "darwin": {
+      if (!process.env.HOME) {
+        throw new Error("HOME is undefined; cannot determine the lyt data directory.");
+      }
+
       return join(
-        process.env.HOME ?? "",
+        process.env.HOME,
         "Library",
         "Application Support",
         "lyt",
       );
-    default:
+    }
+    default: {
+      if (!process.env.XDG_DATA_HOME && !process.env.HOME) {
+        throw new Error(
+          "XDG_DATA_HOME and HOME are undefined; cannot determine the lyt data directory.",
+        );
+      }
+
       return join(
         process.env.XDG_DATA_HOME ??
-          join(process.env.HOME ?? "", ".local", "share"),
+          join(process.env.HOME, ".local", "share"),
         "lyt",
       );
+    }
   }
 }
 

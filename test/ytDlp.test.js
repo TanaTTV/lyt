@@ -324,9 +324,18 @@ test("--normalize implies mp3 and adds a loudnorm postprocessor", () => {
 
 test("--normalize in video mode is rejected", () => {
   assert.throws(
-    () => normalizeOptions({ video: true, normalize: true }),
+    () => normalizeOptions({ video: true, normalize: true, normalizeExplicit: true }),
     /audio mode only/,
   );
+});
+
+test("video mode clears inherited normalization and supports explicit negation", () => {
+  assert.equal(normalizeOptions({ video: true, normalize: true }).normalize, false);
+
+  const parsed = parseArgs(["--video", "--no-normalize", "u"]);
+  const options = normalizeOptions({ normalize: true, ...parsed.options });
+  assert.equal(options.video, true);
+  assert.equal(options.normalize, false);
 });
 
 // ---------------------------------------------------------------------------

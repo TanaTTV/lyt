@@ -9,7 +9,7 @@ import {
   readFileSync,
   rmSync,
 } from "node:fs";
-import { dirname, join } from "node:path";
+import { dirname, isAbsolute, join } from "node:path";
 import { dataDir } from "./paths.js";
 import { extractVideoId } from "./urls.js";
 
@@ -46,8 +46,18 @@ export function loadHistory(file = historyPath()) {
 }
 
 export function recordDownload(entry, file = historyPath()) {
-  mkdirSync(dirname(file), { recursive: true });
-  appendFileSync(file, `${JSON.stringify(entry)}\n`);
+  if (!isAbsolute(file)) {
+    throw new Error(`History path must be absolute: ${file}`);
+  }
+
+  try {
+    mkdirSync(dirname(file), { recursive: true });
+    appendFileSync(file, `${JSON.stringify(entry)}\n`);
+  } catch (error) {
+    throw new Error(`Could not update history at ${file}: ${error.message}`, {
+      cause: error,
+    });
+  }
 }
 
 export function clearHistory(file = historyPath()) {
@@ -77,7 +87,7 @@ export function splitByHistory(urls, entries) {
   return { fresh, skipped };
 }
 
-// Case-insensitive substring search across all entry fields.
+// Case-insensitive substring search across user-meaningful entry fields.
 export function searchHistory(entries, query) {
   const needle = String(query ?? "").toLowerCase();
 
@@ -85,7 +95,14 @@ export function searchHistory(entries, query) {
     return entries;
   }
 
+  const fields = ["id", "url", "mode", "title", "description", "dir", "ts"];
+
   return entries.filter((entry) =>
-    JSON.stringify(entry).toLowerCase().includes(needle),
+    fields
+      .map((field) => entry[field])
+      .filter((value) => value != null)
+      .join(" ")
+      .toLowerCase()
+      .includes(needle),
   );
 }

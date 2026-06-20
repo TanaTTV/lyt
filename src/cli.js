@@ -154,15 +154,15 @@ export async function main(argv, defaults = {}) {
     return;
   }
 
+  const tools = await prepareTools(options, noDownload);
+
   if (options.dryRun) {
-    for (const url of urls) {
-      console.log(formatCommand("yt-dlp", buildYtDlpArgs(url, options)));
+    for (const task of buildTasks(urls, options, tools)) {
+      console.log(formatCommand(tools.ytDlpCommand, task.args));
     }
 
     return;
   }
-
-  const tools = await prepareTools(options, noDownload);
 
   if (options.watch) {
     return runWatchMode(urls, options, tools);
@@ -222,18 +222,7 @@ async function downloadUrls(urls, options, { ytDlpCommand, ffmpegPath }) {
 
   // Build each command exactly once and reuse it for both printing and
   // running so the printed command always matches what executes.
-  const tasks = targets.map((url, index) => ({
-    url,
-    index,
-    args: buildYtDlpArgs(url, options),
-  }));
-
-  // Tell yt-dlp where ffmpeg lives when it is not on PATH.
-  if (ffmpegPath && ffmpegPath !== "ffmpeg") {
-    for (const task of tasks) {
-      task.args.splice(task.args.indexOf("--"), 0, "--ffmpeg-location", ffmpegPath);
-    }
-  }
+  const tasks = buildTasks(targets, options, { ffmpegPath });
 
   if (options.printCommand) {
     for (const task of tasks) {
@@ -296,6 +285,23 @@ async function downloadUrls(urls, options, { ytDlpCommand, ffmpegPath }) {
   renderer?.finish();
 
   return failures;
+}
+
+function buildTasks(urls, options, { ffmpegPath }) {
+  const tasks = urls.map((url, index) => ({
+    url,
+    index,
+    args: buildYtDlpArgs(url, options),
+  }));
+
+  // Tell yt-dlp where ffmpeg lives when it is not on PATH.
+  if (ffmpegPath && ffmpegPath !== "ffmpeg") {
+    for (const task of tasks) {
+      task.args.splice(task.args.indexOf("--"), 0, "--ffmpeg-location", ffmpegPath);
+    }
+  }
+
+  return tasks;
 }
 
 // --watch: poll the clipboard and download every new YouTube link the user

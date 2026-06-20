@@ -43,7 +43,7 @@ export async function runDoctor({ fix = false, update = false, log = console.log
   }
 
   // Clipboard tooling (used by --paste and --watch)
-  const clipTool = clipboardCommands().find(([command]) => commandExists(command));
+  const clipTool = probeClipboard();
   report(
     log,
     Boolean(clipTool),
@@ -57,7 +57,13 @@ export async function runDoctor({ fix = false, update = false, log = console.log
   log("");
   log(`  data dir   ${dataDir()}`);
   log(`  tools dir  ${binDir()}${existsSync(binDir()) ? "" : " (not created yet)"}`);
-  log(`  history    ${historyPath()} (${loadHistory().length} entries)`);
+  const historyFile = historyPath();
+  try {
+    log(`  history    ${historyFile} (${loadHistory(historyFile).length} entries)`);
+  } catch (error) {
+    problems += 1;
+    log(`  history    ${historyFile} (unavailable: ${trimmed(error.message)})`);
+  }
   log(`  config     ${configPath()}${existsSync(configPath()) ? "" : " (defaults)"}`);
 
   // Self-update
@@ -122,17 +128,24 @@ function describe(path) {
   return path.startsWith(binDir()) ? `managed: ${path}` : path;
 }
 
-function commandExists(command) {
-  try {
-    const result = spawnSync(command, ["--version"], {
-      encoding: "utf8",
-      timeout: 5000,
-      windowsHide: true,
-    });
-    return !result.error;
-  } catch {
-    return false;
+function probeClipboard() {
+  for (const [command, args] of clipboardCommands()) {
+    try {
+      const result = spawnSync(command, args, {
+        encoding: "utf8",
+        timeout: 5000,
+        windowsHide: true,
+      });
+
+      if (!result.error && result.status === 0) {
+        return [command, args];
+      }
+    } catch {
+      // Try the next platform candidate.
+    }
   }
+
+  return null;
 }
 
 function trimmed(message) {

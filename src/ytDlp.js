@@ -119,6 +119,13 @@ export function parseArgs(argv) {
 
     if (arg === "--normalize") {
       options.normalize = true;
+      options.normalizeExplicit = true;
+      continue;
+    }
+
+    if (arg === "--no-normalize") {
+      options.normalize = false;
+      options.normalizeExplicit = true;
       continue;
     }
 
@@ -212,7 +219,7 @@ export function normalizeOptions(options = {}) {
     maxHeight = token != null ? resolveHeight(token) : null;
   }
 
-  if (options.normalize && video) {
+  if (options.normalize && video && options.normalizeExplicit) {
     const error = new Error(
       "--normalize works in audio mode only (it re-encodes the audio track).",
     );
@@ -451,6 +458,7 @@ Options:
                             1:10- (to end), -2:45 (from start); repeatable
   --split-chapters          Split into one file per chapter, named by chapter
   --normalize               Loudness-normalize audio (EBU R128; implies --mp3)
+  --no-normalize            Disable normalization inherited from config/profile
   -p, --paste               Add YouTube URL(s) found on the clipboard
   --watch, --queue          Watch the clipboard and download every copied link
   --profile <name>          Preset bundle: music, podcast, or voice

@@ -10,7 +10,7 @@ import {
   readFileSync,
   writeFileSync,
 } from "node:fs";
-import { dirname, join } from "node:path";
+import { dirname, isAbsolute, join } from "node:path";
 import { dataDir } from "./paths.js";
 
 export const PROFILES = {
@@ -93,8 +93,18 @@ export function loadConfig(file = configPath()) {
 }
 
 export function saveConfig(config, file = configPath()) {
-  mkdirSync(dirname(file), { recursive: true });
-  writeFileSync(file, `${JSON.stringify(config, null, 2)}\n`);
+  if (!isAbsolute(file)) {
+    throw new Error(`Config path must be absolute: ${file}`);
+  }
+
+  try {
+    mkdirSync(dirname(file), { recursive: true });
+    writeFileSync(file, `${JSON.stringify(config, null, 2)}\n`);
+  } catch (error) {
+    throw new Error(`Could not save config at ${file}: ${error.message}`, {
+      cause: error,
+    });
+  }
 }
 
 export function assertConfigKey(key) {
