@@ -33,6 +33,8 @@ const required = [
   "src/cli.js",
   "skills/lyt/SKILL.md",
   "schemas/lyt.result.v1.schema.json",
+  "schemas/lyt.doctor.v1.schema.json",
+  "schemas/lyt.history.v1.schema.json",
 ];
 const forbiddenPrefixes = ["reports/", "test/", "app/", ".github/", ".claude/"];
 const missing = required.filter((path) => !paths.has(path));
