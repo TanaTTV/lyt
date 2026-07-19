@@ -3,7 +3,7 @@
 All notable changes to lyt are documented here. This project follows semantic
 versioning for the public CLI and machine-readable result contract.
 
-## [0.7.0] - Unreleased
+## [0.7.0] - 2026-07-19
 
 ### Added
 
