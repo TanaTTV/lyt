@@ -145,7 +145,7 @@ export const pages = [
 lyt doctor</code><button class="copy" data-copy="npm install --global @tanattv/lyt&#10;lyt doctor">Copy</button></div></section>
         <section><h2>Save a video to Downloads</h2><div class="code-block"><code>lyt --video -q 1080p -o "$HOME/Downloads" "URL"</code><button class="copy" data-copy="lyt --video -q 1080p -o &quot;$HOME/Downloads&quot; &quot;URL&quot;">Copy</button></div></section>
         <section class="callout"><h2>PowerShell tip</h2><p>Always put the URL in quotes. Characters such as <code>&amp;</code> can otherwise be interpreted by the shell instead of passed to lyt.</p></section>
-        <section><h2>If PowerShell cannot find lyt</h2><ul class="check-list"><li>Close and reopen the terminal after installation.</li><li>Run <code>npm prefix --global</code> and confirm its executable directory is on PATH.</li><li>Run <code>npx @tanattv/lyt doctor</code> as a temporary diagnostic.</li><li>Include the exact error—not private URLs—when requesting help.</li></ul></section>
+        <section><h2>If PowerShell cannot find lyt</h2><ul class="check-list"><li>Close and reopen the terminal after installation.</li><li>Run <code>npm prefix --global</code> and confirm its executable directory is on PATH.</li><li>Run <code>npx --yes -p @tanattv/lyt lyt doctor</code> as a temporary diagnostic.</li><li>Include the exact error—not private URLs—when requesting help.</li></ul></section>
       </main>`
   },
   {
