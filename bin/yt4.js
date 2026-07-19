@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
 // yt4: video download shortcut.
-import { run } from "../src/cli.js";
+import { runEntry } from "../src/entry.js";
 
-run(process.argv.slice(2), { video: true });
+runEntry(process.argv.slice(2), { video: true });
