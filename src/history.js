@@ -9,7 +9,8 @@ import {
   readFileSync,
   rmSync,
 } from "node:fs";
-import { dirname, isAbsolute, join } from "node:path";
+import { createHash } from "node:crypto";
+import { dirname, isAbsolute, join, resolve } from "node:path";
 import { dataDir } from "./paths.js";
 import { extractVideoId } from "./urls.js";
 
@@ -35,12 +36,15 @@ export function loadHistory(file = historyPath()) {
   return entries;
 }
 
-export function recordDownload(entry, file = historyPath()) {
+export function recordDownload(
+  entry,
+  file = historyPath(),
+  { artifact = process.env.LYT_ARTIFACT_FINGERPRINT } = {},
+) {
   if (!isAbsolute(file)) {
     throw new Error(`History path must be absolute: ${file}`);
   }
 
-  const artifact = process.env.LYT_ARTIFACT_FINGERPRINT;
   const value = artifact && !entry.artifact ? { ...entry, artifact } : entry;
 
   try {
@@ -57,6 +61,41 @@ export function clearHistory(file = historyPath()) {
   rmSync(file, { force: true });
 }
 
+// Build the artifact identity only after config, profile, clipboard, watch, and
+// interactive options have been resolved. Computing this from raw argv would
+// miss jobs whose URLs or final choices arrive later in the CLI flow.
+export function buildArtifactFingerprint(options) {
+  const mode = options.video ? "video" : options.mp3 ? "mp3" : "audio";
+  const variant = {
+    schema: "lyt.artifact.v1",
+    mode,
+    quality: options.video
+      ? options.maxHeight ?? "best"
+      : options.mp3
+        ? options.quality
+        : "native",
+    clips: options.clips,
+    splitChapters: options.splitChapters,
+    normalize: options.normalize,
+    embedMetadata: options.embedMetadata,
+    embedThumbnail: options.embedThumbnail,
+    playlist: options.playlist,
+    outputDir: resolve(options.outputDir),
+    template: options.template,
+  };
+
+  const digest = createHash("sha256")
+    .update(JSON.stringify(variant))
+    .digest("hex")
+    .slice(0, 24);
+
+  return {
+    fingerprint: `${variant.schema}:${digest}`,
+    mode,
+    variant,
+  };
+}
+
 export function existingHistoryFiles(entry, exists = existsSync) {
   if (!Array.isArray(entry?.files)) return [];
   return entry.files.filter((file) => typeof file === "string" && exists(file));
@@ -71,12 +110,16 @@ function entryIsActive(entry, exists) {
 }
 
 // Splits URLs into fresh and equivalent previously downloaded artifacts.
-// New CLI invocations provide LYT_ARTIFACT_FINGERPRINT so audio/video, quality,
-// clip, profile, and output variants do not block one another. Calls without a
-// fingerprint retain legacy ID-only behavior for compatibility with integrations
-// that import this helper directly.
-export function splitByHistory(urls, entries, exists = existsSync) {
-  const requestedArtifact = process.env.LYT_ARTIFACT_FINGERPRINT ?? null;
+// The CLI passes its final artifact fingerprint explicitly so audio/video,
+// quality, clip, profile, and output variants do not block one another. The
+// environment fallback preserves compatibility with integrations using the
+// earlier helper contract; no fingerprint retains legacy ID-only behavior.
+export function splitByHistory(
+  urls,
+  entries,
+  exists = existsSync,
+  requestedArtifact = process.env.LYT_ARTIFACT_FINGERPRINT ?? null,
+) {
   const active = entries.filter((entry) => entryIsActive(entry, exists));
   const fresh = [];
   const skipped = [];

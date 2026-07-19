@@ -76,7 +76,7 @@ export async function runDoctor({
   }
 
   const paths = diagnosticPaths();
-  const requiredOk = checks.filter((check) => check.required).every((check) => check.ok);
+  const commandOk = doctorCommandSucceeded(checks, { update });
   const capabilities = {
     nativeAudio: nodeOk && Boolean(ytDlp.path),
     mp3: nodeOk && Boolean(ytDlp.path) && Boolean(ffmpeg.path),
@@ -89,7 +89,7 @@ export async function runDoctor({
     schema: "lyt.doctor.v1",
     version: VERSION,
     command: "doctor",
-    ok: requiredOk,
+    ok: commandOk,
     checks,
     capabilities,
     paths,
@@ -101,11 +101,22 @@ export async function runDoctor({
     printHumanReport(payload, { fix, log });
   }
 
-  if (!requiredOk) {
+  if (!commandOk) {
     process.exitCode = 1;
   }
 
   return payload;
+}
+
+export function doctorCommandSucceeded(checks, { update = false } = {}) {
+  const requiredOk = checks
+    .filter((check) => check.required)
+    .every((check) => check.ok);
+  const updateChecks = checks.filter((check) => check.name === "yt-dlp-update");
+  const updateOk = !update || (
+    updateChecks.length === 1 && updateChecks.every((check) => check.ok)
+  );
+  return requiredOk && updateOk;
 }
 
 function updateYtDlp(path) {
@@ -199,8 +210,14 @@ function printHumanReport(payload, { fix, log }) {
       : `lyt core is ready. ${unavailable} optional capability${unavailable === 1 ? " is" : "ies are"} unavailable.`);
   } else {
     const problems = payload.checks.filter((check) => check.required && !check.ok).length;
-    log(`${problems} required problem${problems === 1 ? "" : "s"} found.`);
-    if (!fix) log("Run `lyt doctor --fix` to install what lyt can safely manage.");
+    const updateFailed = payload.checks.some((check) =>
+      check.name === "yt-dlp-update" && !check.ok,
+    );
+    if (problems > 0) {
+      log(`${problems} required problem${problems === 1 ? "" : "s"} found.`);
+      if (!fix) log("Run `lyt doctor --fix` to install what lyt can safely manage.");
+    }
+    if (updateFailed) log("The requested yt-dlp update was not completed.");
   }
 }
 

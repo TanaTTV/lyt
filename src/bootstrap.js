@@ -10,8 +10,10 @@ import {
 import {
   mkdir,
   open,
+  readFile,
   rename,
   rm,
+  stat,
   writeFile,
 } from "node:fs/promises";
 import { createHash } from "node:crypto";
@@ -23,6 +25,8 @@ import { binDir } from "./paths.js";
 const FETCH_TIMEOUT_MS = 60_000;
 const LOCK_WAIT_MS = 30_000;
 const LOCK_POLL_MS = 250;
+const LOCK_STALE_MS = 10 * 60_000;
+const LOCK_METADATA_GRACE_MS = 2_000;
 const MAX_YT_DLP_BYTES = 64 * 1024 * 1024;
 const MAX_FFMPEG_ARCHIVE_BYTES = 256 * 1024 * 1024;
 
@@ -300,17 +304,41 @@ async function fetchChecked(url, options = {}) {
   return response;
 }
 
-async function readBounded(response, maxBytes, label) {
+export async function readBounded(response, maxBytes, label) {
   const advertised = Number(response.headers?.get?.("content-length"));
   if (Number.isFinite(advertised) && advertised > maxBytes) {
     throw new Error(`${label} exceeded the ${maxBytes}-byte safety limit`);
   }
 
-  const data = Buffer.from(await response.arrayBuffer());
-  if (data.length > maxBytes) {
-    throw new Error(`${label} exceeded the ${maxBytes}-byte safety limit`);
+  const reader = response.body?.getReader?.();
+  if (!reader) {
+    const data = Buffer.from(await response.arrayBuffer());
+    if (data.length > maxBytes) {
+      throw new Error(`${label} exceeded the ${maxBytes}-byte safety limit`);
+    }
+    return data;
   }
-  return data;
+
+  const chunks = [];
+  let total = 0;
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      const chunk = Buffer.from(value);
+      total += chunk.length;
+      if (total > maxBytes) {
+        await reader.cancel(`Exceeded ${label} size limit`).catch(() => {});
+        throw new Error(`${label} exceeded the ${maxBytes}-byte safety limit`);
+      }
+      chunks.push(chunk);
+    }
+  } finally {
+    reader.releaseLock();
+  }
+
+  return Buffer.concat(chunks, total);
 }
 
 function verifySha256(data, expectedHash, asset) {
@@ -346,9 +374,15 @@ async function replaceFile(source, destination) {
   }
 }
 
-async function withInstallLock(name, task) {
-  await mkdir(managedDir(), { recursive: true });
-  const lockPath = join(managedDir(), `${name}.install.lock`);
+export async function withInstallLock(name, task, {
+  directory = managedDir(),
+  waitMs = LOCK_WAIT_MS,
+  pollMs = LOCK_POLL_MS,
+  staleMs = LOCK_STALE_MS,
+  metadataGraceMs = LOCK_METADATA_GRACE_MS,
+} = {}) {
+  await mkdir(directory, { recursive: true });
+  const lockPath = join(directory, `${name}.install.lock`);
   const started = Date.now();
   let handle;
 
@@ -357,18 +391,59 @@ async function withInstallLock(name, task) {
       handle = await open(lockPath, "wx");
     } catch (error) {
       if (error.code !== "EEXIST") throw error;
-      if (Date.now() - started > LOCK_WAIT_MS) {
+      if (await installLockIsStale(lockPath, { staleMs, metadataGraceMs })) {
+        await rm(lockPath, { force: true });
+        continue;
+      }
+      if (Date.now() - started > waitMs) {
         throw new Error(`Timed out waiting for another ${name} installation`);
       }
-      await sleep(LOCK_POLL_MS);
+      await sleep(pollMs);
     }
   }
 
   try {
+    await handle.writeFile(JSON.stringify({
+      pid: process.pid,
+      createdAt: new Date().toISOString(),
+    }));
+    await handle.sync();
     return await task();
   } finally {
     await handle.close().catch(() => {});
     await rm(lockPath, { force: true });
+  }
+}
+
+async function installLockIsStale(lockPath, { staleMs, metadataGraceMs }) {
+  let info;
+  try {
+    info = await stat(lockPath);
+  } catch (error) {
+    return error.code === "ENOENT";
+  }
+
+  const age = Date.now() - info.mtimeMs;
+  if (age > staleMs) return true;
+
+  let metadata;
+  try {
+    metadata = JSON.parse(await readFile(lockPath, "utf8"));
+  } catch {
+    return age > metadataGraceMs;
+  }
+
+  const pid = Number(metadata?.pid);
+  if (!Number.isSafeInteger(pid) || pid < 1) return age > metadataGraceMs;
+  return !processIsAlive(pid);
+}
+
+function processIsAlive(pid) {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (error) {
+    return error.code === "EPERM";
   }
 }
 

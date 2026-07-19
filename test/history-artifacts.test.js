@@ -78,3 +78,31 @@ test("recordDownload persists the active artifact fingerprint", () => {
     rmSync(dir, { recursive: true, force: true });
   }
 });
+
+test("the coordinator can pass artifact identity without process-global state", () => {
+  const url = "https://youtu.be/dQw4w9WgXcQ";
+  const entries = [{
+    id: "dQw4w9WgXcQ",
+    artifact: "lyt.artifact.v1:audio",
+    files: ["C:/audio.m4a"],
+  }];
+
+  assert.deepEqual(
+    splitByHistory([url], entries, () => true, "lyt.artifact.v1:video"),
+    { fresh: [url], skipped: [] },
+  );
+
+  const dir = mkdtempSync(join(tmpdir(), "lyt-explicit-artifact-"));
+  const file = join(dir, "history.jsonl");
+  try {
+    recordDownload(
+      { id: "dQw4w9WgXcQ", files: [] },
+      file,
+      { artifact: "lyt.artifact.v1:video" },
+    );
+    const entry = JSON.parse(readFileSync(file, "utf8").trim());
+    assert.equal(entry.artifact, "lyt.artifact.v1:video");
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});

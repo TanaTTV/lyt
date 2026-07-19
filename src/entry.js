@@ -1,5 +1,3 @@
-import { createHash } from "node:crypto";
-import { resolve } from "node:path";
 import process from "node:process";
 import { run } from "./cli.js";
 import {
@@ -8,15 +6,9 @@ import {
   loadHistory,
   searchHistory,
 } from "./history.js";
-import {
-  configToOptions,
-  loadConfig,
-  resolveProfile,
-} from "./config.js";
 import { runDoctor } from "./doctor.js";
 import { errorDetails, resultEnvelope } from "./result.js";
 import { extractVideoId } from "./urls.js";
-import { normalizeOptions, parseArgs } from "./ytDlp.js";
 import { VERSION } from "./version.js";
 
 const VALUE_OPTIONS = new Set([
@@ -74,21 +66,7 @@ export async function mainEntry(argv, defaults = {}) {
   }
 
   const prepared = prepareDownloadArgv(argv);
-  const artifact = buildArtifactFingerprint(prepared, defaults);
-  const previousArtifact = process.env.LYT_ARTIFACT_FINGERPRINT;
-  const previousMode = process.env.LYT_ARTIFACT_MODE;
-
-  if (artifact) {
-    process.env.LYT_ARTIFACT_FINGERPRINT = artifact.fingerprint;
-    process.env.LYT_ARTIFACT_MODE = artifact.mode;
-  }
-
-  try {
-    return await run(prepared, defaults);
-  } finally {
-    restoreEnv("LYT_ARTIFACT_FINGERPRINT", previousArtifact);
-    restoreEnv("LYT_ARTIFACT_MODE", previousMode);
-  }
+  return run(prepared, defaults);
 }
 
 export function prepareDownloadArgv(argv) {
@@ -106,60 +84,6 @@ export function prepareDownloadArgv(argv) {
   }
 
   return dedupePositionalUrls(prepared);
-}
-
-export function buildArtifactFingerprint(argv, defaults = {}) {
-  let parsed;
-
-  try {
-    parsed = parseArgs(argv);
-  } catch {
-    return null;
-  }
-
-  if (parsed.help || parsed.version || parsed.urls.length === 0 || parsed.options.listFormats) {
-    return null;
-  }
-
-  const userConfig = loadConfig(undefined, { warn: () => {} });
-  const profileName = parsed.options.profile ?? userConfig.profile ?? null;
-  const profileOptions = profileName ? resolveProfile(profileName) : {};
-  const options = normalizeOptions({
-    ...defaults,
-    ...configToOptions(userConfig),
-    ...profileOptions,
-    ...parsed.options,
-  });
-
-  const mode = options.video ? "video" : options.mp3 ? "mp3" : "audio";
-  const variant = {
-    schema: "lyt.artifact.v1",
-    mode,
-    quality: options.video
-      ? options.maxHeight ?? "best"
-      : options.mp3
-        ? options.quality
-        : "native",
-    clips: options.clips,
-    splitChapters: options.splitChapters,
-    normalize: options.normalize,
-    embedMetadata: options.embedMetadata,
-    embedThumbnail: options.embedThumbnail,
-    playlist: options.playlist,
-    outputDir: resolve(options.outputDir),
-    template: options.template,
-  };
-
-  const digest = createHash("sha256")
-    .update(JSON.stringify(variant))
-    .digest("hex")
-    .slice(0, 24);
-
-  return {
-    fingerprint: `${variant.schema}:${digest}`,
-    mode,
-    variant,
-  };
 }
 
 export function dedupePositionalUrls(argv) {
@@ -298,12 +222,4 @@ function usageError(message) {
   const error = new Error(message);
   error.exitCode = 2;
   return error;
-}
-
-function restoreEnv(name, previous) {
-  if (previous === undefined) {
-    delete process.env[name];
-  } else {
-    process.env[name] = previous;
-  }
 }
