@@ -1,0 +1,40 @@
+name: Bug report
+description: Report a reproducible lyt failure
+title: "[Bug]: "
+labels: [bug]
+body:
+  - type: checkboxes
+    attributes:
+      label: Safety check
+      options:
+        - label: I removed private URLs, cookies, tokens, and personal data.
+          required: true
+        - label: I own the media or have permission to download it.
+          required: true
+  - type: input
+    attributes:
+      label: lyt version
+      description: Run `lyt --version`.
+    validations:
+      required: true
+  - type: input
+    attributes:
+      label: Operating system
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: What happened?
+      description: Include the command with a public placeholder URL when possible.
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Doctor output
+      description: Paste non-sensitive output from `lyt doctor`.
+      render: text
+  - type: textarea
+    attributes:
+      label: Steps to reproduce
+    validations:
+      required: true
