@@ -8,6 +8,8 @@ import {
   existsSync,
   mkdirSync,
   readFileSync,
+  renameSync,
+  rmSync,
   writeFileSync,
 } from "node:fs";
 import { dirname, isAbsolute, join } from "node:path";
@@ -40,7 +42,6 @@ export function resolveProfile(name) {
   return { ...profile };
 }
 
-// Config keys (kebab-case, as typed by the user) -> parsed option fields.
 const BOOL = (value) => {
   const text = String(value).trim().toLowerCase();
 
@@ -75,19 +76,25 @@ export function configPath(dir = dataDir()) {
   return join(dir, "config.json");
 }
 
-// Raw config: { "kebab-key": "string value", ... }. Unknown/corrupt content
-// degrades to an empty config rather than breaking the CLI.
-export function loadConfig(file = configPath()) {
-  if (!existsSync(file)) {
-    return {};
-  }
+// A malformed config is moved aside and defaults are used. The warning keeps a
+// bad file from silently changing output locations or quality settings.
+export function loadConfig(file = configPath(), { warn = console.error } = {}) {
+  if (!existsSync(file)) return {};
 
   try {
     const parsed = JSON.parse(readFileSync(file, "utf8"));
-    return parsed && typeof parsed === "object" && !Array.isArray(parsed)
-      ? parsed
-      : {};
-  } catch {
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+      throw new Error("config root must be a JSON object");
+    }
+    return parsed;
+  } catch (error) {
+    const backup = `${file}.corrupt-${Date.now()}`;
+    try {
+      renameSync(file, backup);
+      warn(`lyt ignored a corrupt config and moved it to ${backup}: ${error.message}`);
+    } catch {
+      warn(`lyt ignored a corrupt config at ${file}: ${error.message}`);
+    }
     return {};
   }
 }
@@ -97,10 +104,24 @@ export function saveConfig(config, file = configPath()) {
     throw new Error(`Config path must be absolute: ${file}`);
   }
 
+  const directory = dirname(file);
+  const temporary = `${file}.${process.pid}.${Date.now()}.tmp`;
+
   try {
-    mkdirSync(dirname(file), { recursive: true });
-    writeFileSync(file, `${JSON.stringify(config, null, 2)}\n`);
+    mkdirSync(directory, { recursive: true });
+    writeFileSync(temporary, `${JSON.stringify(config, null, 2)}\n`);
+
+    try {
+      renameSync(temporary, file);
+    } catch (error) {
+      // Windows can reject replacing an existing destination. Remove only after
+      // the complete temporary file is safely written.
+      if (!["EEXIST", "EPERM"].includes(error.code)) throw error;
+      rmSync(file, { force: true });
+      renameSync(temporary, file);
+    }
   } catch (error) {
+    rmSync(temporary, { force: true });
     throw new Error(`Could not save config at ${file}: ${error.message}`, {
       cause: error,
     });
@@ -117,19 +138,12 @@ export function assertConfigKey(key) {
   }
 }
 
-// Converts a raw config object into a parseArgs-style options bag. The
-// `profile` key is intentionally excluded — the caller resolves it so a
-// `--profile` flag can take precedence over the configured one.
 export function configToOptions(config) {
   const options = {};
 
   for (const [key, value] of Object.entries(config)) {
     const spec = CONFIG_KEYS.get(key);
-
-    if (!spec || spec.option === "profile") {
-      continue;
-    }
-
+    if (!spec || spec.option === "profile") continue;
     options[spec.option] = spec.parse ? spec.parse(value) : value;
   }
 
