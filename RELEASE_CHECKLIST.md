@@ -16,7 +16,7 @@ both that accumulated CLI work and this agent-ready release pass.
   changelog, CLI entrypoints, install helpers, and runtime source.
 - [x] The package excludes tests, reports, desktop app sources, and repository
   agent configuration.
-- [ ] CI passes on Node 20 and 22 across Windows, macOS, and Linux.
+- [x] CI passes on Node 20 and 22 across Windows, macOS, and Linux.
 
 ## Manual smoke tests
 
@@ -35,7 +35,7 @@ both that accumulated CLI work and this agent-ready release pass.
 
 - [x] Review README commands against `lyt --help`.
 - [x] Confirm `CHANGELOG.md` contains every user-visible change.
-- [ ] Confirm the GitHub release tag will be exactly `v0.7.0`.
+- [x] Confirm the GitHub release tag will be exactly `v0.7.0`.
 - [x] Configure npm Trusted Publishing for `TanaTTV/lyt` using `publish.yml`.
-- [ ] Create release notes from the `0.7.0` changelog entry.
-- [ ] Publish only after explicit owner approval.
+- [x] Create release notes from the `0.7.0` changelog entry.
+- [x] Publish only after explicit owner approval.
