@@ -18,6 +18,13 @@ test("JSON mode removes human command printing", () => {
   );
 });
 
+test("force overwrite inserts the history override before the URL boundary", () => {
+  assert.deepEqual(
+    prepareDownloadArgv(["--force-overwrite", "--", "URL"]),
+    ["--force-overwrite", "--redownload", "--", "URL"],
+  );
+});
+
 test("deduplicates direct URLs without consuming option values", () => {
   assert.deepEqual(
     dedupePositionalUrls([
