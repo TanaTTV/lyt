@@ -31,11 +31,11 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/tanattv/lyt.git"
+    "url": "git+https://github.com/TanaTTV/lyt.git"
   },
-  "homepage": "https://github.com/tanattv/lyt#readme",
+  "homepage": "https://github.com/TanaTTV/lyt#readme",
   "bugs": {
-    "url": "https://github.com/tanattv/lyt/issues"
+    "url": "https://github.com/TanaTTV/lyt/issues"
   },
   "keywords": [
     "youtube",

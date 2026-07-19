@@ -36,6 +36,6 @@ both that accumulated CLI work and this agent-ready release pass.
 - [x] Review README commands against `lyt --help`.
 - [x] Confirm `CHANGELOG.md` contains every user-visible change.
 - [ ] Confirm the GitHub release tag will be exactly `v0.7.0`.
-- [ ] Confirm `NPM_TOKEN` and GitHub trusted publishing/provenance settings.
+- [x] Configure npm Trusted Publishing for `TanaTTV/lyt` using `publish.yml`.
 - [ ] Create release notes from the `0.7.0` changelog entry.
 - [ ] Publish only after explicit owner approval.
