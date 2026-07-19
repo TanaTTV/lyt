@@ -25,7 +25,8 @@
   <a href="#quick-start">Quick start</a> ·
   <a href="#built-for-agents">Agents</a> ·
   <a href="#recipes">Recipes</a> ·
-  <a href="#command-reference">Reference</a>
+  <a href="#command-reference">Reference</a> ·
+  <a href="https://tanattv.github.io/lyt/">Website</a>
 </p>
 
 ---
@@ -373,6 +374,15 @@ npm run smoke:linux
 
 `npm run check` runs the complete Node test suite and verifies the exact npm
 publish payload, including the packaged agent skill and JSON Schema.
+
+The product website lives in [`website/`](website/). Build it with
+`npm run build` from that directory. GitHub Pages publishes the generated site
+after changes reach `main`.
+
+Contributions are welcome. Read [CONTRIBUTING.md](CONTRIBUTING.md) before
+opening a pull request, use the issue forms for reproducible reports, and send
+security-sensitive findings through the private process in
+[SECURITY.md](SECURITY.md).
 
 ## License
 

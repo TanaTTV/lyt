@@ -1,6 +1,8 @@
 node_modules/
+.playwright-cli/
 downloads/
 reports/
+website/dist/
 .rust-target/
 *.mp3
 *.m4a

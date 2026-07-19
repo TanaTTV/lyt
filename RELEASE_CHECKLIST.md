@@ -1,41 +1,34 @@
-# lyt 0.7.0 release checklist
+# lyt 0.7.1 release checklist
 
-Version recommendation: **0.7.0**. This is a minor release because it adds an
-agent-facing output contract and installer without removing existing commands
-or changing default human-readable behavior. npm currently publishes `0.5.0`;
-the repository's `0.6.0` feature work was never published, so `0.7.0` includes
-both that accumulated CLI work and this agent-ready release pass.
+Version recommendation: **0.7.1**. This patch release changes branding,
+documentation, discovery metadata, community guidance, and the public website
+without changing CLI behavior or the `lyt.result.v1` contract.
 
 ## Automated gates
 
-- [x] `npm run check` passes in the release worktree.
-- [x] `node bin/lyt.js --version` prints `lyt 0.7.0`.
-- [x] `node bin/lyt.js --dry-run --json --video -q 1080p "URL"` emits one valid
-  `lyt.result.v1` JSON document without network or tool installation.
-- [x] `npm pack --dry-run --json` includes `skills/`, `schemas/`, README,
-  changelog, CLI entrypoints, install helpers, and runtime source.
-- [x] The package excludes tests, reports, desktop app sources, and repository
-  agent configuration.
-- [x] CI passes on Node 20 and 22 across Windows, macOS, and Linux.
+- [ ] `npm run check` passes.
+- [ ] `node bin/lyt.js --version` prints `lyt 0.7.1`.
+- [ ] `npm pack --dry-run --json` contains the intended CLI package only.
+- [ ] `npm run build` passes in `website/` with the production `SITE_URL`.
+- [ ] Website metadata and internal-link validation pass.
+- [ ] CI passes on Node 20 and 22 across Windows, macOS, and Linux.
+- [ ] GitHub Pages deployment completes from `main`.
 
-## Manual smoke tests
+## Public surfaces
 
-- [x] Windows: fresh tarball install, MP3, 1080p video, and doctor.
-- [x] Windows: verify `--json` returns existing final post-processed absolute paths.
-- [ ] macOS: fresh npm install and one ffmpeg-backed download.
-- [x] Linux: fresh tarball install and one ffmpeg-backed MP3 download in an ephemeral Debian container.
-- [x] Linux: `npm run smoke:linux` passes a packed native-audio download in WSL2.
-- [ ] Verify history skip and `--redownload` behavior in human and JSON modes.
-- [x] Verify `--max-filesize` rejects an oversized media item safely without a file.
-- [x] Verify `lyt agent install codex`, `claude`, and `all` from the packed tarball.
-- [ ] Start a fresh Codex task and Claude Code task and confirm each discovers
-  the installed lyt skill.
+- [ ] GitHub description uses the agent-ready local media positioning.
+- [ ] GitHub homepage points to `https://tanattv.github.io/lyt/`.
+- [ ] GitHub topics include AI-agent, Codex, Claude Code, and local-first terms.
+- [ ] npm README, version, homepage, keywords, and changelog match `0.7.1`.
+- [ ] The public website loads on desktop and mobile.
+- [ ] Install and agent commands on the website match the packaged CLI.
 
-## Release preparation
+## Release
 
-- [x] Review README commands against `lyt --help`.
-- [x] Confirm `CHANGELOG.md` contains every user-visible change.
-- [x] Confirm the GitHub release tag will be exactly `v0.7.0`.
-- [x] Configure npm Trusted Publishing for `TanaTTV/lyt` using `publish.yml`.
-- [x] Create release notes from the `0.7.0` changelog entry.
-- [x] Publish only after explicit owner approval.
+- [ ] Merge the launch-site pull request.
+- [ ] Create GitHub Release `v0.7.1` from the changelog entry.
+- [ ] Confirm the trusted-publishing workflow publishes npm `0.7.1`.
+- [ ] Verify `npm view @tanattv/lyt version` returns `0.7.1`.
+- [ ] Run one clean global install and `lyt doctor` smoke test.
+
+Publish only after the pull request and all required checks pass.

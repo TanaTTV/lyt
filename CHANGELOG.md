@@ -3,6 +3,27 @@
 All notable changes to lyt are documented here. This project follows semantic
 versioning for the public CLI and machine-readable result contract.
 
+## [0.7.1] - 2026-07-19
+
+### Added
+
+- A search-ready public product website with install, agent, Windows,
+  comparison, privacy, sitemap, and structured-data pages.
+- GitHub Pages deployment for the website.
+- Contribution, security, conduct, and structured issue-reporting guidance.
+
+### Changed
+
+- Adopted the red feather-bolt identity across the README and application icon
+  family.
+- Pointed npm and GitHub visitors to the product website and expanded agent
+  discovery keywords.
+
+### Compatibility
+
+- CLI commands, flags, JSON output, config, history, and agent installation
+  behavior are unchanged from `0.7.0`.
+
 ## [0.7.0] - 2026-07-19
 
 ### Added
@@ -44,3 +65,4 @@ versioning for the public CLI and machine-readable result contract.
 - JSON output is additive; human-readable output remains the default.
 
 [0.7.0]: https://github.com/tanattv/lyt/releases/tag/v0.7.0
+[0.7.1]: https://github.com/tanattv/lyt/releases/tag/v0.7.1
