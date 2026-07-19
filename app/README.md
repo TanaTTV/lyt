@@ -1,78 +1,92 @@
 # lyt desktop app
 
-A lightweight desktop GUI for **lyt**, built with [Tauri](https://tauri.app)
-(Rust shell + the OS's native webview). It lets you **search YouTube and
-download** audio or video without touching a terminal.
+> **Status: experimental.** The desktop UI is a design and integration
+> prototype, not part of the lyt CLI v0.7.2 release. Do not publish production
+> installers until the app uses the canonical lyt engine and passes desktop CI.
 
-> Status: **design + frontend complete and verified by screenshot**; the Tauri
-> Rust backend is in place but needs a local Tauri toolchain to build (it
-> cannot be compiled in the headless CI sandbox). See "Verified vs. to-build".
+The Tauri application demonstrates a lightweight GUI for searching YouTube and
+starting permitted audio or video downloads without typing terminal commands.
 
-## What it does
+## Current prototype
 
-- **Search YouTube right in the app** (powered by `yt-dlp`'s built-in search —
-  no API key needed), or paste a link.
-- Toggle **Audio / Video** and pick a **quality** (MP3 bitrate, or up to 4K/8K).
-- A **downloads panel** shows live progress per item.
-- Choose the output folder.
+- Search YouTube through yt-dlp's built-in search without an API key.
+- Resolve a pasted URL.
+- Toggle audio/video and select a basic quality.
+- Show download progress.
+- Choose an output folder.
+- Preview the frontend in a browser with mock data.
 
-## Architecture
+## Why it is still experimental
 
+The Rust backend currently shells out to yt-dlp and builds download arguments
+independently. It does **not** yet inherit all behavior from the tested Node CLI,
+including:
+
+- verified managed tool setup;
+- variant-aware history;
+- profiles, clips, chapters, and size guards;
+- `lyt.result.v1` exact final paths;
+- capability-aware diagnostics;
+- agent permission guidance;
+- future fixes made in the canonical CLI engine.
+
+Maintaining two download engines would create drift. The target architecture is:
+
+```text
+Tauri UI
+  -> bundled lyt sidecar
+  -> lyt JSON / JSONL contract
+  -> yt-dlp + ffmpeg
 ```
+
+The standalone-binary work in the project roadmap should provide the same lyt
+sidecar for both non-Node users and the desktop application.
+
+## Layout
+
+```text
 app/
-  index.html, styles.css   The UI
-  app.js                   UI logic
-  api.js                   Backend bridge: Tauri invoke(), with a browser mock
-  src-tauri/               Tauri (Rust) shell
-    src/lib.rs             Commands: search, resolve, start_download (-> yt-dlp)
-    tauri.conf.json        Window + bundle config
-    capabilities/          Permissions
+  index.html, styles.css   Frontend UI
+  app.js                   UI state and interactions
+  api.js                   Tauri bridge with browser mock
+  src-tauri/               Experimental Rust shell
+    src/lib.rs             Current search/resolve/download prototype
+    tauri.conf.json        Window and bundle configuration
+    capabilities/          Tauri permissions
 ```
 
-The frontend talks to a small `api` layer. Inside Tauri it calls the Rust
-commands; in a plain browser it uses mock data, so the UI is fully viewable
-during design without a build.
+## Preview the UI
 
-`src-tauri/src/lib.rs` shells out to `yt-dlp` for search and downloads and
-streams progress back to the UI as `progress:{id}` events.
-
-## Requirements to build
-
-- [Rust](https://rustup.rs/) and the [Tauri v2 prerequisites](https://v2.tauri.app/start/prerequisites/)
-  (on Linux: `webkit2gtk-4.1`, `libappindicator`, etc.).
-- `yt-dlp` and `ffmpeg` on PATH at runtime.
-- The Tauri CLI: `npm install -g @tauri-apps/cli` (or `cargo install tauri-cli`).
-
-## Run it
-
-```bash
-# from the app/ folder
-npx @tauri-apps/cli icon icons/icon.png   # one-time: generate icon formats
-npx @tauri-apps/cli dev                    # launch the app
-npx @tauri-apps/cli build                  # produce installers
-```
-
-## Preview the UI without Tauri
-
-The frontend runs in any browser using mock data:
-
-```bash
+```sh
 cd app
 python3 -m http.server 8000
 # open http://localhost:8000
 ```
 
-## Verified vs. to-build
+## Local Tauri development
 
-- ✅ **Frontend** (layout, theme, interactions, audio/video toggle, search
-  results, downloads panel) — rendered and screenshotted with headless
-  Chromium.
-- ⚙️ **Rust backend** — written against Tauri v2 conventions but **not compiled
-  in CI** (the sandbox lacks the webview system libraries). Build it locally
-  with the Tauri toolchain above.
+Requires Rust, the Tauri v2 prerequisites, yt-dlp, ffmpeg, and a pinned Tauri
+CLI version before production work resumes.
 
-## Open question
+```sh
+cd app
+npx @tauri-apps/cli dev
+npx @tauri-apps/cli build
+```
 
-`yt-dlp`/`ffmpeg` are still required at runtime. We can either detect and prompt
-to install them (current behavior) or bundle them with the app (larger, needs
-an update story). See repo issues for the tracking discussion.
+## Required before a public desktop release
+
+- Replace independent Rust download argument construction with the lyt sidecar.
+- Stream structured progress and exact final artifact paths.
+- Drain stdout and stderr safely and support cancellation/retry.
+- Resolve output directories without literal `~` paths.
+- Register event listeners before starting jobs.
+- Add a restrictive content security policy.
+- Pin frontend/build tooling and add a lockfile.
+- Run formatting, clippy, tests, and builds on pull requests.
+- Sign Windows installers and notarize macOS builds.
+- Define tool bundling, licensing, updates, and uninstall behavior.
+
+Track implementation in [`../ROADMAP.md`](../ROADMAP.md). Until those items are
+complete, the CLI is the production product and the desktop application is a
+prototype.
