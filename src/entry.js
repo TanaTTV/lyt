@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { resolve } from "node:path";
 import process from "node:process";
 import { run } from "./cli.js";
 import {
@@ -92,11 +93,17 @@ export async function mainEntry(argv, defaults = {}) {
 
 export function prepareDownloadArgv(argv) {
   const json = argv.includes("--json");
-  const withoutUnsafePrint = json
+  let prepared = json
     ? argv.filter((arg) => arg !== "--print-command")
     : [...argv];
 
-  return dedupePositionalUrls(withoutUnsafePrint);
+  // An explicit overwrite request cannot take effect if history skips the job
+  // first. Treat overwrite as an equally explicit request to bypass dedupe.
+  if (prepared.includes("--force-overwrite") && !prepared.includes("--redownload")) {
+    prepared = [...prepared, "--redownload"];
+  }
+
+  return dedupePositionalUrls(prepared);
 }
 
 export function buildArtifactFingerprint(argv, defaults = {}) {
@@ -137,7 +144,7 @@ export function buildArtifactFingerprint(argv, defaults = {}) {
     embedMetadata: options.embedMetadata,
     embedThumbnail: options.embedThumbnail,
     playlist: options.playlist,
-    outputDir: options.outputDir,
+    outputDir: resolve(options.outputDir),
     template: options.template,
   };
 
