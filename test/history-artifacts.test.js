@@ -39,6 +39,31 @@ test("same source with a different artifact remains fresh", () => {
   });
 });
 
+test("exact variant is promoted for the coordinator's history report", () => {
+  const url = "https://youtu.be/dQw4w9WgXcQ";
+  const entries = [
+    {
+      id: "dQw4w9WgXcQ",
+      artifact: "lyt.artifact.v1:audio",
+      mode: "audio",
+      files: ["C:/audio.m4a"],
+    },
+    {
+      id: "dQw4w9WgXcQ",
+      artifact: "lyt.artifact.v1:video",
+      mode: "video",
+      files: ["C:/video.mp4"],
+    },
+  ];
+
+  withArtifact("lyt.artifact.v1:audio", () => {
+    splitByHistory([url], entries, () => true);
+  });
+
+  assert.equal(entries.at(-1).artifact, "lyt.artifact.v1:audio");
+  assert.deepEqual(entries.at(-1).files, ["C:/audio.m4a"]);
+});
+
 test("recordDownload persists the active artifact fingerprint", () => {
   const dir = mkdtempSync(join(tmpdir(), "lyt-artifact-history-"));
   const file = join(dir, "history.jsonl");
