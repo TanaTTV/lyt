@@ -1,5 +1,5 @@
 // Download history: one JSON object per line (JSONL) in the user data dir.
-// Powers instant dedupe ("you already grabbed this one") and the
+// Powers instant dedupe ("you already grabbed this variant") and the
 // `lyt history` subcommand. Append-only, tiny, and trivially greppable.
 
 import {
@@ -50,9 +50,14 @@ export function recordDownload(entry, file = historyPath()) {
     throw new Error(`History path must be absolute: ${file}`);
   }
 
+  const artifact = process.env.LYT_ARTIFACT_FINGERPRINT;
+  const value = artifact && !entry.artifact
+    ? { ...entry, artifact }
+    : entry;
+
   try {
     mkdirSync(dirname(file), { recursive: true });
-    appendFileSync(file, `${JSON.stringify(entry)}\n`);
+    appendFileSync(file, `${JSON.stringify(value)}\n`);
   } catch (error) {
     throw new Error(`Could not update history at ${file}: ${error.message}`, {
       cause: error,
@@ -69,27 +74,40 @@ export function existingHistoryFiles(entry, exists = existsSync) {
   return entry.files.filter((file) => typeof file === "string" && exists(file));
 }
 
-// Splits URLs into ones not seen before (`fresh`) and ones whose video ID is
-// already in history (`skipped`). URLs without an extractable video ID (e.g.
-// playlists) are always fresh — we cannot prove they were downloaded.
-export function splitByHistory(urls, entries, exists = existsSync) {
-  const known = new Set(
-    entries
-      .filter((entry) =>
-        !Array.isArray(entry.files) ||
-        entry.files.length === 0 ||
-        existingHistoryFiles(entry, exists).length > 0,
-      )
-      .map((entry) => entry.id)
-      .filter((id) => typeof id === "string"),
+function entryIsActive(entry, exists) {
+  return (
+    !Array.isArray(entry.files) ||
+    entry.files.length === 0 ||
+    existingHistoryFiles(entry, exists).length > 0
   );
+}
+
+// Splits URLs into fresh and equivalent previously downloaded artifacts.
+// New CLI invocations provide LYT_ARTIFACT_FINGERPRINT so audio/video, quality,
+// clip, profile, and output variants do not block one another. Calls without a
+// fingerprint retain the legacy ID-only behavior for compatibility with older
+// integrations that import this helper directly.
+export function splitByHistory(urls, entries, exists = existsSync) {
+  const requestedArtifact = process.env.LYT_ARTIFACT_FINGERPRINT ?? null;
+  const active = entries.filter((entry) => entryIsActive(entry, exists));
   const fresh = [];
   const skipped = [];
 
   for (const url of urls) {
     const id = extractVideoId(url);
 
-    if (id && known.has(id)) {
+    if (!id) {
+      fresh.push(url);
+      continue;
+    }
+
+    const matched = active.some((entry) => {
+      if (entry.id !== id) return false;
+      if (!requestedArtifact) return true;
+      return entry.artifact === requestedArtifact;
+    });
+
+    if (matched) {
       skipped.push(url);
     } else {
       fresh.push(url);
@@ -107,7 +125,17 @@ export function searchHistory(entries, query) {
     return entries;
   }
 
-  const fields = ["id", "url", "mode", "title", "description", "dir", "files", "ts"];
+  const fields = [
+    "id",
+    "url",
+    "mode",
+    "artifact",
+    "title",
+    "description",
+    "dir",
+    "files",
+    "ts",
+  ];
 
   return entries.filter((entry) =>
     fields
