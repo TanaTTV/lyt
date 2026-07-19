@@ -23,6 +23,8 @@
           "outputDir": { "type": "string" },
           "reason": { "enum": ["history", "max-filesize", "no-output"] },
           "command": { "type": "string" },
+          "executable": { "type": "string" },
+          "args": { "type": "array", "items": { "type": "string" } },
           "error": { "$ref": "#/$defs/error" }
         },
         "additionalProperties": true

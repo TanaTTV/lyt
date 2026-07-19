@@ -431,7 +431,7 @@ function selectFormat(options) {
 }
 
 export function formatCommand(command, args) {
-  return [command, ...args].map(quoteArg).join(" ");
+  return `# argv: ${[command, ...args].map(escapeDisplayArg).join(" ")}`;
 }
 
 export function usage() {
@@ -496,7 +496,7 @@ Options:
   --embed-thumbnail         Embed thumbnail; may add time
   --force-overwrite         Replace existing files
   --no-download             Require yt-dlp/ffmpeg on PATH; skip auto-install
-  --print-command           Print yt-dlp commands before running
+  --print-command           Print an inert yt-dlp argv preview before running
   --dry-run                 Print commands without running
   --json                    Emit stable lyt.result.v1 JSON with final paths
   -i, --interactive         Prompt for options interactively
@@ -566,10 +566,10 @@ function normalizePositiveInteger(value, name) {
   return parsed;
 }
 
-function quoteArg(arg) {
-  if (/^[A-Za-z0-9_./:=%[\]-]+$/.test(arg)) {
-    return arg;
-  }
-
-  return `"${String(arg).replaceAll('"', '\\"')}"`;
+function escapeDisplayArg(arg) {
+  return [...String(arg)].map((character) =>
+    /^[A-Za-z0-9_./:=-]$/.test(character)
+      ? character
+      : `\\u{${character.codePointAt(0).toString(16)}}`
+  ).join("");
 }

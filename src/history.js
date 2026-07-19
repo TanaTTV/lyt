@@ -4,6 +4,7 @@
 
 import {
   appendFileSync,
+  chmodSync,
   existsSync,
   mkdirSync,
   readFileSync,
@@ -11,6 +12,7 @@ import {
 } from "node:fs";
 import { createHash } from "node:crypto";
 import { dirname, isAbsolute, join, resolve } from "node:path";
+import process from "node:process";
 import { dataDir } from "./paths.js";
 import { extractVideoId } from "./urls.js";
 
@@ -48,8 +50,13 @@ export function recordDownload(
   const value = artifact && !entry.artifact ? { ...entry, artifact } : entry;
 
   try {
-    mkdirSync(dirname(file), { recursive: true });
-    appendFileSync(file, `${JSON.stringify(value)}\n`);
+    const directory = dirname(file);
+    mkdirSync(directory, { recursive: true, mode: 0o700 });
+    if (process.platform !== "win32" && directory === dataDir()) {
+      chmodSync(directory, 0o700);
+    }
+    appendFileSync(file, `${JSON.stringify(value)}\n`, { mode: 0o600 });
+    if (process.platform !== "win32") chmodSync(file, 0o600);
   } catch (error) {
     throw new Error(`Could not update history at ${file}: ${error.message}`, {
       cause: error,

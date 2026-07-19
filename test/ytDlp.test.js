@@ -248,9 +248,11 @@ test("jobs and fragments reject non-integer garbage", () => {
   }
 });
 
-test("formatCommand quotes args with spaces and escapes quotes", () => {
-  assert.equal(formatCommand("c", ["a b"]), 'c "a b"');
-  assert.equal(formatCommand("c", ['a"b']), 'c "a\\"b"');
+test("formatCommand emits an inert preview with shell syntax escaped", () => {
+  assert.equal(formatCommand("c", ["a b"]), "# argv: c a\\u{20}b");
+  assert.equal(formatCommand("c", ["$(marker)"]), "# argv: c \\u{24}\\u{28}marker\\u{29}");
+  assert.equal(formatCommand("c", ["a'b"]), "# argv: c a\\u{27}b");
+  assert.equal(formatCommand("c", ["a;b&c`d"]), "# argv: c a\\u{3b}b\\u{26}c\\u{60}d");
 });
 
 // ---------------------------------------------------------------------------

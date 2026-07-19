@@ -20,6 +20,7 @@ import { createHash } from "node:crypto";
 import { join } from "node:path";
 import { spawnSync } from "node:child_process";
 import process from "node:process";
+import { resolveExecutableOnPath } from "./executables.js";
 import { binDir } from "./paths.js";
 
 const FETCH_TIMEOUT_MS = 60_000;
@@ -102,7 +103,8 @@ export function checksumForAsset(manifest, asset) {
 }
 
 export async function ensureYtDlp({ noDownload = false } = {}) {
-  if (probeOk("yt-dlp")) return "yt-dlp";
+  const pathYtDlp = resolveExecutableOnPath("yt-dlp");
+  if (pathYtDlp && probeOk(pathYtDlp)) return pathYtDlp;
 
   if (process.platform === "win32") {
     const win = resolveWindowsFallback("yt-dlp");
@@ -193,8 +195,10 @@ async function downloadFfmpegWindows() {
   try {
     const escapedZip = powershellLiteral(tmpZip);
     const escapedDest = powershellLiteral(tmpExe);
+    const powershell = resolveExecutableOnPath("powershell.exe", { platform: "win32" });
+    if (!powershell) throw new Error("PowerShell was not found on an absolute PATH entry");
     execFileSync(
-      "powershell.exe",
+      powershell,
       [
         "-NoProfile",
         "-NonInteractive",
@@ -240,7 +244,8 @@ async function resolveReleaseChecksum(release, asset) {
 
 export async function ensureFfmpeg({ noDownload = false } = {}) {
   const probeArgs = ["-version"];
-  if (probeOk("ffmpeg", probeArgs)) return "ffmpeg";
+  const pathFfmpeg = resolveExecutableOnPath("ffmpeg");
+  if (pathFfmpeg && probeOk(pathFfmpeg, probeArgs)) return pathFfmpeg;
 
   if (process.platform === "win32") {
     const staticPath = join("C:\\", "ffmpeg", "bin", "ffmpeg.exe");
