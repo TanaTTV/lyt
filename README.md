@@ -1,9 +1,5 @@
 <p align="center">
-  <img
-    src="https://raw.githubusercontent.com/TanaTTV/lyt/main/app/src-tauri/icons/icon.png"
-    width="112"
-    alt="lyt red feather-bolt logo"
-  />
+  <img src="https://raw.githubusercontent.com/TanaTTV/lyt/main/app/src-tauri/icons/icon.png" width="112" alt="lyt red feather-bolt logo" />
 </p>
 
 <h1 align="center">lyt</h1>
@@ -40,9 +36,10 @@ Saved: C:\Users\you\Downloads\Example [abc123].mp4
 ```
 
 `lyt` gives [yt-dlp](https://github.com/yt-dlp/yt-dlp) and
-[ffmpeg](https://ffmpeg.org/) a smaller, friendlier interface. Tools install
-automatically on first use, sensible safety controls are on by default, and
-every successful download tells you exactly where the file landed.
+[ffmpeg](https://ffmpeg.org/) a smaller, friendlier interface. It can provision
+checksum-verified yt-dlp binaries automatically. On Windows it can also
+provision a verified ffmpeg build; on macOS and Linux, `lyt doctor` provides the
+correct package-manager command when ffmpeg is needed.
 
 > [!IMPORTANT]
 > Only download media you own or have permission to use. A site's terms may
@@ -52,9 +49,10 @@ every successful download tells you exactly where the file landed.
 
 | Friendly for people | Reliable for automation | Local by default |
 | --- | --- | --- |
-| Memorable `yt3` and `yt4` shortcuts | Stable `lyt.result.v1` JSON | Files and history stay on your machine |
-| Quality names like `1080p`, `4k`, and `192K` | Exact final paths after conversion | No account, hosted service, or runtime dependencies |
-| Clipboard, profiles, clips, and prompts | Size guards and meaningful exit codes | Managed tools live in a predictable local cache |
+| Memorable `yt3` and `yt4` shortcuts | Stable `lyt.result.v1` JSON | Files, config, and history stay on your machine |
+| Quality names like `1080p`, `4k`, and `192K` | Exact final paths after conversion | No lyt account or hosted service |
+| Clipboard, profiles, clips, and prompts | Variant-aware history and meaningful exit codes | Zero npm runtime dependencies |
+| Capability-aware `lyt doctor` | One JSON document on stdout | Managed tools use a predictable local cache |
 
 ## Install
 
@@ -66,11 +64,15 @@ npm install --global @tanattv/lyt
 
 Requires Node.js 20 or newer.
 
-### 2. Check your setup
+### 2. Check your capabilities
 
 ```sh
 lyt doctor
 ```
+
+`doctor` separates core readiness from optional capabilities. Native audio needs
+Node and yt-dlp. MP3 conversion, video merging, clips, chapters, thumbnails, and
+normalization also require ffmpeg.
 
 ### 3. Download something
 
@@ -85,9 +87,6 @@ lyt --mp3 -q 192K "URL"
 lyt --video -q 1080p "URL"
 ```
 
-That is the complete setup. `lyt` finds or installs yt-dlp automatically and
-guides you through ffmpeg setup when it is needed.
-
 ## Quick start
 
 | I want to… | Command |
@@ -96,9 +95,10 @@ guides you through ffmpeg setup when it is needed.
 | create an MP3 | `lyt --mp3 -q 192K "URL"` |
 | save a 1080p video | `yt4 -q 1080p "URL"` |
 | choose a folder | `lyt --mp3 -o "D:/Music" "URL"` |
-| preview without downloading | `lyt --video -q 1080p --dry-run "URL"` |
+| preview without installing or downloading | `lyt --video -q 1080p --dry-run "URL"` |
 | use interactive prompts | `lyt --interactive` |
 | inspect available qualities | `lyt --list-formats "URL"` |
+| diagnose the environment as JSON | `lyt doctor --json` |
 
 Download several URLs with two workers:
 
@@ -106,59 +106,43 @@ Download several URLs with two workers:
 lyt --video -q 720p --jobs 2 "URL_1" "URL_2"
 ```
 
+Repeated direct URLs in one invocation are removed before work begins.
+
 ## Built for agents
 
-lyt is designed to work cleanly inside Codex, Claude Code, Gemini CLI, scripts,
-and other terminal-capable automation without scraping terminal text. ChatGPT
-and other search-grounded assistants can use the maintained
-[repository AI facts](AI.md), [website AI facts](https://tanattv.github.io/lyt/ai/), and
-[llms.txt](https://tanattv.github.io/lyt/llms.txt) as concise, canonical product
-references.
+lyt is designed for Codex, Claude Code, Gemini CLI, scripts, and other
+terminal-capable automation without scraping terminal text. The maintained
+[AI facts](AI.md), [website AI page](https://tanattv.github.io/lyt/ai/), and
+[llms.txt](https://tanattv.github.io/lyt/llms.txt) provide canonical product
+information.
 
-Install the CLI first:
+Install the CLI first, with the user's approval:
 
 ```sh
 npm install --global @tanattv/lyt
 lyt doctor
 ```
 
-Then install lyt from the marketplace for your agent:
-
-### Codex
-
-```sh
-codex plugin marketplace add TanaTTV/lyt
-codex plugin add lyt@lyt-plugins
-```
-
-### Claude Code
-
-```sh
-claude plugin marketplace add TanaTTV/lyt
-claude plugin install lyt@lyt-plugins
-```
-
-Prefer a direct skill install without a marketplace? The CLI can maintain both
-copies for you:
-
-```sh
-lyt agent install all
-```
-
-Or choose one target:
+Install the direct skills:
 
 ```sh
 lyt agent install codex
 lyt agent install claude
-lyt agent install all --home "/custom/user/home"
+lyt agent install all
 ```
 
-| Agent | Installed skill |
-| --- | --- |
-| Codex | `~/.codex/skills/lyt/SKILL.md` |
-| Claude Code | `~/.claude/skills/lyt/SKILL.md` |
+Compatible Codex and Claude Code versions can also use the repository
+marketplace packages:
 
-For machine-readable jobs, add `--json`:
+```sh
+codex plugin marketplace add TanaTTV/lyt
+codex plugin add lyt@lyt-plugins
+
+claude plugin marketplace add TanaTTV/lyt
+claude plugin install lyt@lyt-plugins
+```
+
+For bounded machine-readable jobs, add `--json`:
 
 ```sh
 lyt --mp3 -q 192K --max-filesize 2G --json "URL"
@@ -167,7 +151,7 @@ lyt --mp3 -q 192K --max-filesize 2G --json "URL"
 ```json
 {
   "schema": "lyt.result.v1",
-  "version": "0.7.1",
+  "version": "0.7.2",
   "command": "download",
   "ok": true,
   "results": [
@@ -184,48 +168,49 @@ lyt --mp3 -q 192K --max-filesize 2G --json "URL"
 ```
 
 stdout contains one versioned JSON document. Progress and setup diagnostics go
-to stderr. Failed jobs exit non-zero while still returning valid JSON.
+to stderr. `--print-command` is suppressed in JSON mode so it cannot corrupt the
+machine-readable document.
 
 - Downloaded files: `results[].files`
 - History dedupe: `status: "skipped"`, `reason: "history"`
 - Size guard: non-zero result with `reason: "max-filesize"`
-- Contract schema: [`schemas/lyt.result.v1.schema.json`](schemas/lyt.result.v1.schema.json)
+- Result schema: [`schemas/lyt.result.v1.schema.json`](schemas/lyt.result.v1.schema.json)
 - Marketplace package: [`plugins/lyt`](plugins/lyt)
-- Ready-to-record walkthrough: [`demos/agent-to-file`](demos/agent-to-file)
-- 30-second product demo: [watch the agent-to-file workflow](https://tanattv.github.io/lyt/demo/lyt-agent-demo.mp4)
+- Demo kit: [`demos/agent-to-file`](demos/agent-to-file)
+
+Agents must ask before global installation, managed tool downloads, playlist
+mode, overwrites, authentication material, or external downloaders.
 
 ## Safe by default
 
-lyt makes potentially destructive behavior explicit:
-
-- Playlist URLs download one video unless `--playlist` is present.
+- Playlist URLs download one item unless `--playlist` is present.
 - Existing final files are preserved unless `--force-overwrite` is present.
 - Partial downloads resume when possible.
-- Local history prevents accidental duplicate downloads.
+- History dedupe distinguishes audio, MP3, video quality, clips, and output variants.
 - `--max-filesize 500M` or `2G` gives agents and people a hard size guard.
 - `--dry-run` installs nothing and downloads nothing.
+- Downloads are isolated behind `--` before reaching yt-dlp, preventing URL-as-option injection.
+- Managed binaries are size-limited, checksum-verified, written atomically, and protected by an install lock.
 
 Use an override only when you mean it:
 
 ```sh
 lyt --playlist "PLAYLIST_URL"
-lyt --force-overwrite "URL"
+lyt --force-overwrite --redownload "URL"
 lyt --redownload "URL"
 lyt --no-history "URL"
 ```
 
 ## Recipes
 
-### Download from the clipboard
+### Clipboard downloads
 
 ```sh
-yt3 --paste     # download links currently on the clipboard
-yt4 --watch     # keep watching for newly copied links
+yt3 --paste     # download supported links currently on the clipboard
+yt4 --watch     # watch for newly copied links until Ctrl+C
 ```
 
-Stop watch mode with `Ctrl+C`.
-
-### Grab only part of a video
+### Grab part of a video
 
 ```sh
 lyt --mp3 --clip 1:10-2:45 "URL"
@@ -235,7 +220,7 @@ lyt --video --clip 12:00- -q 1080p "URL"
 Ranges accept seconds, `mm:ss`, or `hh:mm:ss`. Repeat `--clip` to save
 multiple sections.
 
-### Split chapters or normalize audio
+### Chapters and normalized audio
 
 ```sh
 lyt --mp3 --split-chapters "URL"
@@ -244,7 +229,7 @@ lyt --normalize "URL"
 
 `--normalize` uses ffmpeg's EBU R128 loudness filter and implies MP3.
 
-### Use a ready-made profile
+### Ready-made profiles
 
 ```sh
 lyt --profile music "URL"     # high-quality MP3 + metadata + cover art
@@ -255,9 +240,10 @@ lyt --profile voice "URL"     # small normalized speech file
 ## History, configuration, and diagnostics
 
 ```sh
-# Find or clear previous downloads
+# Find, search, or clear previous downloads
 lyt history
 lyt history podcast --limit 50
+lyt history --limit 50 --json
 lyt history --clear
 
 # Save defaults
@@ -268,9 +254,14 @@ lyt config unset profile
 
 # Check or repair tools
 lyt doctor
+lyt doctor --json
 lyt doctor --fix
 lyt doctor --update
 ```
+
+A malformed config is moved aside with a `.corrupt-<timestamp>` suffix instead
+of being ignored silently. Config writes use a complete temporary file before
+replacement.
 
 Command flags override profiles, profiles override saved configuration, and
 saved configuration overrides built-in defaults.
@@ -292,7 +283,7 @@ cd lyt
 npm install --global .
 ```
 
-### Use the helper installers
+### Helper installers
 
 Windows:
 
@@ -306,15 +297,13 @@ macOS or Linux:
 bash install/install.sh
 ```
 
-Windows Explorer context-menu actions are optional:
+Optional Windows Explorer actions:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\install\windows-context-menu.ps1
 ```
 
 ### Managed tool locations
-
-An existing system tool always wins. Otherwise managed binaries are cached at:
 
 | OS | Data directory |
 | --- | --- |
@@ -330,12 +319,12 @@ Use `--no-download` or `LYT_NO_DOWNLOAD=1` to require tools on `PATH`.
 
 ```text
 lyt [options] <url> [more-urls...]
-yt3 <url>   # audio shortcut
+yt3 <url>   # native-audio shortcut
 yt4 <url>   # video shortcut
 
-lyt history [query] [--limit <n>] [--clear]
+lyt history [query] [--limit <n>] [--clear] [--json]
 lyt config <set|get|unset|list|path> [key] [value]
-lyt doctor [--fix] [--update]
+lyt doctor [--fix] [--update] [--json]
 lyt agent install [codex|claude|all] [--home <dir>]
 ```
 
@@ -368,8 +357,8 @@ lyt agent install [codex|claude|all] [--home <dir>]
 | `--downloader <name>` | Use an external downloader such as aria2c. |
 | `--downloader-args <args>` | Pass arguments to the external downloader. |
 | `--no-part` | Disable `.part` files. |
-| `--no-download` | Disable automatic tool downloads. |
-| `--print-command` | Show the yt-dlp command before execution. |
+| `--no-download` | Disable automatic managed tool downloads. |
+| `--print-command` | Show the yt-dlp command before execution in human mode. |
 | `--dry-run` | Preview without downloading or installing tools. |
 | `--json` | Emit the `lyt.result.v1` machine-readable contract. |
 | `-i, --interactive` | Open interactive prompts. |
@@ -391,7 +380,7 @@ lyt doctor
 | PowerShell blocks `npm` | Run `npm.cmd install --global @tanattv/lyt`. |
 | ffmpeg is missing on macOS | Run `brew install ffmpeg`. |
 | ffmpeg is missing on Debian/Ubuntu | Run `sudo apt install ffmpeg`. |
-| A previous download is skipped | Check `lyt history`, then use `--redownload` if another copy is intentional. |
+| A matching variant is skipped | Check `lyt history`, then use `--redownload` if another copy is intentional. |
 | An agent cannot parse output | Add `--json` and parse stdout only. |
 | A remote sandbox cannot reach the host | Run lyt locally; many hosted environments restrict media traffic. |
 
@@ -400,21 +389,24 @@ lyt doctor
 ```sh
 npm test
 npm run check:pack
+npm run check:website
 npm run check
 npm run smoke:linux
 ```
 
-`npm run check` runs the complete Node test suite and verifies the exact npm
-publish payload, including the packaged agent skill and JSON Schema.
+`npm run check` runs the Node test suite, verifies the exact npm publish payload,
+and builds and validates every public website page.
 
-The product website lives in [`website/`](website/). Build it with
-`npm run build` from that directory. GitHub Pages publishes the generated site
-after changes reach `main`.
+The product website lives in [`website/`](website/). GitHub Pages publishes the
+verified build after website changes reach `main`.
+
+See [`docs/repository-layout.md`](docs/repository-layout.md) for the folder map,
+[`docs/releasing.md`](docs/releasing.md) for the release process, and
+[`ROADMAP.md`](ROADMAP.md) for intentionally deferred product work.
 
 Contributions are welcome. Read [CONTRIBUTING.md](CONTRIBUTING.md) before
-opening a pull request, use the issue forms for reproducible reports, and send
-security-sensitive findings through the private process in
-[SECURITY.md](SECURITY.md).
+opening a pull request and send security-sensitive findings through the private
+process in [SECURITY.md](SECURITY.md).
 
 ## License
 
