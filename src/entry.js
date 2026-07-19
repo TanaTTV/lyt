@@ -93,14 +93,16 @@ export async function mainEntry(argv, defaults = {}) {
 
 export function prepareDownloadArgv(argv) {
   const json = argv.includes("--json");
-  let prepared = json
+  const prepared = json
     ? argv.filter((arg) => arg !== "--print-command")
     : [...argv];
 
   // An explicit overwrite request cannot take effect if history skips the job
-  // first. Treat overwrite as an equally explicit request to bypass dedupe.
+  // first. Insert the dedupe override before `--`, which marks the URL boundary.
   if (prepared.includes("--force-overwrite") && !prepared.includes("--redownload")) {
-    prepared = [...prepared, "--redownload"];
+    const marker = prepared.indexOf("--");
+    if (marker >= 0) prepared.splice(marker, 0, "--redownload");
+    else prepared.push("--redownload");
   }
 
   return dedupePositionalUrls(prepared);
