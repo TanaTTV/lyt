@@ -65,7 +65,7 @@ export const pages = [
   }]
 }</code></pre>
             <div>
-              <h3>Install the maintained skills</h3>
+              <h3>Install the agent skill</h3>
               <code class="single-command">lyt agent install all</code>
               <ul class="check-list">
                 <li>Exact paths instead of terminal scraping</li>
@@ -122,12 +122,18 @@ export const pages = [
         <div class="kicker">Codex + Claude Code</div>
         <h1>A local media capability agents can call reliably.</h1>
         <p class="lede">Agent workflows should not scrape animated progress or guess which post-processed filename exists. lyt separates machine output from human diagnostics.</p>
-        <section><h2>Install both maintained skills</h2><div class="code-block"><code>lyt agent install all</code><button class="copy" data-copy="lyt agent install all">Copy</button></div><p>Or install one target with <code>lyt agent install codex</code> or <code>lyt agent install claude</code>.</p></section>
+        <section><h2>1. Install the lyt CLI</h2><div class="code-block"><code>npm install --global @tanattv/lyt
+lyt doctor</code><button class="copy" data-copy="npm install --global @tanattv/lyt&#10;lyt doctor">Copy</button></div></section>
+        <section><h2>2. Add lyt to Codex</h2><div class="code-block"><code>codex plugin marketplace add TanaTTV/lyt
+codex plugin add lyt@lyt-plugins</code><button class="copy" data-copy="codex plugin marketplace add TanaTTV/lyt&#10;codex plugin add lyt@lyt-plugins">Copy</button></div></section>
+        <section><h2>Or add lyt to Claude Code</h2><div class="code-block"><code>claude plugin marketplace add TanaTTV/lyt
+claude plugin install lyt@lyt-plugins</code><button class="copy" data-copy="claude plugin marketplace add TanaTTV/lyt&#10;claude plugin install lyt@lyt-plugins">Copy</button></div></section>
+        <section><h2>Direct skill install</h2><p>If you do not want to configure a marketplace, use <code>lyt agent install all</code>, <code>lyt agent install codex</code>, or <code>lyt agent install claude</code>.</p></section>
         <section><h2>Use JSON for every agent job</h2><div class="recipe-grid"><article><span>Audio</span><code>lyt --audio --json "URL"</code></article><article><span>MP3 clip</span><code>lyt --clip 1:10-2:45 --mp3 --json "URL"</code></article><article><span>1080p with size guard</span><code>lyt --video -q 1080p --max-filesize 2G --json "URL"</code></article></div></section>
         <section class="callout"><h2>Output contract</h2><p>stdout contains one <code>lyt.result.v1</code> JSON document. Setup and progress go to stderr. After success, read <code>results[].files</code> and report those exact paths.</p></section>
         <section><h2>Safety behavior</h2><ul class="check-list"><li>Single-item mode is the default even when a playlist URL is detected.</li><li>Existing final files are preserved unless overwrite is explicitly requested.</li><li>Size limits fail safely with a structured reason.</li><li>History skips are explicit and can be overridden only when requested.</li><li>Permission to download remains a user decision; the skill does not bypass site restrictions.</li></ul></section>
-        <section><h2>Marketplace status</h2><p>The maintained skills ship in the npm package today. Independent Codex and Claude marketplace packages are planned but should not be described as official until they are validated and accepted by the relevant catalog.</p></section>
-        <div class="page-actions"><a class="button primary" href="https://github.com/TanaTTV/lyt/blob/main/skills/lyt/SKILL.md">Inspect the skill</a><a class="button secondary" href="../install/">Install lyt first</a></div>
+        <section><h2>What the plugin teaches the agent</h2><p>The Codex and Claude packages use the same maintained skill. It prefers machine-readable output, reports exact final paths, keeps playlists and overwrites opt-in, and never treats a public URL as permission to download.</p></section>
+        <div class="page-actions"><a class="button primary" href="https://github.com/TanaTTV/lyt/tree/main/plugins/lyt">Inspect the plugin</a><a class="button secondary" href="../install/">Install lyt first</a></div>
       </main>`
   },
   {

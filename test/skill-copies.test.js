@@ -8,4 +8,5 @@ test("project and packaged agent skills stay identical", () => {
 
   assert.equal(read("../.agents/skills/lyt/SKILL.md"), packaged);
   assert.equal(read("../.claude/skills/lyt/SKILL.md"), packaged);
+  assert.equal(read("../plugins/lyt/skills/lyt/SKILL.md"), packaged);
 });

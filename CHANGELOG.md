@@ -3,6 +3,22 @@
 All notable changes to lyt are documented here. This project follows semantic
 versioning for the public CLI and machine-readable result contract.
 
+## [Unreleased]
+
+### Added
+
+- Installable Codex and Claude Code marketplace packages backed by the same
+  maintained permission-first lyt skill.
+- A 30-second agent-to-file demo kit with a reusable prompt, recording plan,
+  and permission-gated PowerShell script.
+- A controlled-launch playbook for recruiting the first hands-on testers and
+  measuring successful activation instead of vanity impressions.
+
+### Changed
+
+- Expanded the README and product website with copy-paste marketplace install
+  paths for Codex and Claude Code.
+
 ## [0.7.1] - 2026-07-19
 
 ### Added
