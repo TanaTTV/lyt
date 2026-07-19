@@ -1,0 +1,58 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/TanaTTV/lyt/blob/v0.7.2/schemas/lyt.doctor.v1.schema.json",
+  "title": "lyt doctor v1",
+  "type": "object",
+  "required": ["schema", "version", "command", "ok", "checks", "capabilities", "paths"],
+  "properties": {
+    "schema": { "const": "lyt.doctor.v1" },
+    "version": { "type": "string" },
+    "command": { "const": "doctor" },
+    "ok": { "type": "boolean" },
+    "checks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "required", "ok", "detail"],
+        "properties": {
+          "name": { "type": "string" },
+          "required": { "type": "boolean" },
+          "ok": { "type": "boolean" },
+          "detail": { "type": "string" },
+          "hint": { "type": ["string", "null"] },
+          "path": { "type": ["string", "null"] },
+          "command": { "type": ["string", "null"] }
+        },
+        "additionalProperties": false
+      }
+    },
+    "capabilities": {
+      "type": "object",
+      "required": ["nativeAudio", "mp3", "video", "clips", "clipboard"],
+      "properties": {
+        "nativeAudio": { "type": "boolean" },
+        "mp3": { "type": "boolean" },
+        "video": { "type": "boolean" },
+        "clips": { "type": "boolean" },
+        "clipboard": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    },
+    "paths": {
+      "type": "object",
+      "required": ["dataDir", "toolsDir", "toolsDirExists", "history", "historyEntries", "historyError", "config", "configExists"],
+      "properties": {
+        "dataDir": { "type": "string" },
+        "toolsDir": { "type": "string" },
+        "toolsDirExists": { "type": "boolean" },
+        "history": { "type": "string" },
+        "historyEntries": { "type": ["integer", "null"], "minimum": 0 },
+        "historyError": { "type": ["string", "null"] },
+        "config": { "type": "string" },
+        "configExists": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}
