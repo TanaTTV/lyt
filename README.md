@@ -2,7 +2,7 @@
   <img
     src="https://raw.githubusercontent.com/TanaTTV/lyt/main/app/src-tauri/icons/icon.png"
     width="112"
-    alt="lyt purple feather logo"
+    alt="lyt red feather-bolt logo"
   />
 </p>
 
@@ -14,7 +14,7 @@
 </p>
 
 <p align="center">
-  <a href="https://www.npmjs.com/package/@tanattv/lyt"><img alt="npm version" src="https://img.shields.io/npm/v/@tanattv/lyt?style=for-the-badge&color=8b5cf6" /></a>
+  <a href="https://www.npmjs.com/package/@tanattv/lyt"><img alt="npm version" src="https://img.shields.io/npm/v/@tanattv/lyt?style=for-the-badge&color=ff1f3d" /></a>
   <a href="https://www.npmjs.com/package/@tanattv/lyt"><img alt="npm downloads" src="https://img.shields.io/npm/dm/@tanattv/lyt?style=for-the-badge&color=22d3ee" /></a>
   <a href="https://github.com/TanaTTV/lyt/actions/workflows/ci.yml"><img alt="build status" src="https://img.shields.io/github/actions/workflow/status/TanaTTV/lyt/ci.yml?branch=main&style=for-the-badge&label=build" /></a>
   <a href="LICENSE"><img alt="MIT license" src="https://img.shields.io/github/license/TanaTTV/lyt?style=for-the-badge&color=171a21" /></a>
