@@ -20,28 +20,18 @@ export function historyPath(dir = dataDir()) {
 // Returns all history entries, oldest first. Corrupt lines are skipped so a
 // damaged file never breaks downloads.
 export function loadHistory(file = historyPath()) {
-  if (!existsSync(file)) {
-    return [];
-  }
+  if (!existsSync(file)) return [];
 
   const entries = [];
-
   for (const line of readFileSync(file, "utf8").split("\n")) {
-    if (!line.trim()) {
-      continue;
-    }
-
+    if (!line.trim()) continue;
     try {
       const entry = JSON.parse(line);
-
-      if (entry && typeof entry === "object") {
-        entries.push(entry);
-      }
+      if (entry && typeof entry === "object") entries.push(entry);
     } catch {
       // Skip corrupt lines.
     }
   }
-
   return entries;
 }
 
@@ -51,9 +41,7 @@ export function recordDownload(entry, file = historyPath()) {
   }
 
   const artifact = process.env.LYT_ARTIFACT_FINGERPRINT;
-  const value = artifact && !entry.artifact
-    ? { ...entry, artifact }
-    : entry;
+  const value = artifact && !entry.artifact ? { ...entry, artifact } : entry;
 
   try {
     mkdirSync(dirname(file), { recursive: true });
@@ -85,8 +73,8 @@ function entryIsActive(entry, exists) {
 // Splits URLs into fresh and equivalent previously downloaded artifacts.
 // New CLI invocations provide LYT_ARTIFACT_FINGERPRINT so audio/video, quality,
 // clip, profile, and output variants do not block one another. Calls without a
-// fingerprint retain the legacy ID-only behavior for compatibility with older
-// integrations that import this helper directly.
+// fingerprint retain legacy ID-only behavior for compatibility with integrations
+// that import this helper directly.
 export function splitByHistory(urls, entries, exists = existsSync) {
   const requestedArtifact = process.env.LYT_ARTIFACT_FINGERPRINT ?? null;
   const active = entries.filter((entry) => entryIsActive(entry, exists));
@@ -101,13 +89,17 @@ export function splitByHistory(urls, entries, exists = existsSync) {
       continue;
     }
 
-    const matched = active.some((entry) => {
+    const matchedEntry = [...active].reverse().find((entry) => {
       if (entry.id !== id) return false;
       if (!requestedArtifact) return true;
       return entry.artifact === requestedArtifact;
     });
 
-    if (matched) {
+    if (matchedEntry) {
+      // The established coordinator reports the newest entry with this ID after
+      // splitByHistory returns. Promote the exact match so it reports the right
+      // mode, files, and output directory when several variants exist.
+      promoteEntry(entries, matchedEntry);
       skipped.push(url);
     } else {
       fresh.push(url);
@@ -117,13 +109,17 @@ export function splitByHistory(urls, entries, exists = existsSync) {
   return { fresh, skipped };
 }
 
+function promoteEntry(entries, entry) {
+  const index = entries.indexOf(entry);
+  if (index < 0 || index === entries.length - 1) return;
+  entries.splice(index, 1);
+  entries.push(entry);
+}
+
 // Case-insensitive substring search across user-meaningful entry fields.
 export function searchHistory(entries, query) {
   const needle = String(query ?? "").toLowerCase();
-
-  if (!needle) {
-    return entries;
-  }
+  if (!needle) return entries;
 
   const fields = [
     "id",
