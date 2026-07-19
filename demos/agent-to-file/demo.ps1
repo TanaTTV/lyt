@@ -11,7 +11,7 @@ if (-not $IHavePermission) {
   throw "Pass -IHavePermission only for media you own or are permitted to download."
 }
 
-$lytArguments = @("--video", "-q", "1080p", "--max-filesize", "2G", "--json")
+$lytArguments = @("--video", "--max-filesize", "2G", "--json")
 if ($OutputDirectory) {
   $lytArguments += @("-o", $OutputDirectory)
 }

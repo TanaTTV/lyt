@@ -187,6 +187,7 @@ to stderr. Failed jobs exit non-zero while still returning valid JSON.
 - Contract schema: [`schemas/lyt.result.v1.schema.json`](schemas/lyt.result.v1.schema.json)
 - Marketplace package: [`plugins/lyt`](plugins/lyt)
 - Ready-to-record walkthrough: [`demos/agent-to-file`](demos/agent-to-file)
+- 30-second product demo: [watch the agent-to-file workflow](https://tanattv.github.io/lyt/demo/lyt-agent-demo.mp4)
 
 ## Safe by default
 

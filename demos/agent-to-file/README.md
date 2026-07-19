@@ -1,6 +1,7 @@
 # Agent-to-file demo kit
 
-This folder is a ready-to-record proof of lyt's clearest agent workflow.
+This folder contains the finished launch video workflow and everything needed
+to reproduce or re-record it.
 
 ## Fast path
 
@@ -23,3 +24,17 @@ Choose a separate output directory when needed:
 
 The permission switch is intentionally required. The script uses `--json`,
 rejects unsuccessful results, and prints paths reported by `results[].files`.
+
+## Rebuild the launch video
+
+`real-run.json` contains the successful result captured from the original,
+MIT-licensed source clip in `website/public/demo`. Rebuild the branded video
+and poster with:
+
+```powershell
+.\demos\agent-to-file\build-demo.ps1
+```
+
+Once published, the launch video is available at:
+
+<https://tanattv.github.io/lyt/demo/lyt-agent-demo.mp4>

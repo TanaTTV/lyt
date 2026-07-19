@@ -1,0 +1,46 @@
+[Script Info]
+Title: lyt agent launch demo
+ScriptType: v4.00+
+PlayResX: 1280
+PlayResY: 720
+ScaledBorderAndShadow: yes
+WrapStyle: 2
+
+[V4+ Styles]
+Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
+Style: Label,Segoe UI,22,&H003D1FFF,&H003D1FFF,&H00000000,&H00000000,-1,0,0,0,100,100,1,0,1,0,0,7,86,86,90,1
+Style: Title,Segoe UI,54,&H00FFFFFF,&H00FFFFFF,&H00000000,&H00000000,-1,0,0,0,100,100,0,0,1,0,0,7,86,86,120,1
+Style: Body,Segoe UI,30,&H00E8E8EA,&H00E8E8EA,&H00000000,&H00000000,0,0,0,0,100,100,0,0,1,0,0,7,86,86,220,1
+Style: Bubble,Segoe UI,28,&H00FFFFFF,&H00FFFFFF,&H00000000,&HD912131A,0,0,0,0,100,100,0,0,3,18,0,7,108,108,250,1
+Style: Terminal,Consolas,22,&H00F3F3F4,&H00F3F3F4,&H00000000,&HE20B0D12,0,0,0,0,100,100,0,0,3,18,0,7,104,104,180,1
+Style: Json,Consolas,20,&H00F3F3F4,&H00F3F3F4,&H00000000,&HE20B0D12,0,0,0,0,100,100,0,0,3,18,0,7,104,104,145,1
+Style: Success,Segoe UI,42,&H00FFFFFF,&H00FFFFFF,&H00000000,&H00000000,-1,0,0,0,100,100,0,0,1,0,0,7,86,86,150,1
+Style: Subtle,Segoe UI,25,&H00B4AEA8,&H00B4AEA8,&H00000000,&H00000000,0,0,0,0,100,100,0,0,1,0,0,7,86,86,235,1
+Style: CTA,Segoe UI,36,&H00FFFFFF,&H00FFFFFF,&H00000000,&H00000000,-1,0,0,0,100,100,0,0,1,0,0,7,86,86,130,1
+Style: Code,Consolas,24,&H00FFFFFF,&H00FFFFFF,&H00000000,&HE20B0D12,0,0,0,0,100,100,0,0,3,15,0,7,104,104,300,1
+
+[Events]
+Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
+Dialogue: 0,0:00:00.00,0:00:03.20,Label,,0,0,0,,{\fad(200,200)}AGENT-READY LOCAL MEDIA
+Dialogue: 0,0:00:00.00,0:00:03.20,Title,,0,0,0,,{\fad(200,200)}One URL. One exact file path.
+Dialogue: 0,0:00:00.20,0:00:03.20,Body,,0,0,0,,{\fad(250,200)}No terminal scraping. No guessing after conversion.
+
+Dialogue: 0,0:00:03.20,0:00:07.30,Label,,0,0,0,,{\fad(180,180)}YOU
+Dialogue: 0,0:00:03.20,0:00:07.30,Bubble,,0,0,0,,{\fad(180,180)}Use lyt to download this permitted video at the best available quality,\Nkeep it under 2 GB, and tell me the exact final file path.
+
+Dialogue: 0,0:00:07.30,0:00:10.80,Label,,0,0,0,,{\fad(180,180)}CODEX / CLAUDE
+Dialogue: 0,0:00:07.30,0:00:10.80,Bubble,,0,0,0,,{\fad(180,180)}I'll use lyt's JSON result, safe playlist defaults,\Nand a hard file-size guard.
+
+Dialogue: 0,0:00:10.80,0:00:17.20,Label,,0,0,0,,{\fad(180,180)}REAL LYT RUN
+Dialogue: 0,0:00:10.80,0:00:17.20,Terminal,,0,0,0,,{\fad(180,180)}$ lyt --video --max-filesize 2G --json "URL"\N\N[download] 100%   lyt-permitted-source.mp4
+
+Dialogue: 0,0:00:17.20,0:00:23.20,Label,,0,0,0,,{\fad(180,180)}MACHINE-READABLE RESULT
+Dialogue: 0,0:00:17.20,0:00:23.20,Json,,0,0,0,,{\fad(180,180)}schema   "lyt.result.v1"\Nok       true\Nstatus   "downloaded"\Nfiles    "C:\\Users\\Public\\Videos\\lyt-demo-final\\\N         lyt-permitted-source [lyt-permitted-source].mp4"
+
+Dialogue: 0,0:00:23.20,0:00:27.10,Label,,0,0,0,,{\fad(180,180)}DONE
+Dialogue: 0,0:00:23.20,0:00:27.10,Success,,0,0,0,,{\fad(180,180)}Exact path returned.
+Dialogue: 0,0:00:23.20,0:00:27.10,Subtle,,0,0,0,,{\fad(180,180)}The file stays local. The agent knows exactly where it landed.
+
+Dialogue: 0,0:00:27.10,0:00:30.00,Label,,0,0,0,,{\fad(180,180)}BUILT FOR CODEX + CLAUDE CODE
+Dialogue: 0,0:00:27.10,0:00:30.00,CTA,,0,0,0,,{\fad(180,180)}Give your agent a dependable local media tool.
+Dialogue: 0,0:00:27.10,0:00:30.00,Code,,0,0,0,,{\fad(180,180)}npm install --global @tanattv/lyt\Ngithub.com/TanaTTV/lyt
