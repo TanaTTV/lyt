@@ -1,0 +1,51 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/TanaTTV/lyt/blob/v0.7.2/schemas/lyt.history.v1.schema.json",
+  "title": "lyt history v1",
+  "type": "object",
+  "required": ["schema", "version", "command", "ok", "path"],
+  "properties": {
+    "schema": { "const": "lyt.history.v1" },
+    "version": { "type": "string" },
+    "command": { "enum": ["history.list", "history.clear"] },
+    "ok": { "type": "boolean" },
+    "path": { "type": "string" },
+    "query": { "type": "string" },
+    "total": { "type": "integer", "minimum": 0 },
+    "entries": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "ts": { "type": "string" },
+          "id": { "type": ["string", "null"] },
+          "url": { "type": "string" },
+          "mode": { "type": "string" },
+          "artifact": { "type": "string" },
+          "dir": { "type": "string" },
+          "files": { "type": "array", "items": { "type": "string" } }
+        },
+        "additionalProperties": true
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "command": { "const": "history.list" } } },
+      "then": { "required": ["query", "total", "entries"] }
+    },
+    {
+      "if": { "properties": { "command": { "const": "history.clear" } } },
+      "then": {
+        "not": {
+          "anyOf": [
+            { "required": ["query"] },
+            { "required": ["total"] },
+            { "required": ["entries"] }
+          ]
+        }
+      }
+    }
+  ],
+  "additionalProperties": false
+}
