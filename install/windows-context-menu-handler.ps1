@@ -10,7 +10,7 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-if (-not [IO.Path]::IsPathFullyQualified($ToolPath) -or
+if (-not (Split-Path -Path $ToolPath -IsAbsolute) -or
     -not (Test-Path -LiteralPath $ToolPath -PathType Leaf)) {
     throw "The configured lyt command must be an existing absolute file path."
 }

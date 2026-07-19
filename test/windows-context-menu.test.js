@@ -13,5 +13,7 @@ test("context-menu target is passed as a native argument, not PowerShell source"
   assert.match(script, /Copy-Item[^\n]*windows-context-menu-handler\.ps1/s);
   assert.match(handler, /Set-Location -LiteralPath \$TargetPath/);
   assert.match(handler, /& \$ToolPath --paste/);
+  assert.match(handler, /Split-Path -Path \$ToolPath -IsAbsolute/);
+  assert.doesNotMatch(handler, /IsPathFullyQualified/);
   assert.doesNotMatch(handler, /-Command/);
 });
