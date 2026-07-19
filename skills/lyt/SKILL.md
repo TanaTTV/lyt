@@ -22,8 +22,8 @@ lyt doctor --json
 ```
 
 Always quote URLs. Prefer `--dry-run --json` before a large or uncertain job.
-For bounded agent calls, `--json` emits one `lyt.result.v1` document on stdout;
-setup and progress diagnostics go to stderr.
+For bounded agent calls, `--json` emits one JSON document using schema
+`lyt.result.v1` on stdout; setup and progress diagnostics go to stderr.
 
 ```sh
 lyt --audio --dry-run --json "URL"
