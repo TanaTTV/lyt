@@ -1,0 +1,32 @@
+{
+  "name": "lyt",
+  "version": "0.7.1",
+  "description": "Safe local media downloads for people and AI agents, powered by yt-dlp.",
+  "author": {
+    "name": "TanaTTV",
+    "url": "https://github.com/TanaTTV"
+  },
+  "homepage": "https://tanattv.github.io/lyt/",
+  "repository": "https://github.com/TanaTTV/lyt",
+  "license": "MIT",
+  "keywords": ["yt-dlp", "media", "audio", "video", "codex", "claude", "local-first"],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "lyt",
+    "shortDescription": "Safe local media for people and agents",
+    "longDescription": "Use lyt to download permitted audio or video with safe defaults, machine-readable results, and exact local file paths.",
+    "developerName": "TanaTTV",
+    "category": "Productivity",
+    "capabilities": ["Local files", "Command line"],
+    "websiteURL": "https://tanattv.github.io/lyt/",
+    "privacyPolicyURL": "https://tanattv.github.io/lyt/privacy/",
+    "defaultPrompt": [
+      "Download this permitted video at 1080p and report the exact saved path.",
+      "Save the permitted audio from this URL as a 192K MP3.",
+      "Preview the available formats for this permitted media URL."
+    ],
+    "brandColor": "#FF1F3D",
+    "composerIcon": "./assets/logo.png",
+    "logo": "./assets/logo.png"
+  }
+}

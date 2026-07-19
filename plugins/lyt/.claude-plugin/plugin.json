@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
+  "name": "lyt",
+  "version": "0.7.1",
+  "description": "Safe local media downloads for people and AI agents, powered by yt-dlp.",
+  "author": {
+    "name": "TanaTTV",
+    "url": "https://github.com/TanaTTV"
+  },
+  "homepage": "https://tanattv.github.io/lyt/",
+  "repository": "https://github.com/TanaTTV/lyt",
+  "license": "MIT",
+  "keywords": ["yt-dlp", "media", "audio", "video", "ai-agents", "local-first"],
+  "skills": "./skills/"
+}

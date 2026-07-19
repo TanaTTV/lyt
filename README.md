@@ -110,7 +110,31 @@ lyt --video -q 720p --jobs 2 "URL_1" "URL_2"
 lyt is designed to work cleanly inside Codex, Claude Code, scripts, and other
 automation without scraping terminal text.
 
-Install the maintained agent skill:
+Install the CLI first:
+
+```sh
+npm install --global @tanattv/lyt
+lyt doctor
+```
+
+Then install lyt from the marketplace for your agent:
+
+### Codex
+
+```sh
+codex plugin marketplace add TanaTTV/lyt
+codex plugin add lyt@lyt-plugins
+```
+
+### Claude Code
+
+```sh
+claude plugin marketplace add TanaTTV/lyt
+claude plugin install lyt@lyt-plugins
+```
+
+Prefer a direct skill install without a marketplace? The CLI can maintain both
+copies for you:
 
 ```sh
 lyt agent install all
@@ -138,7 +162,7 @@ lyt --mp3 -q 192K --max-filesize 2G --json "URL"
 ```json
 {
   "schema": "lyt.result.v1",
-  "version": "0.7.0",
+  "version": "0.7.1",
   "command": "download",
   "ok": true,
   "results": [
@@ -161,6 +185,8 @@ to stderr. Failed jobs exit non-zero while still returning valid JSON.
 - History dedupe: `status: "skipped"`, `reason: "history"`
 - Size guard: non-zero result with `reason: "max-filesize"`
 - Contract schema: [`schemas/lyt.result.v1.schema.json`](schemas/lyt.result.v1.schema.json)
+- Marketplace package: [`plugins/lyt`](plugins/lyt)
+- Ready-to-record walkthrough: [`demos/agent-to-file`](demos/agent-to-file)
 
 ## Safe by default
 
