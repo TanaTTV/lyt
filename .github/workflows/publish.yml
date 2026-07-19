@@ -1,8 +1,8 @@
 name: Publish to npm
 
 # Publishes the package when you create a GitHub Release.
-# Requires an NPM_TOKEN secret (Settings -> Secrets -> Actions) with an
-# automation token from your npm account that can publish lyt.
+# Authentication uses npm Trusted Publishing (OIDC) for this repository and
+# workflow, so no long-lived npm token is stored in GitHub.
 
 on:
   release:
@@ -17,14 +17,15 @@ jobs:
       contents: read
       id-token: write
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
         with:
-          node-version: 22
+          node-version: 24
           registry-url: "https://registry.npmjs.org"
+          package-manager-cache: false
+      - name: Install a Trusted Publishing compatible npm CLI
+        run: npm install --global npm@latest
       - name: Verify release tag matches package version
         run: test "v$(node -p \"require('./package.json').version\")" = "$GITHUB_REF_NAME"
       - run: npm run check
-      - run: npm publish --access public --provenance
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+      - run: npm publish --access public
