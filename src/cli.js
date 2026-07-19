@@ -203,6 +203,8 @@ export async function main(argv, defaults = {}) {
           url: task.url,
           status: "planned",
           command: formatCommand(tools.ytDlpCommand, task.args),
+          executable: tools.ytDlpCommand,
+          args: task.args,
           outputDir: resolve(options.outputDir),
         })),
         version: VERSION,
@@ -733,7 +735,7 @@ function printFormats(url, formats) {
     const labels = formats.heights.map((height) => labelHeight(height));
     console.log(`  video: ${labels.join(", ")}`);
     const best = formats.heights[0];
-    console.log(`  download best with: yt4 -q ${best}p -- "${url}"`);
+    console.log(`  download best with: ${formatCommand("yt4", ["-q", `${best}p`, "--", url])}`);
   }
 
   if (formats.audioBitrates.length > 0) {

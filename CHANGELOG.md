@@ -36,6 +36,14 @@ versioning for the public CLI and machine-readable result contract.
 - The Windows ffmpeg archive must match a published SHA-256 release digest or
   checksum asset before extraction.
 - Managed yt-dlp checksum verification remains required.
+- Windows Explorer actions now pass selected folders as native arguments to a
+  fixed helper script instead of embedding folder names in PowerShell source.
+- External helpers are resolved only from absolute PATH entries, preventing the
+  working directory or relative PATH entries from shadowing trusted tools.
+- Human command previews are inert, while JSON dry runs expose the executable
+  and argument vector as structured fields.
+- Unix config and history state is created with private directory and file
+  permissions without changing permissions on caller-supplied parent folders.
 
 ### Changed
 

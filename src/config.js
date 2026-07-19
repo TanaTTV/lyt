@@ -5,6 +5,7 @@
 // applied to every run; explicit flags always win.
 
 import {
+  chmodSync,
   existsSync,
   mkdirSync,
   readFileSync,
@@ -13,6 +14,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import { dirname, isAbsolute, join } from "node:path";
+import process from "node:process";
 import { dataDir } from "./paths.js";
 
 export const PROFILES = {
@@ -108,8 +110,14 @@ export function saveConfig(config, file = configPath()) {
   const temporary = `${file}.${process.pid}.${Date.now()}.tmp`;
 
   try {
-    mkdirSync(directory, { recursive: true });
-    writeFileSync(temporary, `${JSON.stringify(config, null, 2)}\n`);
+    mkdirSync(directory, { recursive: true, mode: 0o700 });
+    if (process.platform !== "win32" && directory === dataDir()) {
+      chmodSync(directory, 0o700);
+    }
+    writeFileSync(temporary, `${JSON.stringify(config, null, 2)}\n`, {
+      flag: "wx",
+      mode: 0o600,
+    });
 
     try {
       renameSync(temporary, file);
@@ -120,6 +128,7 @@ export function saveConfig(config, file = configPath()) {
       rmSync(file, { force: true });
       renameSync(temporary, file);
     }
+    if (process.platform !== "win32") chmodSync(file, 0o600);
   } catch (error) {
     rmSync(temporary, { force: true });
     throw new Error(`Could not save config at ${file}: ${error.message}`, {

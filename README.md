@@ -358,7 +358,7 @@ lyt agent install [codex|claude|all] [--home <dir>]
 | `--downloader-args <args>` | Pass arguments to the external downloader. |
 | `--no-part` | Disable `.part` files. |
 | `--no-download` | Disable automatic managed tool downloads. |
-| `--print-command` | Show the yt-dlp command before execution in human mode. |
+| `--print-command` | Show an inert yt-dlp argv preview before execution in human mode. |
 | `--dry-run` | Preview without downloading or installing tools. |
 | `--json` | Emit the `lyt.result.v1` machine-readable contract. |
 | `-i, --interactive` | Open interactive prompts. |

@@ -1,8 +1,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, mkdtempSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
+import process from "node:process";
 import {
   clearHistory,
   loadHistory,
@@ -35,6 +36,20 @@ test("records and loads history entries in order", () => {
 
 test("recordDownload rejects relative target paths", () => {
   assert.throws(() => recordDownload({}, "history.jsonl"), /must be absolute/);
+});
+
+test("recordDownload creates private files on Unix", { skip: process.platform === "win32" }, () => {
+  const { file, cleanup } = tempHistoryFile();
+
+  try {
+    const directory = dirname(file);
+    chmodSync(directory, 0o755);
+    recordDownload({ id: "aaaaaaaaaaa", url: "private" }, file);
+    assert.equal(statSync(file).mode & 0o777, 0o600);
+    assert.equal(statSync(directory).mode & 0o777, 0o755);
+  } finally {
+    cleanup();
+  }
 });
 
 test("loadHistory skips corrupt lines instead of throwing", () => {

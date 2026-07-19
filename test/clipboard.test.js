@@ -22,7 +22,7 @@ test("readClipboard returns stdout from the first working tool", () => {
     return { status: 0, stdout: "https://youtu.be/dQw4w9WgXcQ" };
   };
 
-  const text = readClipboard({ platform: "linux", spawn });
+  const text = readClipboard({ platform: "linux", spawn, resolve: (command) => command });
 
   assert.equal(text, "https://youtu.be/dQw4w9WgXcQ");
   assert.deepEqual(calls, ["wl-paste", "xclip"]);
@@ -31,7 +31,7 @@ test("readClipboard returns stdout from the first working tool", () => {
 test("readClipboard returns empty string when no tool works", () => {
   const spawn = () => ({ error: new Error("ENOENT"), status: null });
 
-  assert.equal(readClipboard({ platform: "linux", spawn }), "");
+  assert.equal(readClipboard({ platform: "linux", spawn, resolve: (command) => command }), "");
 });
 
 test("readClipboard survives a spawn that throws", () => {
@@ -39,5 +39,5 @@ test("readClipboard survives a spawn that throws", () => {
     throw new Error("boom");
   };
 
-  assert.equal(readClipboard({ platform: "darwin", spawn }), "");
+  assert.equal(readClipboard({ platform: "darwin", spawn, resolve: (command) => command }), "");
 });

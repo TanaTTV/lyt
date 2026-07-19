@@ -1,8 +1,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, mkdtempSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
+import process from "node:process";
 import {
   assertConfigKey,
   configToOptions,
@@ -65,6 +66,20 @@ test("config round-trips through save and load", () => {
 
     assert.equal(config.quality, "320K");
     assert.equal(config["embed-metadata"], "true");
+  } finally {
+    cleanup();
+  }
+});
+
+test("saveConfig creates private files on Unix", { skip: process.platform === "win32" }, () => {
+  const { file, cleanup } = tempConfigFile();
+
+  try {
+    const directory = dirname(file);
+    chmodSync(directory, 0o755);
+    saveConfig({ quality: "320K" }, file);
+    assert.equal(statSync(file).mode & 0o777, 0o600);
+    assert.equal(statSync(directory).mode & 0o777, 0o755);
   } finally {
     cleanup();
   }

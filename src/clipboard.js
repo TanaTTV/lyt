@@ -4,6 +4,7 @@
 
 import { spawnSync } from "node:child_process";
 import process from "node:process";
+import { resolveExecutableOnPath } from "./executables.js";
 
 // Candidate readers per platform, tried in order until one works.
 export function clipboardCommands(platform = process.platform) {
@@ -32,10 +33,13 @@ export function clipboardCommands(platform = process.platform) {
 export function readClipboard({
   platform = process.platform,
   spawn = spawnSync,
+  resolve = (command) => resolveExecutableOnPath(command, { platform }),
 } = {}) {
   for (const [command, args] of clipboardCommands(platform)) {
     try {
-      const result = spawn(command, args, {
+      const executable = resolve(command);
+      if (!executable) continue;
+      const result = spawn(executable, args, {
         encoding: "utf8",
         timeout: 5000,
         windowsHide: true,

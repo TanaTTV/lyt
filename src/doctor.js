@@ -10,6 +10,7 @@ import process from "node:process";
 import { ensureFfmpeg, ensureYtDlp } from "./bootstrap.js";
 import { clipboardCommands } from "./clipboard.js";
 import { configPath } from "./config.js";
+import { resolveExecutableOnPath } from "./executables.js";
 import { historyPath, loadHistory } from "./history.js";
 import { binDir, dataDir } from "./paths.js";
 import { VERSION } from "./version.js";
@@ -259,12 +260,14 @@ function describe(path) {
 function probeClipboard() {
   for (const [command, args] of clipboardCommands()) {
     try {
-      const result = spawnSync(command, args, {
+      const executable = resolveExecutableOnPath(command);
+      if (!executable) continue;
+      const result = spawnSync(executable, args, {
         encoding: "utf8",
         timeout: 5000,
         windowsHide: true,
       });
-      if (!result.error && result.status === 0) return [command, args];
+      if (!result.error && result.status === 0) return [executable, args];
     } catch {
       // Try the next platform candidate.
     }
