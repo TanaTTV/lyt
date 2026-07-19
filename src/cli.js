@@ -17,6 +17,7 @@ import { ensureYtDlp, ensureFfmpeg } from "./bootstrap.js";
 import { readClipboard } from "./clipboard.js";
 import { extractVideoId, extractYouTubeUrls } from "./urls.js";
 import {
+  buildArtifactFingerprint,
   clearHistory,
   existingHistoryFiles,
   historyPath,
@@ -269,13 +270,19 @@ async function prepareTools(options, noDownload) {
 // Downloads a batch of URLs. Returns the failures instead of throwing so
 // watch mode can keep going after a bad link.
 async function downloadUrls(urls, options, { ytDlpCommand, ffmpegPath }) {
+  const artifact = buildArtifactFingerprint(options);
   let targets = urls;
   const results = [];
   const historyEntries = options.history ? loadHistory() : [];
 
   // Instant dedupe against the download history (by video ID).
   if (!options.redownload && options.history) {
-    const { fresh, skipped } = splitByHistory(urls, historyEntries);
+    const { fresh, skipped } = splitByHistory(
+      urls,
+      historyEntries,
+      undefined,
+      artifact.fingerprint,
+    );
 
     for (const url of skipped) {
       const id = extractVideoId(url);
@@ -390,14 +397,18 @@ async function downloadUrls(urls, options, { ytDlpCommand, ffmpegPath }) {
         }
 
         if (options.history) {
-          recordDownload({
-            ts: new Date().toISOString(),
-            id: extractVideoId(task.url),
-            url: task.url,
-            mode: options.video ? "video" : "audio",
-            dir: resolve(options.outputDir),
-            files: outcome.files,
-          });
+          recordDownload(
+            {
+              ts: new Date().toISOString(),
+              id: extractVideoId(task.url),
+              url: task.url,
+              mode: options.video ? "video" : "audio",
+              dir: resolve(options.outputDir),
+              files: outcome.files,
+            },
+            undefined,
+            { artifact: artifact.fingerprint },
+          );
         }
       } catch (error) {
         renderer?.done(task.index, false);

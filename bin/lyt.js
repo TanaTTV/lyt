@@ -1,5 +1,5 @@
 #!/usr/bin/env node
 
-import { run } from "../src/cli.js";
+import { runEntry } from "../src/entry.js";
 
-run(process.argv.slice(2));
+runEntry(process.argv.slice(2));

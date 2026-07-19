@@ -1,6 +1,6 @@
 {
   "name": "@tanattv/lyt",
-  "version": "0.7.1",
+  "version": "0.7.2",
   "description": "Agent-ready local media CLI powered by yt-dlp and ffmpeg.",
   "type": "module",
   "bin": {
@@ -11,10 +11,10 @@
   "scripts": {
     "test": "node --test",
     "check:pack": "node scripts/check-pack.js",
-    "check": "npm test && npm run check:pack",
+    "check:website": "npm --prefix website run check",
+    "check": "npm test && npm run check:pack && npm run check:website",
     "smoke:linux": "bash scripts/smoke-linux.sh",
-    "prepublishOnly": "npm run check",
-    "postinstall": "node -e \"console.log('\\nlyt installed. yt-dlp and ffmpeg are fetched automatically on first use.\\n  Check your setup any time with: lyt doctor\\n')\""
+    "prepublishOnly": "npm run check"
   },
   "files": [
     "bin",

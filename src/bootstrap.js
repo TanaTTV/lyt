@@ -1,26 +1,34 @@
 // Auto-provision yt-dlp and ffmpeg binaries so users get a working install
-// with zero manual setup on first run. Both tools are cached in a
-// platform-specific directory and reused on subsequent runs.
-//
-// Cache locations:
-//   Windows  %LOCALAPPDATA%\lyt\bin
-//   macOS    ~/Library/Application Support/lyt/bin
-//   Linux    ~/.local/share/lyt/bin
-//
-// Pass `noDownload: true` (or set LYT_NO_DOWNLOAD=1) to require the tools
-// to be on PATH and skip all download logic.
+// with minimal manual setup. Both tools are cached in a platform-specific
+// directory and reused on subsequent runs.
 
-import { chmodSync, existsSync, readdirSync } from "node:fs";
-import { mkdir, writeFile } from "node:fs/promises";
+import {
+  chmodSync,
+  existsSync,
+  readdirSync,
+} from "node:fs";
+import {
+  mkdir,
+  open,
+  readFile,
+  rename,
+  rm,
+  stat,
+  writeFile,
+} from "node:fs/promises";
 import { createHash } from "node:crypto";
 import { join } from "node:path";
 import { spawnSync } from "node:child_process";
 import process from "node:process";
 import { binDir } from "./paths.js";
 
-// ---------------------------------------------------------------------------
-// Managed binary directory (shared with history/config via paths.js)
-// ---------------------------------------------------------------------------
+const FETCH_TIMEOUT_MS = 60_000;
+const LOCK_WAIT_MS = 30_000;
+const LOCK_POLL_MS = 250;
+const LOCK_STALE_MS = 10 * 60_000;
+const LOCK_METADATA_GRACE_MS = 2_000;
+const MAX_YT_DLP_BYTES = 64 * 1024 * 1024;
+const MAX_FFMPEG_ARCHIVE_BYTES = 256 * 1024 * 1024;
 
 function managedDir() {
   return binDir();
@@ -30,7 +38,6 @@ function managedDir() {
 // yt-dlp
 // ---------------------------------------------------------------------------
 
-// GitHub Releases provides per-platform binaries and a SHA-256 manifest.
 const YT_DLP_RELEASE_BASE =
   "https://github.com/yt-dlp/yt-dlp/releases/latest/download";
 export const YT_DLP_CHECKSUM_ASSETS = ["SHA2-256SUMS", "SHA256SUMS"];
@@ -55,36 +62,20 @@ function ytDlpCachedBin() {
 
 async function downloadYtDlp() {
   const asset = ytDlpReleaseAsset();
-
-  // Verify before downloading: fetch the checksum manifest first.
   const sums = await fetchYtDlpChecksums();
-
   const expectedHash = checksumForAsset(sums, asset);
 
   if (!expectedHash) {
     throw new Error(`No checksum entry found for ${asset} in the SHA-256 manifest`);
   }
 
-  process.stderr.write(`  Downloading yt-dlp from GitHub…\n`);
-  const binRes = await fetch(`${YT_DLP_RELEASE_BASE}/${asset}`);
-  if (!binRes.ok) {
-    throw new Error(`yt-dlp download failed (HTTP ${binRes.status})`);
-  }
-  const data = Buffer.from(await binRes.arrayBuffer());
+  process.stderr.write("  Downloading yt-dlp from GitHub…\n");
+  const response = await fetchChecked(`${YT_DLP_RELEASE_BASE}/${asset}`);
+  const data = await readBounded(response, MAX_YT_DLP_BYTES, "yt-dlp");
+  verifySha256(data, expectedHash, asset);
 
-  const actualHash = createHash("sha256").update(data).digest("hex");
-  if (actualHash !== expectedHash) {
-    throw new Error(
-      `yt-dlp checksum mismatch — file may be corrupt.\n` +
-        `  expected ${expectedHash}\n  got      ${actualHash}`,
-    );
-  }
-
-  await mkdir(managedDir(), { recursive: true });
   const dest = ytDlpCachedBin();
-  await writeFile(dest, data);
-  if (process.platform !== "win32") chmodSync(dest, 0o755);
-
+  await atomicWrite(dest, data, { executable: process.platform !== "win32" });
   return dest;
 }
 
@@ -92,7 +83,9 @@ export async function fetchYtDlpChecksums(fetchFn = fetch) {
   const failures = [];
 
   for (const filename of YT_DLP_CHECKSUM_ASSETS) {
-    const response = await fetchFn(`${YT_DLP_RELEASE_BASE}/${filename}`);
+    const response = await fetchFn(`${YT_DLP_RELEASE_BASE}/${filename}`, {
+      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+    });
     if (response.ok) return response.text();
     failures.push(`${filename} (HTTP ${response.status})`);
   }
@@ -108,201 +101,364 @@ export function checksumForAsset(manifest, asset) {
     ?.split(/\s+/)[0] ?? null;
 }
 
-/**
- * Locate yt-dlp: system PATH → platform-specific fallbacks → managed cache →
- * auto-download. Returns the path/command to pass to spawn().
- *
- * @param {{ noDownload?: boolean }} opts
- */
 export async function ensureYtDlp({ noDownload = false } = {}) {
-  // 1. On PATH already?
   if (probeOk("yt-dlp")) return "yt-dlp";
 
-  // 2. Windows: check WinGet packages and known static paths.
   if (process.platform === "win32") {
     const win = resolveWindowsFallback("yt-dlp");
     if (win) return win;
   }
 
-  // 3. Already in managed cache?
   const cached = ytDlpCachedBin();
   if (existsSync(cached) && probeOk(cached)) return cached;
 
-  // 4. Auto-download unless opted out.
   if (noDownload) {
-    const err = new Error(
+    const error = new Error(
       "yt-dlp was not found on PATH.\n" +
-        "Install it: https://github.com/yt-dlp/yt-dlp#installation\n" +
-        "Or remove --no-download / LYT_NO_DOWNLOAD to let lyt fetch it automatically.",
+        "Install it from the official yt-dlp project, or remove --no-download / " +
+        "LYT_NO_DOWNLOAD to let lyt fetch the verified release binary.",
     );
-    err.exitCode = 127;
-    throw err;
+    error.exitCode = 127;
+    throw error;
   }
 
   process.stderr.write("yt-dlp not found — fetching to managed directory…\n");
+
   try {
-    const dest = await downloadYtDlp();
+    const dest = await withInstallLock("yt-dlp", async () => {
+      if (existsSync(cached) && probeOk(cached)) return cached;
+      return downloadYtDlp();
+    });
     process.stderr.write(`yt-dlp installed at ${dest}\n`);
     return dest;
   } catch (cause) {
-    const err = new Error(
+    const error = new Error(
       `Auto-install of yt-dlp failed: ${cause.message}\n` +
-        "Install it manually: https://github.com/yt-dlp/yt-dlp#installation",
+        "Install it manually from the official yt-dlp project.",
     );
-    err.exitCode = 127;
-    throw err;
+    error.exitCode = 127;
+    throw error;
   }
 }
 
 // ---------------------------------------------------------------------------
-// ffmpeg
+// ffmpeg (managed automatically on Windows; guided elsewhere)
 // ---------------------------------------------------------------------------
 
 function ffmpegCachedBin() {
-  return join(
-    managedDir(),
-    process.platform === "win32" ? "ffmpeg.exe" : "ffmpeg",
-  );
+  return join(managedDir(), process.platform === "win32" ? "ffmpeg.exe" : "ffmpeg");
 }
 
-// On Windows we download the essentials build from Gyan's codexffmpeg repo and
-// extract ffmpeg.exe using PowerShell (built into every Windows install).
 async function downloadFfmpegWindows() {
-  // Get the latest release metadata from the GitHub API.
-  const apiRes = await fetch(
+  const apiResponse = await fetchChecked(
     "https://api.github.com/repos/GyanD/codexffmpeg/releases/latest",
     { headers: { "User-Agent": "lyt-cli" } },
   );
-  if (!apiRes.ok) {
-    throw new Error(`GitHub API error fetching ffmpeg release (HTTP ${apiRes.status})`);
-  }
-  const release = await apiRes.json();
-
-  // The essentials build is the smallest option (~80 MB zip, ~40 MB extracted).
-  const asset = release.assets?.find((a) =>
-    /essentials.*\.zip$/i.test(a.name),
+  const release = await apiResponse.json();
+  const asset = release.assets?.find((candidate) =>
+    /essentials.*\.zip$/i.test(candidate.name),
   );
+
   if (!asset) {
-    throw new Error(
-      "Could not find an essentials zip in the latest GyanD/codexffmpeg release",
-    );
+    throw new Error("Could not find an ffmpeg essentials ZIP in the latest release");
   }
 
-  process.stderr.write(
-    `  Downloading ${asset.name} (~80 MB, one-time only)…\n`,
+  if (Number(asset.size) > MAX_FFMPEG_ARCHIVE_BYTES) {
+    throw new Error(`Refusing unexpectedly large ffmpeg asset (${asset.size} bytes)`);
+  }
+
+  const expectedHash = await resolveReleaseChecksum(release, asset);
+  if (!expectedHash) {
+    throw new Error(`No trusted SHA-256 digest was published for ${asset.name}`);
+  }
+
+  process.stderr.write(`  Downloading ${asset.name} (one-time setup)…\n`);
+  const zipResponse = await fetchChecked(asset.browser_download_url);
+  const zipData = await readBounded(
+    zipResponse,
+    MAX_FFMPEG_ARCHIVE_BYTES,
+    "ffmpeg archive",
   );
-  const zipRes = await fetch(asset.browser_download_url);
-  if (!zipRes.ok) {
-    throw new Error(`ffmpeg download failed (HTTP ${zipRes.status})`);
-  }
-  const zipData = Buffer.from(await zipRes.arrayBuffer());
+  verifySha256(zipData, expectedHash, asset.name);
 
-  // Write zip to a temp file then extract ffmpeg.exe with PowerShell.
   const { default: os } = await import("node:os");
-  const { unlinkSync } = await import("node:fs");
   const { execFileSync } = await import("node:child_process");
-
-  const tmpZip = join(os.tmpdir(), `lyt-ffmpeg-${Date.now()}.zip`);
-  await writeFile(tmpZip, zipData);
-  await mkdir(managedDir(), { recursive: true });
+  const tmpZip = join(os.tmpdir(), `lyt-ffmpeg-${process.pid}-${Date.now()}.zip`);
   const dest = ffmpegCachedBin();
+  const tmpExe = `${dest}.${process.pid}.${Date.now()}.tmp`;
 
-  // PowerShell is always present on Windows and understands .NET zip classes.
-  const escapedZip = tmpZip.replace(/'/g, "''");
-  const escapedDest = dest.replace(/'/g, "''");
-  execFileSync(
-    "powershell.exe",
-    [
-      "-NoProfile",
-      "-NonInteractive",
-      "-Command",
-      `Add-Type -AssemblyName System.IO.Compression.FileSystem; ` +
-        `$z = [IO.Compression.ZipFile]::OpenRead('${escapedZip}'); ` +
-        `$e = $z.Entries | Where-Object { $_.Name -eq 'ffmpeg.exe' } | Select-Object -First 1; ` +
-        `[IO.Compression.ZipFileExtensions]::ExtractToFile($e, '${escapedDest}', $true); ` +
-        `$z.Dispose()`,
-    ],
-    { stdio: "ignore" },
-  );
+  await mkdir(managedDir(), { recursive: true });
+  await writeFile(tmpZip, zipData, { flag: "wx" });
 
   try {
-    unlinkSync(tmpZip);
-  } catch {
-    // Temp file cleanup failure is not fatal.
-  }
+    const escapedZip = powershellLiteral(tmpZip);
+    const escapedDest = powershellLiteral(tmpExe);
+    execFileSync(
+      "powershell.exe",
+      [
+        "-NoProfile",
+        "-NonInteractive",
+        "-Command",
+        `Add-Type -AssemblyName System.IO.Compression.FileSystem; ` +
+          `$z = [IO.Compression.ZipFile]::OpenRead('${escapedZip}'); ` +
+          `$e = $z.Entries | Where-Object { $_.Name -eq 'ffmpeg.exe' } | Select-Object -First 1; ` +
+          `if (-not $e) { $z.Dispose(); throw 'ffmpeg.exe not found in archive' }; ` +
+          `[IO.Compression.ZipFileExtensions]::ExtractToFile($e, '${escapedDest}', $true); ` +
+          `$z.Dispose()`,
+      ],
+      { stdio: "ignore", timeout: 120_000, windowsHide: true },
+    );
 
-  return dest;
+    if (!probeOk(tmpExe, ["-version"])) {
+      throw new Error("Extracted ffmpeg executable failed its version check");
+    }
+
+    await replaceFile(tmpExe, dest);
+    return dest;
+  } finally {
+    await rm(tmpZip, { force: true });
+    await rm(tmpExe, { force: true });
+  }
 }
 
-/**
- * Locate ffmpeg: system PATH → platform-specific fallbacks → managed cache →
- * auto-download (Windows only; macOS/Linux show a helpful install hint).
- *
- * @param {{ noDownload?: boolean }} opts
- */
+async function resolveReleaseChecksum(release, asset) {
+  const digest = String(asset.digest ?? "");
+  const direct = /^sha256:([a-f0-9]{64})$/i.exec(digest)?.[1];
+  if (direct) return direct.toLowerCase();
+
+  const checksumAsset = release.assets?.find((candidate) =>
+    candidate.id !== asset.id &&
+    /(?:sha256|checksum|checksums)/i.test(candidate.name) &&
+    /(?:\.txt|\.sha256|\.sum)$/i.test(candidate.name),
+  );
+
+  if (!checksumAsset) return null;
+  const response = await fetchChecked(checksumAsset.browser_download_url);
+  const manifest = await response.text();
+  return checksumForAsset(manifest, asset.name)?.toLowerCase() ?? null;
+}
+
 export async function ensureFfmpeg({ noDownload = false } = {}) {
-  const FFMPEG_PROBE = ["-version"];
+  const probeArgs = ["-version"];
+  if (probeOk("ffmpeg", probeArgs)) return "ffmpeg";
 
-  // 1. On PATH?
-  if (probeOk("ffmpeg", FFMPEG_PROBE)) return "ffmpeg";
-
-  // 2. Windows fallbacks.
   if (process.platform === "win32") {
-    const winStatic = join("C:\\", "ffmpeg", "bin", "ffmpeg.exe");
-    if (existsSync(winStatic) && probeOk(winStatic, FFMPEG_PROBE)) return winStatic;
+    const staticPath = join("C:\\", "ffmpeg", "bin", "ffmpeg.exe");
+    if (existsSync(staticPath) && probeOk(staticPath, probeArgs)) return staticPath;
 
-    const winget = resolveWindowsFallback("ffmpeg", FFMPEG_PROBE);
+    const winget = resolveWindowsFallback("ffmpeg", probeArgs);
     if (winget) return winget;
   }
 
-  // 3. Managed cache.
   const cached = ffmpegCachedBin();
-  if (existsSync(cached) && probeOk(cached, FFMPEG_PROBE)) return cached;
+  if (existsSync(cached) && probeOk(cached, probeArgs)) return cached;
 
-  // 4. macOS / Linux: we don't bundle ffmpeg — provide a clear install hint.
   if (process.platform !== "win32") {
-    const hint =
-      process.platform === "darwin"
-        ? "Install it: brew install ffmpeg"
-        : "Install it: sudo apt install ffmpeg   (or your distro's package manager)";
-    const err = new Error(`ffmpeg was not found on PATH.\n${hint}`);
-    err.exitCode = 127;
-    throw err;
+    const hint = process.platform === "darwin"
+      ? "Install it with: brew install ffmpeg"
+      : "Install it with your distribution package manager, for example: sudo apt install ffmpeg";
+    const error = new Error(`ffmpeg was not found on PATH.\n${hint}`);
+    error.exitCode = 127;
+    throw error;
   }
 
-  // 5. Windows auto-download.
   if (noDownload) {
-    const err = new Error(
+    const error = new Error(
       "ffmpeg was not found on PATH.\n" +
-        "Install it: winget install Gyan.FFmpeg\n" +
-        "Or remove --no-download / LYT_NO_DOWNLOAD to let lyt fetch it automatically.",
+        "Install it with WinGet, or remove --no-download / LYT_NO_DOWNLOAD " +
+        "to let lyt fetch a verified Windows build.",
     );
-    err.exitCode = 127;
-    throw err;
+    error.exitCode = 127;
+    throw error;
   }
 
   process.stderr.write("ffmpeg not found — fetching to managed directory…\n");
+
   try {
-    const dest = await downloadFfmpegWindows();
+    const dest = await withInstallLock("ffmpeg", async () => {
+      if (existsSync(cached) && probeOk(cached, probeArgs)) return cached;
+      return downloadFfmpegWindows();
+    });
     process.stderr.write(`ffmpeg installed at ${dest}\n`);
     return dest;
   } catch (cause) {
-    const err = new Error(
+    const error = new Error(
       `Auto-install of ffmpeg failed: ${cause.message}\n` +
-        "Install it manually: winget install Gyan.FFmpeg",
+        "Install it manually with: winget install Gyan.FFmpeg",
     );
-    err.exitCode = 127;
-    throw err;
+    error.exitCode = 127;
+    throw error;
   }
 }
 
 // ---------------------------------------------------------------------------
-// Helpers
+// Download and filesystem helpers
 // ---------------------------------------------------------------------------
 
-// Note: ffmpeg only understands single-dash `-version`; `--version` makes it
-// exit non-zero with the banner on stderr, which used to make every ffmpeg
-// probe fail (and re-download ffmpeg on each run).
+async function fetchChecked(url, options = {}) {
+  const response = await fetch(url, {
+    ...options,
+    signal: options.signal ?? AbortSignal.timeout(FETCH_TIMEOUT_MS),
+  });
+  if (!response.ok) throw new Error(`HTTP ${response.status} fetching ${url}`);
+  return response;
+}
+
+export async function readBounded(response, maxBytes, label) {
+  const advertised = Number(response.headers?.get?.("content-length"));
+  if (Number.isFinite(advertised) && advertised > maxBytes) {
+    throw new Error(`${label} exceeded the ${maxBytes}-byte safety limit`);
+  }
+
+  const reader = response.body?.getReader?.();
+  if (!reader) {
+    const data = Buffer.from(await response.arrayBuffer());
+    if (data.length > maxBytes) {
+      throw new Error(`${label} exceeded the ${maxBytes}-byte safety limit`);
+    }
+    return data;
+  }
+
+  const chunks = [];
+  let total = 0;
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      const chunk = Buffer.from(value);
+      total += chunk.length;
+      if (total > maxBytes) {
+        await reader.cancel(`Exceeded ${label} size limit`).catch(() => {});
+        throw new Error(`${label} exceeded the ${maxBytes}-byte safety limit`);
+      }
+      chunks.push(chunk);
+    }
+  } finally {
+    reader.releaseLock();
+  }
+
+  return Buffer.concat(chunks, total);
+}
+
+function verifySha256(data, expectedHash, asset) {
+  const actualHash = createHash("sha256").update(data).digest("hex");
+  if (actualHash !== String(expectedHash).toLowerCase()) {
+    throw new Error(
+      `${asset} checksum mismatch — refusing to install.\n` +
+        `  expected ${expectedHash}\n  got      ${actualHash}`,
+    );
+  }
+}
+
+async function atomicWrite(dest, data, { executable = false } = {}) {
+  await mkdir(managedDir(), { recursive: true });
+  const temporary = `${dest}.${process.pid}.${Date.now()}.tmp`;
+  await writeFile(temporary, data, { flag: "wx" });
+
+  try {
+    if (executable) chmodSync(temporary, 0o755);
+    await replaceFile(temporary, dest);
+  } finally {
+    await rm(temporary, { force: true });
+  }
+}
+
+async function replaceFile(source, destination) {
+  try {
+    await rename(source, destination);
+  } catch (error) {
+    if (!["EEXIST", "EPERM"].includes(error.code)) throw error;
+    await rm(destination, { force: true });
+    await rename(source, destination);
+  }
+}
+
+export async function withInstallLock(name, task, {
+  directory = managedDir(),
+  waitMs = LOCK_WAIT_MS,
+  pollMs = LOCK_POLL_MS,
+  staleMs = LOCK_STALE_MS,
+  metadataGraceMs = LOCK_METADATA_GRACE_MS,
+} = {}) {
+  await mkdir(directory, { recursive: true });
+  const lockPath = join(directory, `${name}.install.lock`);
+  const started = Date.now();
+  let handle;
+
+  while (!handle) {
+    try {
+      handle = await open(lockPath, "wx");
+    } catch (error) {
+      if (error.code !== "EEXIST") throw error;
+      if (await installLockIsStale(lockPath, { staleMs, metadataGraceMs })) {
+        await rm(lockPath, { force: true });
+        continue;
+      }
+      if (Date.now() - started > waitMs) {
+        throw new Error(`Timed out waiting for another ${name} installation`);
+      }
+      await sleep(pollMs);
+    }
+  }
+
+  try {
+    await handle.writeFile(JSON.stringify({
+      pid: process.pid,
+      createdAt: new Date().toISOString(),
+    }));
+    await handle.sync();
+    return await task();
+  } finally {
+    await handle.close().catch(() => {});
+    await rm(lockPath, { force: true });
+  }
+}
+
+async function installLockIsStale(lockPath, { staleMs, metadataGraceMs }) {
+  let info;
+  try {
+    info = await stat(lockPath);
+  } catch (error) {
+    return error.code === "ENOENT";
+  }
+
+  const age = Date.now() - info.mtimeMs;
+  if (age > staleMs) return true;
+
+  let metadata;
+  try {
+    metadata = JSON.parse(await readFile(lockPath, "utf8"));
+  } catch {
+    return age > metadataGraceMs;
+  }
+
+  const pid = Number(metadata?.pid);
+  if (!Number.isSafeInteger(pid) || pid < 1) return age > metadataGraceMs;
+  return !processIsAlive(pid);
+}
+
+function processIsAlive(pid) {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (error) {
+    return error.code === "EPERM";
+  }
+}
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function powershellLiteral(value) {
+  return String(value).replaceAll("'", "''");
+}
+
+// ---------------------------------------------------------------------------
+// Tool discovery helpers
+// ---------------------------------------------------------------------------
+
 function probeOk(command, args = ["--version"]) {
   try {
     const result = spawnSync(command, args, {
@@ -316,10 +472,6 @@ function probeOk(command, args = ["--version"]) {
   }
 }
 
-/**
- * Search WinGet's Packages directory for a command's executable, since WinGet
- * doesn't always update PATH in the current shell session.
- */
 function resolveWindowsFallback(command, probeArgs = ["--version"]) {
   const localAppData = process.env.LOCALAPPDATA;
   if (!localAppData) return null;
@@ -328,24 +480,20 @@ function resolveWindowsFallback(command, probeArgs = ["--version"]) {
   if (!existsSync(packagesDir)) return null;
 
   const exe = `${command}.exe`;
-  // Package dirs don't always start with the command name: yt-dlp lives in
-  // "yt-dlp.yt-dlp_…" but ffmpeg lives in "Gyan.FFmpeg_…".
   const needle = command.toLowerCase();
 
   try {
     const dirs = readdirSync(packagesDir, { withFileTypes: true })
-      .filter((e) => e.isDirectory() && e.name.toLowerCase().includes(needle))
-      .map((e) => e.name)
+      .filter((entry) => entry.isDirectory() && entry.name.toLowerCase().includes(needle))
+      .map((entry) => entry.name)
       .sort();
 
     for (const dir of dirs) {
-      // WinGet nests binaries differently per package; ffmpeg builds sit two
-      // levels down ("<build>/bin/ffmpeg.exe"), so search a few levels deep.
       const found = findExecutable(join(packagesDir, dir), exe, 3);
       if (found && probeOk(found, probeArgs)) return found;
     }
   } catch {
-    // readdirSync can throw on permission errors; treat as not-found.
+    // Treat permission and transient filesystem errors as not-found.
   }
 
   return null;

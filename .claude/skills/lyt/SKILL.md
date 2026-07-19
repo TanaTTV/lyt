@@ -5,33 +5,50 @@ description: Download permitted audio or video from YouTube and other yt-dlp-sup
 
 # Use lyt for local media
 
-`lyt` is a local CLI around yt-dlp and ffmpeg. Only download media the user
-owns or has permission to use.
+`lyt` is a local CLI around yt-dlp and ffmpeg. Only download media the user owns
+or has permission to use. A public URL does not automatically grant permission.
 
 ## Find or install the command
 
 1. Try `lyt --version`.
 2. In the lyt repository, use `node bin/lyt.js`.
-3. Otherwise install it with `npm install -g @tanattv/lyt`.
+3. Otherwise ask before globally installing `@tanattv/lyt`.
 
-Always quote URLs. Prefer `--json` for agent calls: it emits one JSON document
-on stdout using schema `lyt.result.v1`, including success state and absolute
-final file paths. Diagnostics go to stderr.
+Global npm installation and first-use managed binary downloads are side effects.
+Do not perform either without explicit user approval. Check capabilities with:
 
 ```sh
+lyt doctor --json
+```
+
+Always quote URLs. Prefer `--dry-run --json` before a large or uncertain job.
+For bounded agent calls, `--json` emits one JSON document using schema `lyt.result.v1` on stdout; setup and progress diagnostics go to stderr.
+
+```sh
+lyt --audio --dry-run --json "URL"
 lyt --audio --json "URL"
 lyt --mp3 -q 192K --json "URL"
-lyt --video -q 1080p --json "URL"
-lyt --video --max-filesize 2G --json "URL"
+lyt --video -q 1080p --max-filesize 2G --json "URL"
 lyt --clip 1:10-2:45 --mp3 --json "URL"
 lyt --list-formats --json "URL"
 ```
 
-Files go to `./downloads` unless `-o <directory>` is supplied. Playlist
-downloads are disabled unless the user explicitly requests `--playlist`.
-Existing files are not overwritten unless the user requests
-`--force-overwrite`. Use `--dry-run --json` when the user wants a preview.
+Files go to `./downloads` under the current working directory unless `-o` is
+supplied. Before a real job, confirm the intended output directory when it is
+material to the user's workflow.
 
-After a successful call, read `results[].files` and report those exact paths.
-If `results[].status` is `skipped`, explain the history dedupe and use
-`--redownload` only if the user asks to download it again.
+Keep these behaviors opt-in:
+
+- `--playlist`
+- `--force-overwrite`
+- `--redownload`
+- browser cookies or authentication material
+- external downloaders
+- managed tool installation
+
+Never use cookies, tokens, private URLs, or authentication material unless the
+user explicitly requests it. Never include those values in logs or bug reports.
+
+After success, read `results[].files` and report those exact paths. If a result
+is skipped, explain whether a matching artifact already exists or a size guard
+was triggered. Use `--redownload` only when the user asks for another copy.

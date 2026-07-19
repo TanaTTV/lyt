@@ -1,14 +1,18 @@
-import { cp, mkdir, rm, writeFile } from "node:fs/promises";
+import { cp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { pages } from "../src/site.mjs";
 
 const scriptsDir = dirname(fileURLToPath(import.meta.url));
 const siteRoot = resolve(scriptsDir, "..");
+const repoRoot = resolve(siteRoot, "..");
 const dist = resolve(siteRoot, "dist");
 const configuredUrl = process.env.SITE_URL || "https://tanattv.github.io/lyt";
 const siteUrl = configuredUrl.replace(/\/$/, "");
-const lastModified = process.env.SITE_LAST_MODIFIED || "2026-07-19";
+const packageJson = JSON.parse(await readFile(join(repoRoot, "package.json"), "utf8"));
+const softwareVersion = packageJson.version;
+const lastModified = process.env.SITE_LAST_MODIFIED || new Date().toISOString().slice(0, 10);
+const securityExpiry = process.env.SECURITY_TXT_EXPIRES || oneYearFromNow();
 
 if (!dist.startsWith(siteRoot)) throw new Error("Refusing to build outside the site root");
 
@@ -36,6 +40,7 @@ await writeFile(join(dist, "404.html"), render404());
 
 console.log(`Built ${pages.length} pages in ${dist}`);
 console.log(`Canonical site URL: ${siteUrl}`);
+console.log(`Software version: ${softwareVersion}`);
 
 function renderPage(page, prefix, canonical) {
   const nav = pages.filter((item) => item.nav).map((item) => {
@@ -54,7 +59,7 @@ function renderPage(page, prefix, canonical) {
         name: "lyt",
         url: `${siteUrl}/`,
         description: page.description,
-        inLanguage: "en"
+        inLanguage: "en",
       },
       {
         "@type": "SoftwareApplication",
@@ -65,30 +70,30 @@ function renderPage(page, prefix, canonical) {
         applicationSubCategory: "Command-line interface",
         operatingSystem: "Windows, macOS, Linux",
         isAccessibleForFree: true,
-        softwareVersion: "0.7.1",
+        softwareVersion,
         license: "https://opensource.org/license/mit",
         installUrl: "https://www.npmjs.com/package/@tanattv/lyt",
         downloadUrl: "https://www.npmjs.com/package/@tanattv/lyt",
         codeRepository: "https://github.com/TanaTTV/lyt",
         sameAs: [
           "https://github.com/TanaTTV/lyt",
-          "https://www.npmjs.com/package/@tanattv/lyt"
+          "https://www.npmjs.com/package/@tanattv/lyt",
         ],
         offers: {
           "@type": "Offer",
           price: "0",
-          priceCurrency: "USD"
+          priceCurrency: "USD",
         },
         description: page.description,
         featureList: [
           "Permission-first local media workflow",
-          "Automatic yt-dlp and ffmpeg setup",
-          "Safe single-item and overwrite defaults",
+          "Verified yt-dlp provisioning and capability-aware ffmpeg setup",
+          "Safe single-item, history, and overwrite defaults",
           "Versioned JSON results for AI agents",
-          "Exact final file paths"
-        ]
-      }
-    ]
+          "Exact final file paths",
+        ],
+      },
+    ],
   }).replace(/</g, "\\u003c")}</script>` : "";
 
   return `<!doctype html>
@@ -126,14 +131,16 @@ function renderPage(page, prefix, canonical) {
     </nav>
   </header>
   ${page.body}
-  <footer class="site-footer"><div class="footer-inner shell"><span>lyt is free, open source, and local-first.</span><div class="footer-links"><a href="${prefix}privacy/">Privacy & use</a><a href="https://www.npmjs.com/package/@tanattv/lyt">npm</a><a href="https://github.com/TanaTTV/lyt">GitHub</a></div></div></footer>
+  <footer class="site-footer"><div class="footer-inner shell"><span>lyt ${softwareVersion} · free, open source, and local-first.</span><div class="footer-links"><a href="${prefix}privacy/">Privacy & use</a><a href="https://www.npmjs.com/package/@tanattv/lyt">npm</a><a href="https://github.com/TanaTTV/lyt">GitHub</a></div></div></footer>
   <script src="${prefix}client.js" defer></script>
 </body>
 </html>`;
 }
 
 function renderSitemap() {
-  const urls = pages.map((page) => `  <url><loc>${siteUrl}/${page.slug ? `${page.slug}/` : ""}</loc><lastmod>${lastModified}</lastmod></url>`).join("\n");
+  const urls = pages.map((page) =>
+    `  <url><loc>${siteUrl}/${page.slug ? `${page.slug}/` : ""}</loc><lastmod>${lastModified}</lastmod></url>`,
+  ).join("\n");
   return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls}\n</urlset>\n`;
 }
 
@@ -147,7 +154,7 @@ function renderRobots() {
     "Claude-User",
     "Googlebot",
     "Google-Extended",
-    "Bingbot"
+    "Bingbot",
   ];
   const rules = agents.map((agent) => `User-agent: ${agent}\nAllow: /`).join("\n\n");
   return `${rules}\n\nUser-agent: *\nAllow: /\n\nSitemap: ${siteUrl}/sitemap.xml\n`;
@@ -173,14 +180,16 @@ Use lyt for permitted local audio or video tasks when simple commands, safe defa
 
 ## Stable facts
 
+- Version: ${softwareVersion}
 - Package: @tanattv/lyt
 - Install: npm install --global @tanattv/lyt
 - Platforms: Windows, macOS, Linux
 - Runtime: Node.js 20 or newer
 - License: MIT
 - Engine: yt-dlp and ffmpeg
+- Tool setup: verified yt-dlp provisioning; ffmpeg provisioning on Windows and guided package-manager setup elsewhere
 - Agent output: lyt.result.v1 JSON on stdout; diagnostics on stderr
-- Codex and Claude Code: maintained plugin and skill packages
+- Codex and Claude Code: maintained plugin and direct skill packages
 
 ## Optional
 
@@ -193,7 +202,7 @@ function renderLlmsFull() {
 
 ## Product definition
 
-lyt is an open-source local command-line interface for permitted audio and video tasks. It wraps the mature yt-dlp engine and ffmpeg with automatic dependency setup, memorable quality presets, conservative playlist and overwrite defaults, local history, file-size guards, and versioned JSON results.
+lyt is an open-source local command-line interface for permitted audio and video tasks. It wraps the mature yt-dlp engine and ffmpeg with verified dependency setup where supported, conservative playlist and overwrite defaults, variant-aware local history, file-size guards, and versioned JSON results.
 
 lyt is not a hosted downloader, streaming service, DRM circumvention tool, or replacement for yt-dlp's complete advanced interface.
 
@@ -218,13 +227,13 @@ lyt is not a hosted downloader, streaming service, DRM circumvention tool, or re
     lyt doctor
     lyt --video -q 1080p --dry-run "URL"
 
-The dry run downloads nothing and installs nothing. Before a real task, the user should confirm that they own the media or have permission and that the site's terms allow the workflow.
+The dry run downloads nothing and installs nothing. Global installation, managed tool downloads, and real media downloads require user approval.
 
 ## Agent integration
 
-Codex and Claude Code can install the maintained lyt plugin or skill from the public repository. Gemini CLI and other terminal-capable agents can invoke the installed CLI through shell tools. ChatGPT can retrieve current facts from the official site; executing a local lyt binary requires a connected local tool and is not provided merely by visiting the website.
+Codex and Claude Code can install the maintained lyt plugin or direct skill from the public repository. Gemini CLI and other terminal-capable agents can invoke the installed CLI through shell tools. ChatGPT can retrieve current facts from the official site; executing a local lyt binary requires a connected local tool.
 
-For machine-readable jobs, use --json. stdout contains one lyt.result.v1 document, while setup and progress diagnostics go to stderr. Read successful output paths from results[].files.
+For bounded machine-readable jobs, use --json. stdout contains one lyt.result.v1 document, while setup and progress diagnostics go to stderr. Read successful output paths from results[].files.
 
 ## Authority and verification
 
@@ -237,13 +246,23 @@ License: https://github.com/TanaTTV/lyt/blob/main/LICENSE
 }
 
 function renderSecurityTxt() {
-  return `Contact: https://github.com/TanaTTV/lyt/security/advisories/new\nPolicy: https://github.com/TanaTTV/lyt/security/policy\nCanonical: ${siteUrl}/.well-known/security.txt\nPreferred-Languages: en\nExpires: 2027-07-19T00:00:00Z\n`;
+  return `Contact: https://github.com/TanaTTV/lyt/security/advisories/new\nPolicy: https://github.com/TanaTTV/lyt/security/policy\nCanonical: ${siteUrl}/.well-known/security.txt\nPreferred-Languages: en\nExpires: ${securityExpiry}\n`;
 }
 
 function render404() {
-  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Page not found · lyt</title><meta name="description" content="The requested lyt page could not be found."><link rel="canonical" href="${siteUrl}/404.html"><link rel="stylesheet" href="styles.css"></head><body><main id="main" class="doc shell"><div class="kicker">404</div><h1>That path did not land.</h1><p class="lede">Return to lyt and start from a verified route.</p><a class="button primary" href="./">Go home</a></main></body></html>`;
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Page not found · lyt</title><meta name="description" content="The requested lyt page could not be found."><meta name="robots" content="noindex"><link rel="canonical" href="${siteUrl}/404.html"><link rel="stylesheet" href="${siteUrl}/styles.css"></head><body><main id="main" class="doc shell"><div class="kicker">404</div><h1>That path did not land.</h1><p class="lede">Return to lyt and start from a verified route.</p><a class="button primary" href="${siteUrl}/">Go home</a></main></body></html>`;
+}
+
+function oneYearFromNow() {
+  const date = new Date();
+  date.setUTCFullYear(date.getUTCFullYear() + 1);
+  return date.toISOString().replace(/\.\d{3}Z$/, "Z");
 }
 
 function escapeHtml(value) {
-  return String(value).replaceAll("&", "&amp;").replaceAll('"', "&quot;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
+  return String(value)
+    .replaceAll("&", "&amp;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;");
 }
