@@ -16,7 +16,11 @@ if (packed.status !== 0) {
   process.exit(packed.status || 1);
 }
 
-const [{ files = [] } = {}] = JSON.parse(packed.stdout);
+const packResult = JSON.parse(packed.stdout);
+const report = Array.isArray(packResult)
+  ? packResult[0]
+  : Object.values(packResult ?? {})[0];
+const { files = [] } = report ?? {};
 const paths = new Set(files.map((file) => file.path));
 const required = [
   "README.md",
