@@ -72,6 +72,28 @@ test("splitByHistory separates known video ids and keeps unknown urls", () => {
   ]);
 });
 
+test("history entries with deleted recorded files become fresh again", () => {
+  const url = "https://www.youtube.com/watch?v=aaaaaaaaaaa";
+  const entries = [{ id: "aaaaaaaaaaa", files: ["C:/gone.mp3"] }];
+
+  assert.deepEqual(splitByHistory([url], entries, () => false), {
+    fresh: [url],
+    skipped: [],
+  });
+  assert.deepEqual(splitByHistory([url], entries, () => true), {
+    fresh: [],
+    skipped: [url],
+  });
+});
+
+test("legacy history entries without file paths keep their dedupe behavior", () => {
+  const url = "https://www.youtube.com/watch?v=aaaaaaaaaaa";
+  assert.deepEqual(splitByHistory([url], [{ id: "aaaaaaaaaaa" }], () => false), {
+    fresh: [],
+    skipped: [url],
+  });
+});
+
 test("searchHistory filters case-insensitively across fields", () => {
   const entries = [
     { id: "a", url: "https://youtu.be/a", mode: "audio" },

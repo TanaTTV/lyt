@@ -357,6 +357,22 @@ test("paste, watch, redownload, and no-history flags parse", () => {
   assert.equal(options.history, false);
 });
 
+test("agent-oriented JSON and size guard flags parse", () => {
+  const parsed = parseArgs(["--json", "--max-filesize", "2G", "https://v"]);
+  const options = normalizeOptions(parsed.options);
+
+  assert.equal(options.json, true);
+  assert.equal(options.maxFilesize, "2G");
+
+  const args = buildYtDlpArgs("https://v", options);
+  assert.ok(args.includes("--no-progress"));
+  assert.equal(args[args.indexOf("--max-filesize") + 1], "2G");
+  assert.throws(
+    () => normalizeOptions({ maxFilesize: "huge" }),
+    /Invalid max filesize/,
+  );
+});
+
 test("--queue is an alias for --watch and -p for --paste", () => {
   assert.equal(parseArgs(["--queue"]).options.watch, true);
   assert.equal(parseArgs(["-p"]).options.paste, true);

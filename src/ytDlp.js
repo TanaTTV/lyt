@@ -81,6 +81,11 @@ export function parseArgs(argv) {
       continue;
     }
 
+    if (arg === "--json") {
+      options.json = true;
+      continue;
+    }
+
     if (arg === "--embed-metadata") {
       options.embedMetadata = true;
       continue;
@@ -195,6 +200,11 @@ export function parseArgs(argv) {
       continue;
     }
 
+    if (arg === "--max-filesize") {
+      options.maxFilesize = readValue(argv, ++index, arg);
+      continue;
+    }
+
     if (arg.startsWith("-")) {
       const error = new Error(`Unknown option: ${arg}`);
       error.exitCode = 2;
@@ -251,6 +261,7 @@ export function normalizeOptions(options = {}) {
     noPart: options.noPart ?? false,
     dryRun: options.dryRun ?? false,
     printCommand: options.printCommand ?? false,
+    json: options.json ?? false,
     interactive: options.interactive ?? false,
     embedMetadata: options.embedMetadata ?? false,
     embedThumbnail: options.embedThumbnail ?? false,
@@ -260,6 +271,7 @@ export function normalizeOptions(options = {}) {
     template: options.template ?? DEFAULT_OUTPUT_TEMPLATE,
     downloader: options.downloader ?? null,
     downloaderArgs: options.downloaderArgs ?? null,
+    maxFilesize: normalizeSize(options.maxFilesize),
   };
 }
 
@@ -267,7 +279,7 @@ export function buildYtDlpArgs(url, options) {
   const args = [
     "--newline",
     "--no-warnings",
-    "--progress",
+    options.json ? "--no-progress" : "--progress",
     "--concurrent-fragments",
     String(options.fragments),
     "-f",
@@ -287,6 +299,10 @@ export function buildYtDlpArgs(url, options) {
 
   if (options.noPart) {
     args.push("--no-part");
+  }
+
+  if (options.maxFilesize) {
+    args.push("--max-filesize", options.maxFilesize);
   }
 
   if (options.downloader) {
@@ -444,6 +460,8 @@ Subcommands:
   lyt config <cmd>          Persistent defaults: set/get/unset/list/path
   lyt doctor                Check the environment (--fix installs missing
                             tools, --update self-updates yt-dlp)
+  lyt agent install [name]  Install the lyt skill for codex, claude, or all
+                            (optional: --home <dir>)
 
 Options:
   --mp3                     Convert extracted audio to MP3 with ffmpeg
@@ -470,6 +488,7 @@ Options:
   --template <template>     yt-dlp output template
   --downloader <name>       External downloader, e.g. aria2c (faster on throttled hosts)
   --downloader-args <args>  Args for the external downloader, e.g. "-x16 -s16 -k1M"
+  --max-filesize <size>     Skip media larger than a yt-dlp size such as 2G
   --no-part                 Write directly to the output file (skip .part)
   --playlist                Allow playlist downloads
   --no-playlist             Download only the single video URL (default)
@@ -479,6 +498,7 @@ Options:
   --no-download             Require yt-dlp/ffmpeg on PATH; skip auto-install
   --print-command           Print yt-dlp commands before running
   --dry-run                 Print commands without running
+  --json                    Emit stable lyt.result.v1 JSON with final paths
   -i, --interactive         Prompt for options interactively
   -h, --help                Show this help
   -v, --version             Show version`;
@@ -514,6 +534,21 @@ function normalizeQuality(value) {
   }
 
   const error = new Error("quality must look like 128K, 192K, 320K, or 0.");
+  error.exitCode = 2;
+  throw error;
+}
+
+function normalizeSize(value) {
+  if (value == null) return null;
+  const size = String(value).trim();
+
+  if (/^\d+(?:\.\d+)?[kKmMgGtTpP]?$/.test(size)) {
+    return size;
+  }
+
+  const error = new Error(
+    `Invalid max filesize: ${value}. Use bytes or a value such as 500M or 2G.`,
+  );
   error.exitCode = 2;
   throw error;
 }
