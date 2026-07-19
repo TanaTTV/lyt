@@ -64,12 +64,24 @@ export function clearHistory(file = historyPath()) {
   rmSync(file, { force: true });
 }
 
+export function existingHistoryFiles(entry, exists = existsSync) {
+  if (!Array.isArray(entry?.files)) return [];
+  return entry.files.filter((file) => typeof file === "string" && exists(file));
+}
+
 // Splits URLs into ones not seen before (`fresh`) and ones whose video ID is
 // already in history (`skipped`). URLs without an extractable video ID (e.g.
 // playlists) are always fresh — we cannot prove they were downloaded.
-export function splitByHistory(urls, entries) {
+export function splitByHistory(urls, entries, exists = existsSync) {
   const known = new Set(
-    entries.map((entry) => entry.id).filter((id) => typeof id === "string"),
+    entries
+      .filter((entry) =>
+        !Array.isArray(entry.files) ||
+        entry.files.length === 0 ||
+        existingHistoryFiles(entry, exists).length > 0,
+      )
+      .map((entry) => entry.id)
+      .filter((id) => typeof id === "string"),
   );
   const fresh = [];
   const skipped = [];
@@ -95,7 +107,7 @@ export function searchHistory(entries, query) {
     return entries;
   }
 
-  const fields = ["id", "url", "mode", "title", "description", "dir", "ts"];
+  const fields = ["id", "url", "mode", "title", "description", "dir", "files", "ts"];
 
   return entries.filter((entry) =>
     fields

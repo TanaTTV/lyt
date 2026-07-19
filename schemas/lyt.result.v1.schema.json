@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/tanattv/lyt/blob/main/schemas/lyt.result.v1.schema.json",
+  "title": "lyt result v1",
+  "type": "object",
+  "required": ["schema", "version", "command", "ok", "results"],
+  "properties": {
+    "schema": { "const": "lyt.result.v1" },
+    "version": { "type": "string" },
+    "command": { "enum": ["download", "formats", "dry-run", "error"] },
+    "ok": { "type": "boolean" },
+    "results": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["url", "status"],
+        "properties": {
+          "url": { "type": "string" },
+          "status": { "enum": ["downloaded", "skipped", "failed", "available", "planned"] },
+          "videoId": { "type": ["string", "null"] },
+          "mode": { "enum": ["audio", "video"] },
+          "files": { "type": "array", "items": { "type": "string" } },
+          "outputDir": { "type": "string" },
+          "reason": { "enum": ["history", "max-filesize", "no-output"] },
+          "command": { "type": "string" },
+          "error": { "$ref": "#/$defs/error" }
+        },
+        "additionalProperties": true
+      }
+    },
+    "error": { "$ref": "#/$defs/error" }
+  },
+  "$defs": {
+    "error": {
+      "type": "object",
+      "required": ["message", "code"],
+      "properties": {
+        "message": { "type": "string" },
+        "code": { "type": "integer" }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

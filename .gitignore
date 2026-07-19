@@ -1,5 +1,6 @@
 node_modules/
 downloads/
+reports/
 .rust-target/
 *.mp3
 *.m4a

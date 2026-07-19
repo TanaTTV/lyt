@@ -30,13 +30,22 @@ function managedDir() {
 // yt-dlp
 // ---------------------------------------------------------------------------
 
-// GitHub releases provides a per-platform single binary with a SHA256SUMS file.
+// GitHub Releases provides per-platform binaries and a SHA-256 manifest.
 const YT_DLP_RELEASE_BASE =
   "https://github.com/yt-dlp/yt-dlp/releases/latest/download";
+export const YT_DLP_CHECKSUM_ASSETS = ["SHA2-256SUMS", "SHA256SUMS"];
 
-function ytDlpReleaseAsset() {
-  if (process.platform === "win32") return "yt-dlp.exe";
-  if (process.platform === "darwin") return "yt-dlp_macos";
+export function ytDlpReleaseAsset(platform = process.platform, arch = process.arch) {
+  if (platform === "win32") {
+    if (arch === "arm64") return "yt-dlp_arm64.exe";
+    if (arch === "ia32") return "yt-dlp_x86.exe";
+    return "yt-dlp.exe";
+  }
+  if (platform === "darwin") return "yt-dlp_macos";
+  if (platform === "linux") {
+    if (arch === "arm64") return "yt-dlp_linux_aarch64";
+    if (arch === "x64") return "yt-dlp_linux";
+  }
   return "yt-dlp";
 }
 
@@ -48,21 +57,12 @@ async function downloadYtDlp() {
   const asset = ytDlpReleaseAsset();
 
   // Verify before downloading: fetch the checksum manifest first.
-  const sumsRes = await fetch(`${YT_DLP_RELEASE_BASE}/SHA256SUMS`);
-  if (!sumsRes.ok) {
-    throw new Error(`Could not fetch yt-dlp checksums (HTTP ${sumsRes.status})`);
-  }
-  const sums = await sumsRes.text();
+  const sums = await fetchYtDlpChecksums();
 
-  // Lines are:  <hex>  <filename>  (two spaces, no leading ./)
-  const expectedHash = sums
-    .split("\n")
-    .map((l) => l.trim())
-    .find((l) => l.endsWith(`  ${asset}`) || l.endsWith(` ${asset}`))
-    ?.split(/\s+/)[0];
+  const expectedHash = checksumForAsset(sums, asset);
 
   if (!expectedHash) {
-    throw new Error(`No checksum entry found for ${asset} in SHA256SUMS`);
+    throw new Error(`No checksum entry found for ${asset} in the SHA-256 manifest`);
   }
 
   process.stderr.write(`  Downloading yt-dlp from GitHub…\n`);
@@ -86,6 +86,26 @@ async function downloadYtDlp() {
   if (process.platform !== "win32") chmodSync(dest, 0o755);
 
   return dest;
+}
+
+export async function fetchYtDlpChecksums(fetchFn = fetch) {
+  const failures = [];
+
+  for (const filename of YT_DLP_CHECKSUM_ASSETS) {
+    const response = await fetchFn(`${YT_DLP_RELEASE_BASE}/${filename}`);
+    if (response.ok) return response.text();
+    failures.push(`${filename} (HTTP ${response.status})`);
+  }
+
+  throw new Error(`Could not fetch yt-dlp checksums: ${failures.join(", ")}`);
+}
+
+export function checksumForAsset(manifest, asset) {
+  return String(manifest)
+    .split("\n")
+    .map((line) => line.trim())
+    .find((line) => line.endsWith(`  ${asset}`) || line.endsWith(` ${asset}`))
+    ?.split(/\s+/)[0] ?? null;
 }
 
 /**

@@ -1,7 +1,7 @@
 {
   "name": "@tanattv/lyt",
-  "version": "0.6.0",
-  "description": "Fast, friendly CLI to download YouTube audio and video with yt-dlp and ffmpeg.",
+  "version": "0.7.0",
+  "description": "Agent-ready local media CLI powered by yt-dlp and ffmpeg.",
   "type": "module",
   "bin": {
     "lyt": "./bin/lyt.js",
@@ -10,13 +10,20 @@
   },
   "scripts": {
     "test": "node --test",
+    "check:pack": "node scripts/check-pack.js",
+    "check": "npm test && npm run check:pack",
+    "smoke:linux": "bash scripts/smoke-linux.sh",
+    "prepublishOnly": "npm run check",
     "postinstall": "node -e \"console.log('\\nlyt installed. yt-dlp and ffmpeg are fetched automatically on first use.\\n  Check your setup any time with: lyt doctor\\n')\""
   },
   "files": [
     "bin",
     "src",
+    "skills",
+    "schemas",
     "install",
     "README.md",
+    "CHANGELOG.md",
     "LICENSE"
   ],
   "engines": {
@@ -39,7 +46,10 @@
     "audio",
     "video",
     "mp3",
-    "cli"
+    "cli",
+    "ai-agent",
+    "codex",
+    "claude"
   ],
   "license": "MIT"
 }

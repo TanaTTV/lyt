@@ -20,4 +20,4 @@ jobs:
         with:
           node-version: ${{ matrix.node }}
       # No dependencies to install — the CLI is zero-dependency.
-      - run: npm test
+      - run: npm run check

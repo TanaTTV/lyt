@@ -1,6 +1,6 @@
 import { spawn } from "node:child_process";
 import { mkdir } from "node:fs/promises";
-import { dirname, join } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import process from "node:process";
 import {
   buildYtDlpArgs,
@@ -18,6 +18,7 @@ import { readClipboard } from "./clipboard.js";
 import { extractVideoId, extractYouTubeUrls } from "./urls.js";
 import {
   clearHistory,
+  existingHistoryFiles,
   historyPath,
   loadHistory,
   recordDownload,
@@ -33,8 +34,14 @@ import {
   saveConfig,
 } from "./config.js";
 import { runDoctor } from "./doctor.js";
-
-const VERSION = "0.6.0";
+import { installAgentSkills } from "./agent.js";
+import {
+  errorDetails,
+  extractOutputPath,
+  outputCaptureArgs,
+  resultEnvelope,
+} from "./result.js";
+import { VERSION } from "./version.js";
 
 // Above this many URLs we skip the aggregated bar block (it would scroll the
 // terminal) and fall back to yt-dlp's own inherited progress output.
@@ -45,7 +52,16 @@ const WATCH_INTERVAL_MS = 1500;
 
 export function run(argv, defaults = {}) {
   return main(argv, defaults).catch((error) => {
-    console.error(error instanceof Error ? error.message : String(error));
+    if (argv.includes("--json") && !error?.jsonPrinted) {
+      console.log(JSON.stringify(resultEnvelope({
+        command: "error",
+        ok: false,
+        error: errorDetails(error),
+        version: VERSION,
+      })));
+    } else {
+      console.error(error instanceof Error ? error.message : String(error));
+    }
     process.exitCode = (error && error.exitCode) ?? 1;
   });
 }
@@ -62,6 +78,8 @@ export async function main(argv, defaults = {}) {
         fix: argv.includes("--fix"),
         update: argv.includes("--update") || argv.includes("-U"),
       });
+    case "agent":
+      return runAgentCommand(argv.slice(1));
   }
 
   const parsed = parseArgs(argv);
@@ -110,7 +128,8 @@ export async function main(argv, defaults = {}) {
       !parsed.options.watch &&
       process.stdin.isTTY &&
       !parsed.options.dryRun &&
-      !parsed.options.printCommand);
+      !parsed.options.printCommand &&
+      !parsed.options.json);
 
   const noDownload =
     parsed.options.noDownload ?? process.env.LYT_NO_DOWNLOAD === "1";
@@ -142,12 +161,54 @@ export async function main(argv, defaults = {}) {
 
   if (options.listFormats) {
     const command = await ensureYtDlp({ noDownload });
+    const results = [];
 
     for (const url of urls) {
       try {
-        printFormats(url, await listFormats(url, { command }));
+        const formats = await listFormats(url, { command });
+        results.push({ url, status: "available", ...formats });
+        if (!options.json) printFormats(url, formats);
       } catch (error) {
-        console.error(`- ${url}: ${error.message}`);
+        results.push({ url, status: "failed", error: errorDetails(error) });
+        if (!options.json) console.error(`- ${url}: ${error.message}`);
+      }
+    }
+
+    if (options.json) {
+      console.log(JSON.stringify(resultEnvelope({
+        command: "formats",
+        ok: results.every((result) => result.status !== "failed"),
+        results,
+        version: VERSION,
+      })));
+    }
+
+    if (results.some((result) => result.status === "failed")) {
+      process.exitCode = 1;
+    }
+
+    return;
+  }
+
+  if (options.dryRun) {
+    const tools = { ytDlpCommand: "yt-dlp", ffmpegPath: null };
+    const tasks = buildTasks(urls, options, tools, { capturePaths: false });
+
+    if (options.json) {
+      console.log(JSON.stringify(resultEnvelope({
+        command: "dry-run",
+        ok: true,
+        results: tasks.map((task) => ({
+          url: task.url,
+          status: "planned",
+          command: formatCommand(tools.ytDlpCommand, task.args),
+          outputDir: resolve(options.outputDir),
+        })),
+        version: VERSION,
+      })));
+    } else {
+      for (const task of tasks) {
+        console.log(formatCommand(tools.ytDlpCommand, task.args));
       }
     }
 
@@ -156,24 +217,29 @@ export async function main(argv, defaults = {}) {
 
   const tools = await prepareTools(options, noDownload);
 
-  if (options.dryRun) {
-    for (const task of buildTasks(urls, options, tools)) {
-      console.log(formatCommand(tools.ytDlpCommand, task.args));
-    }
-
-    return;
-  }
-
   if (options.watch) {
+    if (options.json) {
+      throw usageError("--json cannot be combined with --watch; use bounded URL batches.");
+    }
     return runWatchMode(urls, options, tools);
   }
 
-  const failures = await downloadUrls(urls, options, tools);
+  const { failures, results } = await downloadUrls(urls, options, tools);
+
+  if (options.json) {
+    console.log(JSON.stringify(resultEnvelope({
+      command: "download",
+      ok: failures.length === 0,
+      results,
+      version: VERSION,
+    })));
+  }
 
   if (failures.length > 0) {
     const lines = failures.map(({ url, error }) => `- ${url}: ${error.message}`);
     const error = new Error(`Download failed:\n${lines.join("\n")}`);
     error.exitCode = 1;
+    error.jsonPrinted = options.json;
     throw error;
   }
 }
@@ -204,20 +270,35 @@ async function prepareTools(options, noDownload) {
 // watch mode can keep going after a bad link.
 async function downloadUrls(urls, options, { ytDlpCommand, ffmpegPath }) {
   let targets = urls;
+  const results = [];
+  const historyEntries = options.history ? loadHistory() : [];
 
   // Instant dedupe against the download history (by video ID).
   if (!options.redownload && options.history) {
-    const { fresh, skipped } = splitByHistory(urls, loadHistory());
+    const { fresh, skipped } = splitByHistory(urls, historyEntries);
 
     for (const url of skipped) {
-      console.error(`Skipping (already downloaded): ${url}  - use --redownload to force`);
+      const id = extractVideoId(url);
+      const previous = [...historyEntries].reverse().find((entry) => entry.id === id);
+      results.push({
+        url,
+        videoId: id,
+        status: "skipped",
+        reason: "history",
+        mode: previous?.mode ?? (options.video ? "video" : "audio"),
+        files: existingHistoryFiles(previous),
+        outputDir: resolve(previous?.dir ?? options.outputDir),
+      });
+      if (!options.json) {
+        console.error(`Skipping (already downloaded): ${url}  - use --redownload to force`);
+      }
     }
 
     targets = fresh;
   }
 
   if (targets.length === 0) {
-    return [];
+    return { failures: [], results };
   }
 
   // Build each command exactly once and reuse it for both printing and
@@ -262,8 +343,51 @@ async function downloadUrls(urls, options, { ytDlpCommand, ffmpegPath }) {
         : undefined;
 
       try {
-        await runCommand(ytDlpCommand, task.args, { onLine: lineHandler });
+        const outcome = await runCommand(ytDlpCommand, task.args, {
+          onLine: lineHandler,
+          quiet: options.json,
+        });
+
+        if (outcome.files.length === 0) {
+          renderer?.done(task.index, false);
+          const guarded = Boolean(options.maxFilesize);
+          const error = new Error(
+            guarded
+              ? `No file downloaded; media exceeded --max-filesize ${options.maxFilesize}.`
+              : "yt-dlp completed without reporting a final output file.",
+          );
+          error.exitCode = 1;
+          failures.push({ url: task.url, error });
+          results.push({
+            url: task.url,
+            videoId: extractVideoId(task.url),
+            status: guarded ? "skipped" : "failed",
+            ...(guarded ? { reason: "max-filesize" } : { reason: "no-output" }),
+            mode: options.video ? "video" : "audio",
+            files: [],
+            outputDir: resolve(options.outputDir),
+            error: errorDetails(error),
+          });
+          continue;
+        }
+
         renderer?.done(task.index, true);
+
+        const result = {
+          url: task.url,
+          videoId: extractVideoId(task.url),
+          status: "downloaded",
+          mode: options.video ? "video" : "audio",
+          files: outcome.files,
+          outputDir: resolve(options.outputDir),
+        };
+        results.push(result);
+
+        if (!options.json) {
+          for (const file of outcome.files) {
+            console.log(`Saved: ${file}`);
+          }
+        }
 
         if (options.history) {
           recordDownload({
@@ -271,12 +395,22 @@ async function downloadUrls(urls, options, { ytDlpCommand, ffmpegPath }) {
             id: extractVideoId(task.url),
             url: task.url,
             mode: options.video ? "video" : "audio",
-            dir: options.outputDir,
+            dir: resolve(options.outputDir),
+            files: outcome.files,
           });
         }
       } catch (error) {
         renderer?.done(task.index, false);
         failures.push({ url: task.url, error });
+        results.push({
+          url: task.url,
+          videoId: extractVideoId(task.url),
+          status: "failed",
+          mode: options.video ? "video" : "audio",
+          files: [],
+          outputDir: resolve(options.outputDir),
+          error: errorDetails(error),
+        });
       }
     }
   }
@@ -284,15 +418,17 @@ async function downloadUrls(urls, options, { ytDlpCommand, ffmpegPath }) {
   await Promise.all(Array.from({ length: jobs }, () => worker()));
   renderer?.finish();
 
-  return failures;
+  const order = new Map(urls.map((url, index) => [url, index]));
+  results.sort((a, b) => (order.get(a.url) ?? 0) - (order.get(b.url) ?? 0));
+  return { failures, results };
 }
 
-function buildTasks(urls, options, { ffmpegPath }) {
-  const tasks = urls.map((url, index) => ({
-    url,
-    index,
-    args: buildYtDlpArgs(url, options),
-  }));
+function buildTasks(urls, options, { ffmpegPath }, { capturePaths = true } = {}) {
+  const tasks = urls.map((url, index) => {
+    const args = buildYtDlpArgs(url, options);
+    if (capturePaths) args.splice(args.indexOf("--"), 0, ...outputCaptureArgs());
+    return { url, index, args };
+  });
 
   // Tell yt-dlp where ffmpeg lives when it is not on PATH.
   if (ffmpegPath && ffmpegPath !== "ffmpeg") {
@@ -335,7 +471,7 @@ async function runWatchMode(initialUrls, options, tools) {
       return;
     }
 
-    const failures = await downloadUrls(fresh, options, tools);
+    const { failures } = await downloadUrls(fresh, options, tools);
 
     for (const { url, error } of failures) {
       console.error(`- ${url}: ${error.message}`);
@@ -458,6 +594,33 @@ function runConfigCommand(argv) {
   }
 }
 
+function runAgentCommand(argv) {
+  const [action = "install", ...args] = argv;
+
+  if (action !== "install") {
+    throw usageError("Usage: lyt agent install [codex|claude|all] [--home <dir>]");
+  }
+
+  let target = "all";
+  let home;
+
+  for (let index = 0; index < args.length; index += 1) {
+    if (args[index] === "--home") {
+      if (!args[index + 1]) throw usageError("--home requires a directory");
+      home = resolve(args[++index]);
+    } else if (["codex", "claude", "all"].includes(args[index])) {
+      target = args[index];
+    } else {
+      throw usageError(`Unknown agent install option: ${args[index]}`);
+    }
+  }
+
+  const installed = installAgentSkills(target, { home });
+  for (const { agent, destination } of installed) {
+    console.log(`Installed lyt skill for ${agent}: ${destination}`);
+  }
+}
+
 function usageError(message) {
   const error = new Error(message);
   error.exitCode = 2;
@@ -488,50 +651,61 @@ function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-function runCommand(command, args, { onLine } = {}) {
+export function runCommand(command, args, { onLine, quiet = false, cwd = process.cwd() } = {}) {
   return new Promise((resolve, reject) => {
-    if (!onLine) {
-      const child = spawn(command, args, { stdio: "inherit" });
-
-      child.on("error", reject);
-      child.on("close", (code) => settle(resolve, reject, command, code));
-      return;
-    }
-
     const child = spawn(command, args, { stdio: ["ignore", "pipe", "pipe"] });
     const recent = [];
-    let buffer = "";
+    const files = [];
+    const buffers = { stdout: "", stderr: "" };
 
-    const feed = (chunk) => {
-      buffer += chunk;
+    const feed = (stream, chunk) => {
+      buffers[stream] += chunk;
       let newline;
 
-      while ((newline = buffer.indexOf("\n")) >= 0) {
-        const line = buffer.slice(0, newline);
-        buffer = buffer.slice(newline + 1);
-        onLine(line);
-
-        // Keep a few non-progress lines so a failure can show why.
-        if (line.trim() && !line.startsWith("[download]")) {
-          recent.push(line);
-
-          if (recent.length > 8) {
-            recent.shift();
-          }
-        }
+      while ((newline = buffers[stream].indexOf("\n")) >= 0) {
+        const line = buffers[stream].slice(0, newline).replace(/\r$/, "");
+        buffers[stream] = buffers[stream].slice(newline + 1);
+        handleLine(stream, line);
       }
     };
 
-    child.stdout.setEncoding("utf8").on("data", feed);
-    child.stderr.setEncoding("utf8").on("data", feed);
+    const handleLine = (stream, line) => {
+      const outputPath = extractOutputPath(line, cwd);
+
+      if (outputPath) {
+        if (!files.includes(outputPath)) files.push(outputPath);
+        return;
+      }
+
+      onLine?.(line);
+
+      if (!quiet && !onLine) {
+        const writer = stream === "stdout" ? process.stdout : process.stderr;
+        writer.write(`${line}\n`);
+      }
+
+      // Keep a few non-progress lines so a failure can show why.
+      if (line.trim() && !line.startsWith("[download]")) {
+        recent.push(line);
+        if (recent.length > 8) recent.shift();
+      }
+    };
+
+    child.stdout.setEncoding("utf8").on("data", (chunk) => feed("stdout", chunk));
+    child.stderr.setEncoding("utf8").on("data", (chunk) => feed("stderr", chunk));
     child.on("error", reject);
-    child.on("close", (code) => settle(resolve, reject, command, code, recent));
+    child.on("close", (code) => {
+      for (const stream of ["stdout", "stderr"]) {
+        if (buffers[stream]) handleLine(stream, buffers[stream].replace(/\r$/, ""));
+      }
+      settle(resolve, reject, command, code, recent, { files });
+    });
   });
 }
 
-function settle(resolve, reject, command, code, recent = []) {
+function settle(resolve, reject, command, code, recent = [], outcome = { files: [] }) {
   if (code === 0) {
-    resolve();
+    resolve(outcome);
     return;
   }
 
