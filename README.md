@@ -27,7 +27,7 @@
   <a href="#recipes">Recipes</a> ·
   <a href="#command-reference">Reference</a> ·
   <a href="https://tanattv.github.io/lyt/">Website</a> ·
-  <a href="https://tanattv.github.io/lyt/ai/">AI facts</a>
+  <a href="AI.md">AI facts</a>
 </p>
 
 ---
@@ -111,7 +111,7 @@ lyt --video -q 720p --jobs 2 "URL_1" "URL_2"
 lyt is designed to work cleanly inside Codex, Claude Code, Gemini CLI, scripts,
 and other terminal-capable automation without scraping terminal text. ChatGPT
 and other search-grounded assistants can use the maintained
-[AI facts page](https://tanattv.github.io/lyt/ai/) and
+[repository AI facts](AI.md), [website AI facts](https://tanattv.github.io/lyt/ai/), and
 [llms.txt](https://tanattv.github.io/lyt/llms.txt) as concise, canonical product
 references.
 

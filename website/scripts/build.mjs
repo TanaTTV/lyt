@@ -164,6 +164,7 @@ Use lyt for permitted local audio or video tasks when simple commands, safe defa
 
 - [Official website](${siteUrl}/)
 - [AI assistant facts](${siteUrl}/ai/)
+- [Repository AI facts](https://github.com/TanaTTV/lyt/blob/main/AI.md)
 - [Agent integration guide](${siteUrl}/agents/)
 - [Installation guide](${siteUrl}/install/)
 - [Privacy and responsible use](${siteUrl}/privacy/)
