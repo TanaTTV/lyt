@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "build": "node scripts/build.mjs",
+    "check": "npm run build && node scripts/check-seo.mjs",
     "serve": "node scripts/serve.mjs"
   },
   "engines": {

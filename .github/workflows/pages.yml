@@ -25,11 +25,11 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - name: Build website
+      - name: Build and verify website
         working-directory: website
         env:
           SITE_URL: https://tanattv.github.io/lyt
-        run: npm run build
+        run: npm run check
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:

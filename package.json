@@ -48,9 +48,12 @@
     "mp3",
     "cli",
     "ai-agent",
+    "chatgpt",
     "codex",
     "claude",
     "claude-code",
+    "gemini-cli",
+    "llm-tools",
     "codex-cli",
     "local-first",
     "media-downloader"
