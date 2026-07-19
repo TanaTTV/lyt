@@ -1,0 +1,18 @@
+{
+  "schema": "lyt.result.v1",
+  "version": "0.7.1",
+  "command": "download",
+  "ok": true,
+  "results": [
+    {
+      "url": "https://raw.githubusercontent.com/TanaTTV/lyt/0519b76b89b3170a6015571784479ac4efc5fcb1/website/public/demo/lyt-permitted-source.mp4",
+      "videoId": null,
+      "status": "downloaded",
+      "mode": "video",
+      "files": [
+        "C:\\Users\\Public\\Videos\\lyt-demo-final\\lyt-permitted-source [lyt-permitted-source].mp4"
+      ],
+      "outputDir": "C:\\Users\\Public\\Videos\\lyt-demo-final"
+    }
+  ]
+}

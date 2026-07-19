@@ -36,11 +36,15 @@ npm install --global @tanattv/lyt
 
 Project: https://github.com/TanaTTV/lyt
 
+30-second demo: https://tanattv.github.io/lyt/demo/lyt-agent-demo.mp4
+
 ### Short social post
 
 I made yt-dlp easier for people and AI agents. lyt installs locally, keeps safe
 defaults on, returns exact final paths as JSON, and now has Codex + Claude Code
 plugins. Looking for early testers: https://github.com/TanaTTV/lyt
+
+Demo: https://tanattv.github.io/lyt/demo/lyt-agent-demo.mp4
 
 ## Feedback questions
 
