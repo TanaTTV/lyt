@@ -1,12 +1,12 @@
-# Adds (or removes) right-click menu entries so a non-technical user can:
-#   1. Copy a YouTube link (Ctrl+C).
-#   2. Right-click inside the folder where they want the file.
+# Adds (or removes) right-click menu entries so a user can:
+#   1. Copy one or more YouTube links.
+#   2. Right-click inside the destination folder.
 #   3. Choose "Download audio here" or "Download video here".
 #
-# The download uses whatever URL is on the clipboard and saves into that folder.
-# Multiple copied lines (several URLs) are all downloaded.
+# The menu delegates clipboard parsing to lyt's --paste implementation instead
+# of passing arbitrary clipboard text as a raw command-line argument.
 #
-# Requires the yt3 / yt4 commands on PATH first (run install\install.ps1).
+# Requires yt3 / yt4 on PATH first (run install\install.ps1).
 # Writes only to HKEY_CURRENT_USER, so no administrator rights are needed.
 #
 # Install:  powershell -ExecutionPolicy Bypass -File .\install\windows-context-menu.ps1
@@ -15,8 +15,6 @@
 param([switch]$Remove)
 
 $ErrorActionPreference = "Stop"
-
-# "Background" is the empty space inside a folder, i.e. "download into here".
 $base = "HKCU:\Software\Classes\Directory\Background\shell"
 
 $entries = @(
@@ -42,12 +40,12 @@ foreach ($entry in $entries) {
     Set-ItemProperty -Path $key -Name "(default)" -Value $entry.Label
 
     New-Item -Path "$key\command" -Force | Out-Null
-    # %V is the folder that was right-clicked. -NoExit keeps the window open so
-    # progress and any errors stay visible.
-    $command = 'powershell.exe -NoExit -Command "Set-Location -LiteralPath ''%V''; ' +
-        $entry.Command + ' (Get-Clipboard)"'
+    # %V is the folder that was right-clicked. -NoExit keeps progress and errors
+    # visible. --paste extracts and validates supported URLs from the clipboard.
+    $command = 'powershell.exe -NoExit -Command "Set-Location -LiteralPath ''%V''; & ' +
+        $entry.Command + ' --paste"'
     Set-ItemProperty -Path "$key\command" -Name "(default)" -Value $command
 }
 
 Write-Host "Added right-click menu entries." -ForegroundColor Green
-Write-Host "Copy a YouTube link, right-click inside any folder, and pick 'Download audio/video here'."
+Write-Host "Copy a YouTube link, right-click inside a folder, and choose the lyt action." -ForegroundColor Green
