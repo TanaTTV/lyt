@@ -5,6 +5,12 @@ versioning for the public CLI and machine-readable result contract.
 
 ## [Unreleased]
 
+### Fixed
+
+- YouTube downloads and format inspection now reuse lyt's supported Node.js
+  executable as yt-dlp's JavaScript runtime, avoiding extractor failures when
+  no separate runtime such as Deno is installed.
+
 ## [0.7.2] - 2026-07-19
 
 ### Fixed
