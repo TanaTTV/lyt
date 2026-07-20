@@ -1,4 +1,5 @@
 import { join } from "node:path";
+import { ytDlpJsRuntimeArgs } from "./jsRuntime.js";
 import { resolveHeight } from "./quality.js";
 
 const DEFAULT_OUTPUT_TEMPLATE = "%(title).180B [%(id)s].%(ext)s";
@@ -275,10 +276,15 @@ export function normalizeOptions(options = {}) {
   };
 }
 
-export function buildYtDlpArgs(url, options) {
+export function buildYtDlpArgs(
+  url,
+  options,
+  { runtimeArgs = ytDlpJsRuntimeArgs() } = {},
+) {
   const args = [
     "--newline",
     "--no-warnings",
+    ...runtimeArgs,
     options.json ? "--no-progress" : "--progress",
     "--concurrent-fragments",
     String(options.fragments),
