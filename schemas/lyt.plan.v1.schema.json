@@ -1,0 +1,106 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/tanattv/lyt/blob/main/schemas/lyt.plan.v1.schema.json",
+  "title": "lyt plan v1",
+  "type": "object",
+  "required": ["schema", "version", "command", "ok", "requestedUrl", "media", "selection", "estimate", "output", "requirements", "history", "sideEffects", "recommendation"],
+  "properties": {
+    "schema": { "const": "lyt.plan.v1" },
+    "version": { "type": "string" },
+    "command": { "const": "plan" },
+    "ok": { "type": "boolean" },
+    "requestedUrl": { "type": "string" },
+    "media": { "$ref": "lyt.inspect.v1.schema.json#/$defs/media" },
+    "selection": {
+      "type": "object",
+      "required": ["mode", "requestedQuality", "strategy", "formatIds", "formats"],
+      "properties": {
+        "mode": { "enum": ["audio", "mp3", "video"] },
+        "requestedQuality": { "type": "string" },
+        "strategy": { "type": "string" },
+        "formatIds": { "type": "array", "items": { "type": "string" } },
+        "formats": {
+          "type": "array",
+          "items": { "$ref": "lyt.inspect.v1.schema.json#/$defs/format" }
+        }
+      },
+      "additionalProperties": false
+    },
+    "estimate": {
+      "type": "object",
+      "required": ["bytes", "basis", "note"],
+      "properties": {
+        "bytes": { "type": ["number", "null"], "minimum": 0 },
+        "basis": { "enum": ["reported", "approximate", "unavailable"] },
+        "note": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "output": {
+      "type": "object",
+      "required": ["directory", "template", "predictedPath"],
+      "properties": {
+        "directory": { "type": "string" },
+        "template": { "type": "string" },
+        "predictedPath": { "type": ["string", "null"] }
+      },
+      "additionalProperties": false
+    },
+    "requirements": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "required", "available", "reason"],
+        "properties": {
+          "name": { "enum": ["yt-dlp", "ffmpeg"] },
+          "required": { "type": "boolean" },
+          "available": { "type": ["boolean", "null"] },
+          "reason": { "type": "string" }
+        },
+        "additionalProperties": false
+      }
+    },
+    "history": {
+      "type": "object",
+      "required": ["matched", "artifact", "files", "timestamp"],
+      "properties": {
+        "matched": { "type": "boolean" },
+        "artifact": { "type": ["string", "null"] },
+        "files": { "type": "array", "items": { "type": "string" } },
+        "timestamp": { "type": ["string", "null"] }
+      },
+      "additionalProperties": false
+    },
+    "sideEffects": {
+      "type": "object",
+      "required": ["performedByPlan", "ifApproved"],
+      "properties": {
+        "performedByPlan": {
+          "type": "object",
+          "required": ["networkMetadataRead", "mediaDownloaded", "filesWritten", "toolsInstalled"],
+          "properties": {
+            "networkMetadataRead": { "const": true },
+            "mediaDownloaded": { "const": false },
+            "filesWritten": { "const": false },
+            "toolsInstalled": { "const": false }
+          },
+          "additionalProperties": false
+        },
+        "ifApproved": {
+          "type": "object",
+          "required": ["networkMediaDownload", "filesWritten", "mayOverwriteFiles", "mayInstallMissingTools"],
+          "properties": {
+            "networkMediaDownload": { "const": true },
+            "filesWritten": { "const": true },
+            "mayOverwriteFiles": { "type": "boolean" },
+            "mayInstallMissingTools": { "type": "boolean" }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "recommendation": { "enum": ["approve", "skip", "blocked"] }
+  },
+  "additionalProperties": false
+}

@@ -8,12 +8,20 @@ import {
   fetchYtDlpChecksums,
   readBounded,
   withInstallLock,
+  WINDOWS_FFMPEG_ARCHIVE_EXECUTABLES,
   YT_DLP_CHECKSUM_ASSETS,
   ytDlpReleaseAsset,
 } from "../src/bootstrap.js";
 
 test("uses the current yt-dlp checksum manifest name with a legacy fallback", () => {
   assert.deepEqual(YT_DLP_CHECKSUM_ASSETS, ["SHA2-256SUMS", "SHA256SUMS"]);
+});
+
+test("the managed Windows FFmpeg archive installs both media tools", () => {
+  assert.deepEqual(WINDOWS_FFMPEG_ARCHIVE_EXECUTABLES, [
+    "ffmpeg.exe",
+    "ffprobe.exe",
+  ]);
 });
 test("fetches the current checksum manifest first", async () => {
   const urls = [];

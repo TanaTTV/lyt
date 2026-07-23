@@ -5,12 +5,14 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import process from "node:process";
 import {
+  buildArtifactFingerprint,
   clearHistory,
   loadHistory,
   recordDownload,
   searchHistory,
   splitByHistory,
 } from "../src/history.js";
+import { normalizeOptions } from "../src/ytDlp.js";
 
 function tempHistoryFile() {
   const dir = mkdtempSync(join(tmpdir(), "lyt-history-"));
@@ -133,4 +135,32 @@ test("clearHistory removes the file and tolerates a missing one", () => {
   } finally {
     cleanup();
   }
+});
+
+test("caption requests are distinct artifact variants without changing defaults", () => {
+  const baseline = buildArtifactFingerprint(normalizeOptions({}));
+  const baselineAgain = buildArtifactFingerprint(normalizeOptions({}));
+  const manualEnglish = buildArtifactFingerprint(
+    normalizeOptions({ subtitles: ["en"] }),
+  );
+  const manualSpanish = buildArtifactFingerprint(
+    normalizeOptions({ subtitles: ["es"] }),
+  );
+  const autoEnglish = buildArtifactFingerprint(
+    normalizeOptions({ autoSubtitles: ["en"] }),
+  );
+
+  assert.equal(baseline.fingerprint, baselineAgain.fingerprint);
+  assert.equal("captions" in baseline.variant, false);
+  assert.deepEqual(manualEnglish.variant.captions, {
+    source: "manual",
+    languages: ["en"],
+  });
+  assert.deepEqual(autoEnglish.variant.captions, {
+    source: "auto",
+    languages: ["en"],
+  });
+  assert.notEqual(baseline.fingerprint, manualEnglish.fingerprint);
+  assert.notEqual(manualEnglish.fingerprint, manualSpanish.fingerprint);
+  assert.notEqual(manualEnglish.fingerprint, autoEnglish.fingerprint);
 });

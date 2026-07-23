@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/tanattv/lyt/blob/main/schemas/lyt.artifact-receipt.v1.schema.json",
+  "title": "lyt artifact receipt v1",
+  "type": "object",
+  "required": ["schema", "createdAt", "assurance", "artifact", "inspection", "tools"],
+  "properties": {
+    "schema": { "const": "lyt.artifact-receipt.v1" },
+    "createdAt": { "type": "string", "format": "date-time" },
+    "assurance": {
+      "type": "object",
+      "required": ["scope", "remoteAuthenticityVerified", "strength"],
+      "properties": {
+        "scope": { "const": "local-file-integrity-only" },
+        "remoteAuthenticityVerified": { "const": false },
+        "strength": { "enum": ["size-only", "sha256"] }
+      },
+      "additionalProperties": false
+    },
+    "artifact": {
+      "type": "object",
+      "required": ["path", "sizeBytes", "sha256", "media"],
+      "properties": {
+        "path": { "type": "string" },
+        "sizeBytes": { "type": "integer", "minimum": 0 },
+        "sha256": { "type": ["string", "null"], "pattern": "^[a-f0-9]{64}$" },
+        "media": { "type": ["object", "null"] }
+      },
+      "additionalProperties": false
+    },
+    "inspection": { "type": "object" },
+    "tools": { "type": "object" }
+  },
+  "additionalProperties": false
+}

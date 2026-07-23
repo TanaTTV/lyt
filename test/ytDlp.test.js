@@ -375,6 +375,98 @@ test("agent-oriented JSON and size guard flags parse", () => {
   );
 });
 
+test("structured job events keep yt-dlp progress available", () => {
+  const parsed = parseArgs([
+    "--events-jsonl",
+    "--job-id",
+    "desktop:job-1",
+    "--receipt-sha256",
+    "https://v",
+  ]);
+  const options = normalizeOptions(parsed.options);
+  const args = buildYtDlpArgs(parsed.urls[0], options);
+
+  assert.equal(options.eventsJsonl, true);
+  assert.equal(options.jobId, "desktop:job-1");
+  assert.equal(options.receipt, true);
+  assert.equal(options.receiptSha256, true);
+  assert.ok(args.includes("--progress"));
+  assert.equal(args.includes("--no-progress"), false);
+});
+
+test("structured job ids reject unsafe values", () => {
+  assert.throws(
+    () => normalizeOptions(parseArgs(["--job-id", "../bad", "u"]).options),
+    /--job-id/,
+  );
+});
+
+// ---------------------------------------------------------------------------
+// Subtitles and generated captions
+// ---------------------------------------------------------------------------
+
+test("--subs requests only selected publisher-provided subtitle tracks", () => {
+  const parsed = parseArgs([
+    "--subs",
+    "en, es",
+    "--subtitles",
+    "pt-BR,en",
+    "u",
+  ]);
+  const options = normalizeOptions(parsed.options);
+  const args = buildYtDlpArgs("u", options);
+
+  assert.deepEqual(options.subtitles, ["en", "es", "pt-BR"]);
+  assert.deepEqual(options.autoSubtitles, []);
+  assert.ok(args.includes("--write-subs"));
+  assert.equal(args.includes("--write-auto-subs"), false);
+  assert.equal(args[args.indexOf("--sub-langs") + 1], "en,es,pt-BR");
+});
+
+test("--auto-subs is an explicit generated-caption mode", () => {
+  const parsed = parseArgs(["--auto-captions", "en-US,fr", "u"]);
+  const options = normalizeOptions(parsed.options);
+  const args = buildYtDlpArgs("u", options);
+
+  assert.deepEqual(options.subtitles, []);
+  assert.deepEqual(options.autoSubtitles, ["en-US", "fr"]);
+  assert.ok(args.includes("--write-auto-subs"));
+  assert.equal(args.includes("--write-subs"), false);
+  assert.equal(args[args.indexOf("--sub-langs") + 1], "en-US,fr");
+});
+
+test("captions remain off unless a language option is supplied", () => {
+  const options = normalizeOptions({});
+  const args = buildYtDlpArgs("u", options);
+
+  assert.deepEqual(options.subtitles, []);
+  assert.deepEqual(options.autoSubtitles, []);
+  assert.equal(args.includes("--write-subs"), false);
+  assert.equal(args.includes("--write-auto-subs"), false);
+  assert.equal(args.includes("--sub-langs"), false);
+});
+
+test("manual and generated caption modes cannot be combined", () => {
+  assert.throws(
+    () => normalizeOptions({ subtitles: ["en"], autoSubtitles: ["es"] }),
+    /cannot be combined/,
+  );
+});
+
+test("subtitle language values are validated", () => {
+  for (const invalid of ["", "en,,es", "en.*", "-live_chat", "en us"]) {
+    assert.throws(
+      () => normalizeOptions({ subtitles: [invalid] }),
+      /comma-separated language codes/,
+      invalid,
+    );
+  }
+
+  for (const flag of ["--subs", "--subtitles", "--auto-subs", "--auto-captions"]) {
+    assert.throws(() => parseArgs([flag]), /needs a value/);
+  }
+});
+
 test("--queue is an alias for --watch and -p for --paste", () => {
   assert.equal(parseArgs(["--queue"]).options.watch, true);
   assert.equal(parseArgs(["-p"]).options.paste, true);

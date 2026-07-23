@@ -86,6 +86,27 @@ export function parseArgs(argv) {
       continue;
     }
 
+    if (arg === "--events-jsonl") {
+      options.eventsJsonl = true;
+      continue;
+    }
+
+    if (arg === "--job-id") {
+      options.jobId = readValue(argv, ++index, arg);
+      continue;
+    }
+
+    if (arg === "--receipt") {
+      options.receipt = true;
+      continue;
+    }
+
+    if (arg === "--receipt-sha256") {
+      options.receipt = true;
+      options.receiptSha256 = true;
+      continue;
+    }
+
     if (arg === "--embed-metadata") {
       options.embedMetadata = true;
       continue;
@@ -93,6 +114,22 @@ export function parseArgs(argv) {
 
     if (arg === "--embed-thumbnail") {
       options.embedThumbnail = true;
+      continue;
+    }
+
+    if (arg === "--subs" || arg === "--subtitles") {
+      options.subtitles = appendSubtitleLanguages(
+        options.subtitles,
+        readValue(argv, ++index, arg),
+      );
+      continue;
+    }
+
+    if (arg === "--auto-subs" || arg === "--auto-captions") {
+      options.autoSubtitles = appendSubtitleLanguages(
+        options.autoSubtitles,
+        readValue(argv, ++index, arg),
+      );
       continue;
     }
 
@@ -219,6 +256,19 @@ export function parseArgs(argv) {
 
 export function normalizeOptions(options = {}) {
   const video = options.video ?? false;
+  const subtitles = normalizeSubtitleLanguages(options.subtitles, "--subs");
+  const autoSubtitles = normalizeSubtitleLanguages(
+    options.autoSubtitles,
+    "--auto-subs",
+  );
+
+  if (subtitles.length > 0 && autoSubtitles.length > 0) {
+    const error = new Error(
+      "--subs and --auto-subs cannot be combined; choose publisher-provided or generated captions.",
+    );
+    error.exitCode = 2;
+    throw error;
+  }
 
   // In video mode, -q/--quality (and --max-height) pick a resolution, e.g.
   // "1080p" or "4k". In audio mode, -q/--quality is the MP3 bitrate.
@@ -262,9 +312,15 @@ export function normalizeOptions(options = {}) {
     dryRun: options.dryRun ?? false,
     printCommand: options.printCommand ?? false,
     json: options.json ?? false,
+    eventsJsonl: options.eventsJsonl ?? false,
+    jobId: normalizeJobId(options.jobId),
+    receipt: options.receipt ?? false,
+    receiptSha256: options.receiptSha256 ?? false,
     interactive: options.interactive ?? false,
     embedMetadata: options.embedMetadata ?? false,
     embedThumbnail: options.embedThumbnail ?? false,
+    subtitles,
+    autoSubtitles,
     continueDownloads: options.continueDownloads ?? true,
     forceOverwrite: options.forceOverwrite ?? false,
     noDownload: options.noDownload ?? false,
@@ -279,7 +335,7 @@ export function buildYtDlpArgs(url, options) {
   const args = [
     "--newline",
     "--no-warnings",
-    options.json ? "--no-progress" : "--progress",
+    options.json && !options.eventsJsonl ? "--no-progress" : "--progress",
     "--concurrent-fragments",
     String(options.fragments),
     "-f",
@@ -337,6 +393,18 @@ export function buildYtDlpArgs(url, options) {
 
   if (options.embedThumbnail) {
     args.push("--embed-thumbnail");
+  }
+
+  if (options.subtitles.length > 0) {
+    args.push("--write-subs", "--sub-langs", options.subtitles.join(","));
+  }
+
+  if (options.autoSubtitles.length > 0) {
+    args.push(
+      "--write-auto-subs",
+      "--sub-langs",
+      options.autoSubtitles.join(","),
+    );
   }
 
   for (const section of options.clips ?? []) {
@@ -456,6 +524,11 @@ Grab just a slice of a long video:
   yt3 --clip 1:10-2:45 "URL"        (repeat --clip for multiple slices)
 
 Subcommands:
+  lyt inspect <URL>         Read metadata, formats, and caption availability
+  lyt plan [options] <URL>  Preview selection, size, tools, history, and effects
+  lyt search <query>        Return results only; downloading is a separate step
+  lyt receipt <file>        Write a local-integrity artifact receipt
+  lyt verify <receipt>      Verify a local file against its saved receipt
   lyt history [query]       List/search past downloads (--clear wipes)
   lyt config <cmd>          Persistent defaults: set/get/unset/list/path
   lyt doctor                Check the environment (--fix installs missing
@@ -492,6 +565,10 @@ Options:
   --no-part                 Write directly to the output file (skip .part)
   --playlist                Allow playlist downloads
   --no-playlist             Download only the single video URL (default)
+  --subs <languages>        Save publisher-provided subtitles beside the media;
+                            comma-separated language codes, repeatable
+  --auto-subs <languages>   Save generated captions beside the media (explicit
+                            opt-in); comma-separated language codes, repeatable
   --embed-metadata          Embed metadata; may add time
   --embed-thumbnail         Embed thumbnail; may add time
   --force-overwrite         Replace existing files
@@ -499,6 +576,10 @@ Options:
   --print-command           Print an inert yt-dlp argv preview before running
   --dry-run                 Print commands without running
   --json                    Emit stable lyt.result.v1 JSON with final paths
+  --events-jsonl            Stream lyt.job-event.v1 download events as JSONL
+  --job-id <id>             Stable id for an --events-jsonl job
+  --receipt                 Write a local-integrity receipt for each artifact
+  --receipt-sha256          Include SHA-256 in each artifact receipt
   -i, --interactive         Prompt for options interactively
   -h, --help                Show this help
   -v, --version             Show version`;
@@ -551,6 +632,53 @@ function normalizeSize(value) {
   );
   error.exitCode = 2;
   throw error;
+}
+
+function normalizeJobId(value) {
+  if (value == null) return null;
+  const jobId = String(value).trim();
+  if (!/^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/.test(jobId)) {
+    const error = new Error(
+      "--job-id must be 1-128 characters using letters, numbers, dot, underscore, colon, or dash.",
+    );
+    error.exitCode = 2;
+    throw error;
+  }
+  return jobId;
+}
+
+function appendSubtitleLanguages(existing, value) {
+  return existing == null ? [value] : [...existing, value];
+}
+
+function normalizeSubtitleLanguages(value, optionName) {
+  if (value == null) return [];
+
+  const values = Array.isArray(value) ? value : [value];
+  const languages = [];
+  const seen = new Set();
+
+  for (const item of values) {
+    for (const token of String(item).split(",")) {
+      const language = token.trim();
+
+      if (!/^[A-Za-z0-9]+(?:[-_][A-Za-z0-9]+)*$/.test(language)) {
+        const error = new Error(
+          `${optionName} languages must be comma-separated language codes such as en, es, or pt-BR.`,
+        );
+        error.exitCode = 2;
+        throw error;
+      }
+
+      const key = language.toLowerCase();
+      if (!seen.has(key)) {
+        languages.push(language);
+        seen.add(key);
+      }
+    }
+  }
+
+  return languages;
 }
 
 function normalizePositiveInteger(value, name) {
