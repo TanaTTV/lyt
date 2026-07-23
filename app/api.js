@@ -12,18 +12,52 @@ const tauriApi = {
   pickFolder: () => tauri.dialog.open({ directory: true }),
 
   async download(opts, onUpdate) {
-    const id = await tauri.core.invoke("start_download", opts);
+    const id = `dl-${crypto.randomUUID()}`;
     const unlisten = await tauri.event.listen(`progress:${id}`, (event) => {
-      onUpdate(event.payload);
-      if (event.payload.status === "done" || event.payload.status === "error") {
+      const update = jobEventToUpdate(event.payload);
+      onUpdate(update);
+      if (["done", "error", "canceled"].includes(update.status)) {
         unlisten();
       }
     });
+    try {
+      await tauri.core.invoke("start_download", { ...opts, jobId: id });
+    } catch (error) {
+      unlisten();
+      throw error;
+    }
     return id;
   },
 
+  cancel: (id) => tauri.core.invoke("cancel_download", { jobId: id }),
   seedDownloads() {}, // real app starts with an empty queue
 };
+
+function jobEventToUpdate(event) {
+  const data = event?.data ?? {};
+  const details = [
+    data.speed,
+    data.eta ? `ETA ${data.eta}` : null,
+    data.path,
+    data.message,
+  ].filter(Boolean);
+  const statuses = {
+    queued: "downloading",
+    started: "downloading",
+    progress: "downloading",
+    artifact: "downloading",
+    retrying: "downloading",
+    completed: "done",
+    failed: "error",
+    canceled: "canceled",
+  };
+
+  return {
+    percent: data.percent ?? (event?.type === "completed" ? 100 : undefined),
+    detail: details.join(" · ") || event?.type || "",
+    status: statuses[event?.type] ?? "downloading",
+  };
+}
 
 // ---------- Mock backend (browser dev / screenshots) ----------
 const SAMPLE = [
@@ -62,6 +96,7 @@ const mockApi = {
   },
 
   download(_opts, onUpdate) {
+    const id = `mock-${crypto.randomUUID()}`;
     let pct = 0;
     onUpdate({ percent: 0, detail: "starting…", status: "downloading" });
     const timer = setInterval(() => {
@@ -73,7 +108,10 @@ const mockApi = {
         onUpdate({ percent: pct, detail: `${(1.4 + Math.random()).toFixed(1)} MiB/s`, status: "downloading" });
       }
     }, 420);
+    return id;
   },
+
+  async cancel() {},
 
   // Pre-populate the downloads panel so the design reads well on first paint.
   seedDownloads(set) {

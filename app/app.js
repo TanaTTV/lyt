@@ -80,7 +80,7 @@ async function runSearch() {
     state.results = results;
     renderResults();
   } catch (error) {
-    els.results.innerHTML = `<div class="results-empty"><h3>Couldn't load results</h3><p>${escapeHtml(error.message)}</p></div>`;
+    els.results.innerHTML = `<div class="results-empty"><h3>Couldn't load results</h3><p>${escapeHtml(errorMessage(error))}</p></div>`;
   }
 }
 
@@ -128,28 +128,37 @@ function resultCard(item) {
   return card;
 }
 
-function startDownload(item) {
-  const id = `dl-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+async function startDownload(item) {
   const entry = {
-    id,
+    id: `pending-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
     title: item.title,
     kind: state.kind,
     percent: 0,
     status: "downloading",
+    source: item,
+    request: {
+      url: item.url,
+      kind: state.kind,
+      quality: state.quality,
+      folder: state.folder,
+    },
     detail: "starting…",
   };
   state.downloads.unshift(entry);
   renderDownloads();
 
-  api.download(
-    { url: item.url, kind: state.kind, quality: state.quality, folder: state.folder },
-    (update) => {
+  try {
+    entry.id = await api.download(entry.request, (update) => {
       entry.percent = update.percent ?? entry.percent;
       entry.detail = update.detail ?? entry.detail;
       if (update.status) entry.status = update.status;
       renderDownloads();
-    },
-  );
+    });
+  } catch (error) {
+    entry.status = "error";
+    entry.detail = errorMessage(error);
+    renderDownloads();
+  }
 }
 
 function renderDownloads() {
@@ -165,14 +174,34 @@ function renderDownloads() {
       dl.kind === "video"
         ? `<rect x="2" y="5" width="14" height="14" rx="2"/><path d="M22 7l-6 5 6 5z"/>`
         : `<path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/>`;
+    const action = dl.status === "downloading" && !String(dl.id).startsWith("pending-")
+      ? `<button class="job-action" data-action="cancel">Cancel</button>`
+      : ["error", "canceled"].includes(dl.status)
+        ? `<button class="job-action" data-action="retry">Retry</button>`
+        : "";
     item.innerHTML = `
       <div class="dl-item-top">
         <span class="dl-kind"><svg viewBox="0 0 24 24" class="ico">${kindIcon}</svg></span>
         <span class="dl-name">${escapeHtml(dl.title)}</span>
-        <span class="dl-pct">${dl.status === "done" ? "Done" : Math.round(dl.percent) + "%"}</span>
+        <span class="dl-pct">${dl.status === "done" ? "Done" : dl.status === "canceled" ? "Canceled" : Math.round(dl.percent) + "%"}</span>
       </div>
       <div class="bar"><span style="width:${dl.percent}%"></span></div>
-      <div class="dl-sub"><span>${escapeHtml(dl.detail)}</span><span>${dl.kind}</span></div>`;
+      <div class="dl-sub"><span>${escapeHtml(dl.detail)}</span><span>${dl.kind} ${action}</span></div>`;
+    item.querySelector('[data-action="cancel"]')?.addEventListener("click", async () => {
+      try {
+        await api.cancel(dl.id);
+      } catch (error) {
+        dl.status = "error";
+        dl.detail = errorMessage(error);
+        renderDownloads();
+      }
+    });
+    item.querySelector('[data-action="retry"]')?.addEventListener("click", () => {
+      state.kind = dl.request.kind;
+      state.quality = dl.request.quality;
+      state.folder = dl.request.folder;
+      startDownload(dl.source);
+    });
     els.downloadsList.append(item);
   }
 }
@@ -185,6 +214,10 @@ function hueFor(text) {
 
 function escapeHtml(text) {
   return String(text).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+}
+
+function errorMessage(error) {
+  return error instanceof Error ? error.message : String(error);
 }
 
 function isSafeUrl(url) {

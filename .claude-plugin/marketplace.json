@@ -10,7 +10,7 @@
       "name": "lyt",
       "source": "./plugins/lyt",
       "description": "Safe local media downloads for people and AI agents, powered by yt-dlp.",
-      "version": "0.7.2",
+      "version": "0.8.0",
       "author": {
         "name": "TanaTTV"
       },

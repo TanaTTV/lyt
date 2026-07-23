@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/tanattv/lyt/blob/main/schemas/lyt.artifact-verification.v1.schema.json",
+  "title": "lyt artifact verification v1",
+  "type": "object",
+  "required": ["schema", "receiptSchema", "ok", "assurance", "artifact", "checks"],
+  "properties": {
+    "schema": { "const": "lyt.artifact-verification.v1" },
+    "receiptSchema": { "const": "lyt.artifact-receipt.v1" },
+    "ok": { "type": "boolean" },
+    "assurance": {
+      "type": "object",
+      "required": ["scope", "remoteAuthenticityVerified", "strength"],
+      "properties": {
+        "scope": { "const": "local-file-integrity-only" },
+        "remoteAuthenticityVerified": { "const": false },
+        "strength": { "enum": ["size-only", "sha256"] }
+      },
+      "additionalProperties": false
+    },
+    "artifact": {
+      "type": "object",
+      "required": ["path"],
+      "properties": { "path": { "type": "string" } },
+      "additionalProperties": false
+    },
+    "checks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "ok", "expected", "actual"],
+        "properties": {
+          "name": { "type": "string" },
+          "ok": { "type": ["boolean", "null"] },
+          "expected": {},
+          "actual": {},
+          "detail": { "type": "string" }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

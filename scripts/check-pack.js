@@ -35,6 +35,12 @@ const required = [
   "schemas/lyt.result.v1.schema.json",
   "schemas/lyt.doctor.v1.schema.json",
   "schemas/lyt.history.v1.schema.json",
+  "schemas/lyt.inspect.v1.schema.json",
+  "schemas/lyt.plan.v1.schema.json",
+  "schemas/lyt.search.v1.schema.json",
+  "schemas/lyt.job-event.v1.schema.json",
+  "schemas/lyt.artifact-receipt.v1.schema.json",
+  "schemas/lyt.artifact-verification.v1.schema.json",
 ];
 const forbiddenPrefixes = ["reports/", "test/", "app/", ".github/", ".claude/"];
 const missing = required.filter((path) => !paths.has(path));

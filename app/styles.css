@@ -558,6 +558,16 @@ body {
   justify-content: space-between;
 }
 
+.job-action {
+  margin-left: 8px;
+  border: 0;
+  border-radius: 6px;
+  padding: 3px 8px;
+  color: inherit;
+  background: color-mix(in srgb, currentColor 12%, transparent);
+  cursor: pointer;
+}
+
 /* scrollbars */
 ::-webkit-scrollbar {
   width: 10px;

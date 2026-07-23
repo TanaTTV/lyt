@@ -3,7 +3,9 @@ import assert from "node:assert/strict";
 import { resolve } from "node:path";
 import {
   extractOutputPath,
+  extractSubtitlePaths,
   outputCaptureArgs,
+  subtitleCaptureArgs,
   resultEnvelope,
 } from "../src/result.js";
 import { runCommand } from "../src/cli.js";
@@ -13,6 +15,21 @@ test("builds an after-move print marker for exact final paths", () => {
     "--print",
     "after_move:__LYT_FILE__:%(filepath)s",
   ]);
+});
+
+test("captures exact subtitle sidecar paths from yt-dlp's final info", () => {
+  assert.deepEqual(subtitleCaptureArgs(), [
+    "--print",
+    "after_move:__LYT_SUBTITLES__:%(requested_subtitles)j",
+  ]);
+  assert.deepEqual(
+    extractSubtitlePaths(
+      '__LYT_SUBTITLES__:{"en":{"ext":"vtt","filepath":"downloads/title.en.vtt"}}',
+      "C:/work",
+    ),
+    [resolve("C:/work", "downloads/title.en.vtt")],
+  );
+  assert.equal(extractSubtitlePaths("[download] 50%"), null);
 });
 
 test("extracts and resolves final output paths while ignoring other lines", () => {
