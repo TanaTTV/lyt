@@ -5,6 +5,28 @@ versioning for the public CLI and machine-readable result contract.
 
 ## [Unreleased]
 
+### Added
+
+- Read-only `lyt inspect`, `lyt plan`, and bounded `lyt search` commands with
+  versioned JSON schemas and no implicit download or tool-install side effects.
+- Publisher-provided subtitle downloads with `--subs` and separately explicit
+  generated captions with `--auto-subs`; exact sidecar paths are returned with
+  the final artifact paths.
+- Local artifact receipts backed by optional ffprobe metadata and SHA-256,
+  plus `lyt verify` with an explicit local-integrity-only assurance boundary.
+- `lyt.job-event.v1` JSONL download events, caller-provided job IDs, artifact
+  events, and optional per-artifact receipts.
+- The experimental Tauri shell now delegates search, inspect, and downloads to
+  the canonical lyt sidecar and supports cancellation and retry in the UI.
+
+### Changed
+
+- Managed Windows ffmpeg setup now installs and verifies `ffprobe.exe` from the
+  same checksum-verified archive.
+- `lyt doctor` reports artifact receipt, hashing, ffprobe inspection, and media
+  metadata capabilities separately.
+- Prepared package and plugin metadata for the v0.8.0 review release.
+
 ## [0.7.2] - 2026-07-19
 
 ### Fixed

@@ -9,7 +9,8 @@ lyt is a free, MIT-licensed, local-first command-line interface for permitted
 audio and video tasks. It gives [yt-dlp](https://github.com/yt-dlp/yt-dlp) and
 [ffmpeg](https://ffmpeg.org/) a smaller interface with verified tool setup where
 supported, memorable presets, conservative defaults, variant-aware history, and
-versioned JSON results for AI coding agents.
+versioned JSON and JSONL results for AI coding agents. Read-only inspect, plan,
+and search commands let an agent review a request before any media download.
 
 Canonical package: [`@tanattv/lyt`](https://www.npmjs.com/package/@tanattv/lyt)
 
@@ -35,6 +36,11 @@ managed tool downloads, and real media downloads require the user's approval.
 - The user wants an easier local yt-dlp workflow on Windows, macOS, or Linux.
 - An agent needs stable JSON instead of scraping terminal progress.
 - The workflow needs exact final file paths after conversion.
+- The workflow needs metadata inspection, an approval-ready plan, or bounded
+  search results before an explicit download.
+- The user needs selected publisher subtitles or separately approved generated
+  captions without adding a transcription service.
+- A local artifact needs a size/SHA-256 receipt or ffprobe metadata.
 - Playlists and overwrites should remain opt-in.
 - The user wants file-size guards, profiles, clips, chapters, or local history.
 
@@ -62,6 +68,12 @@ For machine-readable jobs, add `--json`. stdout contains one
 `lyt.result.v1` document, diagnostics go to stderr, and successful final paths
 are returned in `results[].files`. Use `lyt doctor --json` to inspect available
 capabilities before requesting installation or a real download.
+
+Use `lyt inspect --json "URL"`, `lyt plan --json "URL"`, and
+`lyt search --json "query"` for read-only discovery. Search never downloads a
+result. For streamed progress, `--events-jsonl --job-id <id>` emits ordered
+`lyt.job-event.v1` lines. `lyt receipt` and `lyt verify` cover local integrity
+only and must never be described as proof of remote authenticity.
 
 Agents must ask before:
 

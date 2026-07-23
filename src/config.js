@@ -84,11 +84,7 @@ export function loadConfig(file = configPath(), { warn = console.error } = {}) {
   if (!existsSync(file)) return {};
 
   try {
-    const parsed = JSON.parse(readFileSync(file, "utf8"));
-    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
-      throw new Error("config root must be a JSON object");
-    }
-    return parsed;
+    return parseConfig(readFileSync(file, "utf8"));
   } catch (error) {
     const backup = `${file}.corrupt-${Date.now()}`;
     try {
@@ -98,6 +94,21 @@ export function loadConfig(file = configPath(), { warn = console.error } = {}) {
       warn(`lyt ignored a corrupt config at ${file}: ${error.message}`);
     }
     return {};
+  }
+}
+
+// Planning must not rename or repair user files while promising a read-only
+// preview. A corrupt config is therefore an explicit error in this path.
+export function loadConfigReadOnly(file = configPath()) {
+  if (!existsSync(file)) return {};
+  try {
+    return parseConfig(readFileSync(file, "utf8"));
+  } catch (error) {
+    const failure = new Error(
+      `Could not read config at ${file} without changing it: ${error.message}`,
+    );
+    failure.exitCode = 2;
+    throw failure;
   }
 }
 
@@ -157,4 +168,12 @@ export function configToOptions(config) {
   }
 
   return options;
+}
+
+function parseConfig(text) {
+  const parsed = JSON.parse(text);
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+    throw new Error("config root must be a JSON object");
+  }
+  return parsed;
 }

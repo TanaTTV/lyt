@@ -1,6 +1,13 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { chmodSync, mkdtempSync, rmSync, statSync, writeFileSync } from "node:fs";
+import {
+  chmodSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import process from "node:process";
@@ -8,6 +15,7 @@ import {
   assertConfigKey,
   configToOptions,
   loadConfig,
+  loadConfigReadOnly,
   profileNames,
   resolveProfile,
   saveConfig,
@@ -93,6 +101,17 @@ test("loadConfig tolerates a missing or corrupt file", () => {
   try {
     writeFileSync(file, "{ not json");
     assert.deepEqual(loadConfig(file), {});
+  } finally {
+    cleanup();
+  }
+});
+
+test("read-only config loading reports corruption without moving the file", () => {
+  const { file, cleanup } = tempConfigFile();
+  try {
+    writeFileSync(file, "{ not json");
+    assert.throws(() => loadConfigReadOnly(file), /without changing it/);
+    assert.equal(readFileSync(file, "utf8"), "{ not json");
   } finally {
     cleanup();
   }

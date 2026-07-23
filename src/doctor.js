@@ -7,7 +7,7 @@
 import { spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import process from "node:process";
-import { ensureFfmpeg, ensureYtDlp } from "./bootstrap.js";
+import { ensureFfmpeg, ensureFfprobe, ensureYtDlp } from "./bootstrap.js";
 import { clipboardCommands } from "./clipboard.js";
 import { configPath } from "./config.js";
 import { resolveExecutableOnPath } from "./executables.js";
@@ -59,6 +59,20 @@ export async function runDoctor({
     path: ffmpeg.path,
   });
 
+  const ffprobe = await locate(() => ensureFfprobe({ noDownload: !fix }));
+  checks.push({
+    name: "ffprobe",
+    required: false,
+    ok: Boolean(ffprobe.path),
+    detail: ffprobe.path
+      ? `ffprobe ${version(ffprobe.path, "-version")} (${describe(ffprobe.path)})`
+      : "ffprobe unavailable",
+    hint: ffprobe.path
+      ? null
+      : `${trimmed(ffprobe.error)} Required for media metadata in artifact receipts.`,
+    path: ffprobe.path,
+  });
+
   const clipTool = probeClipboard();
   checks.push({
     name: "clipboard",
@@ -78,13 +92,13 @@ export async function runDoctor({
 
   const paths = diagnosticPaths();
   const commandOk = doctorCommandSucceeded(checks, { update });
-  const capabilities = {
-    nativeAudio: nodeOk && Boolean(ytDlp.path),
-    mp3: nodeOk && Boolean(ytDlp.path) && Boolean(ffmpeg.path),
-    video: nodeOk && Boolean(ytDlp.path) && Boolean(ffmpeg.path),
-    clips: nodeOk && Boolean(ytDlp.path) && Boolean(ffmpeg.path),
-    clipboard: Boolean(clipTool),
-  };
+  const capabilities = doctorCapabilities({
+    nodeOk,
+    ytDlp: ytDlp.path,
+    ffmpeg: ffmpeg.path,
+    ffprobe: ffprobe.path,
+    clipboard: clipTool,
+  });
 
   const payload = {
     schema: "lyt.doctor.v1",
@@ -118,6 +132,25 @@ export function doctorCommandSucceeded(checks, { update = false } = {}) {
     updateChecks.length === 1 && updateChecks.every((check) => check.ok)
   );
   return requiredOk && updateOk;
+}
+
+export function doctorCapabilities({
+  nodeOk,
+  ytDlp,
+  ffmpeg,
+  ffprobe,
+  clipboard,
+}) {
+  return {
+    nativeAudio: Boolean(nodeOk && ytDlp),
+    mp3: Boolean(nodeOk && ytDlp && ffmpeg),
+    video: Boolean(nodeOk && ytDlp && ffmpeg),
+    clips: Boolean(nodeOk && ytDlp && ffmpeg),
+    clipboard: Boolean(clipboard),
+    artifactReceipts: Boolean(nodeOk),
+    artifactHashes: Boolean(nodeOk),
+    mediaInspection: Boolean(nodeOk && ffprobe),
+  };
 }
 
 function updateYtDlp(path) {
@@ -246,14 +279,18 @@ function version(command, flag = "--version") {
     const first = `${result.stdout || ""}${result.stderr || ""}`
       .split("\n")[0]
       .trim();
-    return first.replace(/^ffmpeg version\s+/, "").split(" ")[0] || "(unknown)";
+    return first
+      .replace(/^(?:ffmpeg|ffprobe) version\s+/, "")
+      .split(" ")[0] || "(unknown)";
   } catch {
     return "(unknown)";
   }
 }
 
 function describe(path) {
-  if (path === "yt-dlp" || path === "ffmpeg") return "on PATH";
+  if (path === "yt-dlp" || path === "ffmpeg" || path === "ffprobe") {
+    return "on PATH";
+  }
   return path.startsWith(binDir()) ? `managed: ${path}` : path;
 }
 

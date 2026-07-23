@@ -16,15 +16,29 @@
         "required": ["url", "status"],
         "properties": {
           "url": { "type": "string" },
-          "status": { "enum": ["downloaded", "skipped", "failed", "available", "planned"] },
+          "status": { "enum": ["downloaded", "partial", "skipped", "failed", "available", "planned"] },
           "videoId": { "type": ["string", "null"] },
           "mode": { "enum": ["audio", "video"] },
           "files": { "type": "array", "items": { "type": "string" } },
           "outputDir": { "type": "string" },
-          "reason": { "enum": ["history", "max-filesize", "no-output"] },
+          "reason": { "enum": ["history", "max-filesize", "no-output", "post-download"] },
           "command": { "type": "string" },
           "executable": { "type": "string" },
           "args": { "type": "array", "items": { "type": "string" } },
+          "receipts": { "type": "array", "items": { "type": "string" } },
+          "postDownloadErrors": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["stage", "error"],
+              "properties": {
+                "stage": { "enum": ["receipt", "history"] },
+                "file": { "type": "string" },
+                "error": { "$ref": "#/$defs/error" }
+              },
+              "additionalProperties": false
+            }
+          },
           "error": { "$ref": "#/$defs/error" }
         },
         "additionalProperties": true

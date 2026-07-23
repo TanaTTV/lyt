@@ -1,34 +1,33 @@
 # lyt desktop app
 
-> **Status: experimental.** The desktop UI is a design and integration
-> prototype, not part of the lyt CLI v0.7.2 release. Do not publish production
-> installers until the app uses the canonical lyt engine and passes desktop CI.
+> **Status: experimental.** The v0.8 review branch delegates to the canonical
+> lyt engine, but production installers still require desktop CI, packaging,
+> signing, and cross-platform validation.
 
 The Tauri application demonstrates a lightweight GUI for searching YouTube and
 starting permitted audio or video downloads without typing terminal commands.
 
 ## Current prototype
 
-- Search YouTube through yt-dlp's built-in search without an API key.
-- Resolve a pasted URL.
+- Search through the canonical `lyt search` command without an API key.
+- Resolve a pasted URL through the canonical `lyt inspect` command.
 - Toggle audio/video and select a basic quality.
-- Show download progress.
+- Stream `lyt.job-event.v1` progress and exact artifact paths.
+- Cancel a running sidecar process and retry failed or canceled jobs.
 - Choose an output folder.
 - Preview the frontend in a browser with mock data.
 
 ## Why it is still experimental
 
-The Rust backend currently shells out to yt-dlp and builds download arguments
-independently. It does **not** yet inherit all behavior from the tested Node CLI,
-including:
+The Rust backend now shells out to the canonical lyt sidecar instead of
+constructing yt-dlp arguments independently. It inherits the CLI's history,
+safe defaults, exact paths, and structured event protocol. The app remains
+experimental because it still lacks:
 
-- verified managed tool setup;
-- variant-aware history;
-- profiles, clips, chapters, and size guards;
-- `lyt.result.v1` exact final paths;
-- capability-aware diagnostics;
-- agent permission guidance;
-- future fixes made in the canonical CLI engine.
+- packaged sidecar discovery outside `LYT_SIDECAR` or PATH;
+- persistent job state across restarts;
+- signed installers and production updater behavior;
+- full desktop CI across Windows, macOS, and Linux.
 
 Maintaining two download engines would create drift. The target architecture is:
 
@@ -76,12 +75,8 @@ npx @tauri-apps/cli build
 
 ## Required before a public desktop release
 
-- Replace independent Rust download argument construction with the lyt sidecar.
-- Stream structured progress and exact final artifact paths.
-- Drain stdout and stderr safely and support cancellation/retry.
-- Resolve output directories without literal `~` paths.
-- Register event listeners before starting jobs.
-- Add a restrictive content security policy.
+- Bundle and locate the reviewed lyt sidecar on every target platform.
+- Validate structured progress, exact paths, cancellation, and retry in desktop CI.
 - Pin frontend/build tooling and add a lockfile.
 - Run formatting, clippy, tests, and builds on pull requests.
 - Sign Windows installers and notarize macOS builds.

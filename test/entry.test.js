@@ -15,6 +15,7 @@ import process from "node:process";
 import { fileURLToPath } from "node:url";
 import {
   dedupePositionalUrls,
+  findPlanHistoryMatch,
   parseHistoryArgs,
   prepareDownloadArgv,
 } from "../src/entry.js";
@@ -58,6 +59,27 @@ test("deduplicates direct URLs without consuming option values", () => {
       "-q",
       "1080p",
       "https://youtu.be/dQw4w9WgXcQ",
+      "https://youtu.be/aaaaaaaaaaa",
+    ],
+  );
+});
+
+test("download preprocessing keeps caption languages and job ids out of URL dedupe", () => {
+  assert.deepEqual(
+    dedupePositionalUrls([
+      "--subs",
+      "en,es",
+      "--job-id",
+      "desktop:job-1",
+      "--events-jsonl",
+      "https://youtu.be/aaaaaaaaaaa",
+    ]),
+    [
+      "--subs",
+      "en,es",
+      "--job-id",
+      "desktop:job-1",
+      "--events-jsonl",
       "https://youtu.be/aaaaaaaaaaa",
     ],
   );
@@ -144,4 +166,107 @@ test("the CLI visibly reports corrupt config recovery exactly once", () => {
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
+});
+
+test("plan history matches ignore entries whose recorded artifacts were deleted", () => {
+  const root = mkdtempSync(join(tmpdir(), "lyt-plan-history-"));
+  const file = join(root, "existing.mp4");
+  const url = "https://youtu.be/dQw4w9WgXcQ";
+  const fingerprint = "lyt.artifact.v1:test";
+  const entries = [{
+    id: "dQw4w9WgXcQ",
+    artifact: fingerprint,
+    files: [file],
+  }];
+
+  try {
+    assert.equal(
+      findPlanHistoryMatch(url, "dQw4w9WgXcQ", fingerprint, entries),
+      null,
+    );
+    writeFileSync(file, "media");
+    assert.equal(
+      findPlanHistoryMatch(url, "dQw4w9WgXcQ", fingerprint, entries),
+      entries[0],
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("receipt and verify commands round-trip a local artifact without remote claims", () => {
+  const root = mkdtempSync(join(tmpdir(), "lyt-entry-receipt-"));
+  const artifact = join(root, "artifact.txt");
+  const receipt = `${artifact}.lyt-receipt.json`;
+  const cli = fileURLToPath(new URL("../bin/lyt.js", import.meta.url));
+
+  try {
+    writeFileSync(artifact, "local artifact");
+    const created = spawnSync(
+      process.execPath,
+      [cli, "receipt", "--sha256", "--json", artifact],
+      { encoding: "utf8" },
+    );
+    assert.equal(created.status, 0, created.stderr);
+    const createResult = JSON.parse(created.stdout);
+    assert.equal(createResult.ok, true);
+    assert.equal(createResult.receipt.assurance.remoteAuthenticityVerified, false);
+    assert.equal(existsSync(receipt), true);
+
+    const verified = spawnSync(
+      process.execPath,
+      [cli, "verify", "--json", receipt],
+      { encoding: "utf8" },
+    );
+    assert.equal(verified.status, 0, verified.stderr);
+    const verifyResult = JSON.parse(verified.stdout);
+    assert.equal(verifyResult.ok, true);
+    assert.equal(verifyResult.assurance.scope, "local-file-integrity-only");
+
+    const sizeOnlyArtifact = join(root, "size-only.txt");
+    writeFileSync(sizeOnlyArtifact, "same-size is not same-content");
+    const sizeReceipt = spawnSync(
+      process.execPath,
+      [cli, "receipt", sizeOnlyArtifact],
+      { encoding: "utf8" },
+    );
+    assert.equal(sizeReceipt.status, 0, sizeReceipt.stderr);
+    const sizeVerified = spawnSync(
+      process.execPath,
+      [cli, "verify", `${sizeOnlyArtifact}.lyt-receipt.json`],
+      { encoding: "utf8" },
+    );
+    assert.equal(sizeVerified.status, 0, sizeVerified.stderr);
+    assert.match(sizeVerified.stdout, /file size only/);
+    assert.match(sizeVerified.stdout, /\[--\] sha256/);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("invalid event jobs emit exactly one schema-valid failed JSONL event", () => {
+  const cli = fileURLToPath(new URL("../bin/lyt.js", import.meta.url));
+  const result = spawnSync(
+    process.execPath,
+    [
+      cli,
+      "--events-jsonl",
+      "--job-id",
+      "test-job",
+      "--print-command",
+      "https://example.test/one",
+      "https://example.test/two",
+    ],
+    { encoding: "utf8" },
+  );
+
+  assert.equal(result.status, 2);
+  const lines = result.stdout.trim().split(/\r?\n/).filter(Boolean);
+  assert.equal(lines.length, 1);
+  const event = JSON.parse(lines[0]);
+  assert.equal(event.schema, "lyt.job-event.v1");
+  assert.equal(event.jobId, "test-job");
+  assert.equal(event.type, "failed");
+  assert.equal(event.sequence, 1);
+  assert.equal(event.data.stage, "preflight");
 });

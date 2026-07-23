@@ -91,6 +91,18 @@ export function buildArtifactFingerprint(options) {
     template: options.template,
   };
 
+  if (options.subtitles?.length > 0) {
+    variant.captions = {
+      source: "manual",
+      languages: options.subtitles,
+    };
+  } else if (options.autoSubtitles?.length > 0) {
+    variant.captions = {
+      source: "auto",
+      languages: options.autoSubtitles,
+    };
+  }
+
   const digest = createHash("sha256")
     .update(JSON.stringify(variant))
     .digest("hex")

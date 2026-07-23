@@ -1,6 +1,6 @@
 ---
 name: lyt
-description: Download permitted audio or video from YouTube and other yt-dlp-supported sites with the lyt CLI. Use for media downloads, MP3 extraction, quality selection, clips, format inspection, and exact local output paths.
+description: Inspect, plan, search, or download permitted audio and video with the lyt CLI. Use for metadata review, captions, local artifact receipts, MP3 extraction, quality selection, clips, and exact local output paths.
 ---
 
 # Use lyt for local media
@@ -33,6 +33,37 @@ lyt --clip 1:10-2:45 --mp3 --json "URL"
 lyt --list-formats --json "URL"
 ```
 
+Prefer read-only discovery before a real or uncertain download:
+
+```sh
+lyt inspect --json "URL"
+lyt plan --video -q 1080p --json "URL"
+lyt search --limit 10 --json "query"
+```
+
+`inspect`, `plan`, and `search` read metadata but do not download media.
+`search` results are never an implicit download request.
+
+Captions stay explicit and source-specific:
+
+```sh
+lyt --subs en,es --json "URL"       # publisher-provided tracks
+lyt --auto-subs en --json "URL"     # generated captions
+```
+
+Do not combine manual and generated caption modes, and do not describe either
+as transcription.
+
+For local integrity receipts:
+
+```sh
+lyt receipt --sha256 "FILE"
+lyt verify "FILE.lyt-receipt.json"
+```
+
+Verification covers the local file only. It does not prove remote authenticity,
+ownership, or permission.
+
 Files go to `./downloads` under the current working directory unless `-o` is
 supplied. Before a real job, confirm the intended output directory when it is
 material to the user's workflow.
@@ -52,3 +83,8 @@ user explicitly requests it. Never include those values in logs or bug reports.
 After success, read `results[].files` and report those exact paths. If a result
 is skipped, explain whether a matching artifact already exists or a size guard
 was triggered. Use `--redownload` only when the user asks for another copy.
+
+For an integration that needs live progress, use
+`--events-jsonl --job-id <id>` and parse one `lyt.job-event.v1` document per
+stdout line. Event jobs accept exactly one URL. Treat `completed`, `failed`,
+and `canceled` as terminal states.
