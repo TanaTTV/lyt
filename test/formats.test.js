@@ -45,8 +45,9 @@ test("tolerates missing formats array", () => {
   assert.deepEqual(formats.audioBitrates, []);
 });
 
-function fakeSpawn(stdout, code) {
-  return () => {
+function fakeSpawn(stdout, code, onSpawn = () => {}) {
+  return (command, args, options) => {
+    onSpawn(command, args, options);
     const child = new EventEmitter();
     child.stdout = new PassThrough();
     child.stderr = new PassThrough();
@@ -68,6 +69,25 @@ test("listFormats parses successful yt-dlp output", async () => {
   const formats = await listFormats("https://v", { spawnFn: fakeSpawn(sample, 0) });
 
   assert.deepEqual(formats.heights, [2160, 1080, 720]);
+});
+
+test("listFormats enables the configured JavaScript runtime", async () => {
+  let spawnedArgs;
+
+  await listFormats("https://v", {
+    runtimeArgs: ["--js-runtimes", "node:/usr/bin/node"],
+    spawnFn: fakeSpawn(sample, 0, (_command, args) => {
+      spawnedArgs = args;
+    }),
+  });
+
+  assert.deepEqual(
+    spawnedArgs.slice(
+      spawnedArgs.indexOf("--js-runtimes"),
+      spawnedArgs.indexOf("--js-runtimes") + 2,
+    ),
+    ["--js-runtimes", "node:/usr/bin/node"],
+  );
 });
 
 test("listFormats rejects on a non-zero exit", async () => {

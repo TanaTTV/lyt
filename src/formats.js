@@ -1,4 +1,5 @@
 import { spawn } from "node:child_process";
+import { ytDlpJsRuntimeArgs } from "./jsRuntime.js";
 
 // Parses `yt-dlp -J` (JSON dump) output into the set of qualities actually
 // available for a URL. Pure, so it is unit-tested with sample payloads.
@@ -34,9 +35,23 @@ export function parseFormats(jsonText) {
 
 // Runs `yt-dlp -J` for a URL and returns the parsed quality set. The spawn is
 // injectable so callers can test the wiring without a real yt-dlp.
-export function listFormats(url, { command = "yt-dlp", spawnFn = spawn } = {}) {
+export function listFormats(
+  url,
+  {
+    command = "yt-dlp",
+    spawnFn = spawn,
+    runtimeArgs = ytDlpJsRuntimeArgs(),
+  } = {},
+) {
   return new Promise((resolve, reject) => {
-    const args = ["-J", "--no-warnings", "--no-playlist", "--", url];
+    const args = [
+      "-J",
+      "--no-warnings",
+      ...runtimeArgs,
+      "--no-playlist",
+      "--",
+      url,
+    ];
     const child = spawnFn(command, args, { stdio: ["ignore", "pipe", "pipe"] });
 
     let stdout = "";

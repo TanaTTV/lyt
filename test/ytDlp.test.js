@@ -20,6 +20,19 @@ test("defaults to fast native audio without conversion", () => {
   assert.equal(args.includes("-x"), false);
 });
 
+test("enables a supported Node runtime for yt-dlp", () => {
+  const args = buildYtDlpArgs(
+    "https://youtube.test/video",
+    normalizeOptions(),
+    { runtimeArgs: ["--js-runtimes", "node:C:\\Program Files\\nodejs\\node.exe"] },
+  );
+
+  assert.deepEqual(
+    args.slice(args.indexOf("--js-runtimes"), args.indexOf("--js-runtimes") + 2),
+    ["--js-runtimes", "node:C:\\Program Files\\nodejs\\node.exe"],
+  );
+});
+
 test("mp3 mode adds extraction and audio quality flags", () => {
   const options = normalizeOptions({ mp3: true, quality: "128k" });
   const args = buildYtDlpArgs("https://youtube.test/video", options);
