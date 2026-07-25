@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process";
-import { mkdir } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 import process from "node:process";
 import {
@@ -39,10 +39,17 @@ import { installAgentSkills } from "./agent.js";
 import {
   errorDetails,
   extractOutputPath,
+  extractSubtitlePaths,
   outputCaptureArgs,
   resultEnvelope,
+  subtitleCaptureArgs,
 } from "./result.js";
 import { VERSION } from "./version.js";
+import { createJobEventWriter } from "./jobEvents.js";
+import {
+  createArtifactReceipt,
+  verifyArtifactReceipt,
+} from "./probe.js";
 
 // Above this many URLs we skip the aggregated bar block (it would scroll the
 // terminal) and fall back to yt-dlp's own inherited progress output.
@@ -53,7 +60,21 @@ const WATCH_INTERVAL_MS = 1500;
 
 export function run(argv, defaults = {}) {
   return main(argv, defaults).catch((error) => {
-    if (argv.includes("--json") && !error?.jsonPrinted) {
+    if (argv.includes("--events-jsonl") && !error?.eventPrinted) {
+      const requestedId = valueAfter(argv, "--job-id");
+      const writer = createJobEventWriter({
+        version: VERSION,
+        ...(/^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/.test(requestedId ?? "")
+          ? { jobId: requestedId }
+          : {}),
+      });
+      writer.emit("failed", {
+        stage: "preflight",
+        message: error instanceof Error ? error.message : String(error),
+        code: error?.exitCode ?? 1,
+      });
+      error.eventPrinted = true;
+    } else if (argv.includes("--json") && !error?.jsonPrinted) {
       console.log(JSON.stringify(resultEnvelope({
         command: "error",
         ok: false,
@@ -152,7 +173,34 @@ export async function main(argv, defaults = {}) {
   }
 
   const options = normalizeOptions(parsed.options);
+  const eventWriter = options.eventsJsonl
+    ? createJobEventWriter({
+        version: VERSION,
+        ...(options.jobId ? { jobId: options.jobId } : {}),
+      })
+    : null;
+
+  if (options.eventsJsonl) {
+    if (options.json) {
+      throw usageError("--events-jsonl cannot be combined with --json.");
+    }
+    if (
+      options.watch ||
+      options.dryRun ||
+      options.listFormats ||
+      options.printCommand
+    ) {
+      throw usageError("--events-jsonl supports bounded download jobs only.");
+    }
+    // Reuse all existing machine-mode suppression while keeping yt-dlp
+    // progress enabled for conversion into versioned events.
+    options.json = true;
+  }
   const urls = parsed.urls;
+
+  if (options.eventsJsonl && urls.length !== 1) {
+    throw usageError("--events-jsonl requires exactly one URL per job.");
+  }
 
   if (urls.length === 0 && !options.watch) {
     const error = new Error(`${usage()}\n\nMissing URL.`);
@@ -227,9 +275,29 @@ export async function main(argv, defaults = {}) {
     return runWatchMode(urls, options, tools);
   }
 
-  const { failures, results } = await downloadUrls(urls, options, tools);
+  let outcome;
+  try {
+    outcome = await downloadUrls(
+      urls,
+      options,
+      tools,
+      { eventWriter },
+    );
+  } catch (error) {
+    if (eventWriter) {
+      eventWriter.emit("failed", {
+        url: urls[0],
+        stage: "job",
+        message: error.message,
+        code: error.exitCode ?? 1,
+      });
+      error.eventPrinted = true;
+    }
+    throw error;
+  }
+  const { failures, results } = outcome;
 
-  if (options.json) {
+  if (options.json && !options.eventsJsonl) {
     console.log(JSON.stringify(resultEnvelope({
       command: "download",
       ok: failures.length === 0,
@@ -242,7 +310,8 @@ export async function main(argv, defaults = {}) {
     const lines = failures.map(({ url, error }) => `- ${url}: ${error.message}`);
     const error = new Error(`Download failed:\n${lines.join("\n")}`);
     error.exitCode = 1;
-    error.jsonPrinted = options.json;
+    error.jsonPrinted = options.json && !options.eventsJsonl;
+    error.eventPrinted = options.eventsJsonl;
     throw error;
   }
 }
@@ -271,11 +340,21 @@ async function prepareTools(options, noDownload) {
 
 // Downloads a batch of URLs. Returns the failures instead of throwing so
 // watch mode can keep going after a bad link.
-async function downloadUrls(urls, options, { ytDlpCommand, ffmpegPath }) {
+async function downloadUrls(
+  urls,
+  options,
+  { ytDlpCommand, ffmpegPath },
+  { eventWriter = null } = {},
+) {
   const artifact = buildArtifactFingerprint(options);
   let targets = urls;
   const results = [];
+  const failures = [];
   const historyEntries = options.history ? loadHistory() : [];
+
+  for (const url of urls) {
+    eventWriter?.emit("queued", { url });
+  }
 
   // Instant dedupe against the download history (by video ID).
   if (!options.redownload && options.history) {
@@ -289,17 +368,70 @@ async function downloadUrls(urls, options, { ytDlpCommand, ffmpegPath }) {
     for (const url of skipped) {
       const id = extractVideoId(url);
       const previous = [...historyEntries].reverse().find((entry) => entry.id === id);
-      results.push({
+      const files = existingHistoryFiles(previous);
+      const {
+        receipts,
+        receiptByArtifact,
+        errors,
+      } = await writeArtifactReceipts(files, {
+        enabled: options.receipt,
+        includeSha256: options.receiptSha256,
+        overwrite: options.forceOverwrite,
+        toolPaths: {
+          ytDlp: ytDlpCommand,
+          ...(ffmpegPath ? { ffmpeg: ffmpegPath } : {}),
+        },
+      });
+      const result = {
         url,
         videoId: id,
-        status: "skipped",
-        reason: "history",
+        status: errors.length > 0 ? "partial" : "skipped",
+        reason: errors.length > 0 ? "post-download" : "history",
+        historyMatched: true,
         mode: previous?.mode ?? (options.video ? "video" : "audio"),
-        files: existingHistoryFiles(previous),
+        files,
+        ...(receipts.length > 0 ? { receipts } : {}),
+        ...(errors.length > 0 ? { postDownloadErrors: errors } : {}),
         outputDir: resolve(previous?.dir ?? options.outputDir),
-      });
+      };
+      results.push(result);
+      for (const file of files) {
+        eventWriter?.emit("artifact", {
+          url,
+          path: file,
+          receiptPath: receiptByArtifact.get(file) ?? null,
+        });
+      }
+      if (errors.length > 0) {
+        const error = new Error(
+          `Existing media was found, but receipt creation failed: ` +
+            errors.map((issue) => issue.error.message).join("; "),
+        );
+        error.exitCode = 1;
+        failures.push({ url, error });
+        eventWriter?.emit("failed", {
+          url,
+          stage: "receipt",
+          message: error.message,
+          code: 1,
+          files,
+          receipts,
+          errors,
+        });
+      } else {
+        eventWriter?.emit("completed", {
+          url,
+          status: "skipped",
+          reason: "history",
+          files,
+          receipts,
+        });
+      }
       if (!options.json) {
         console.error(`Skipping (already downloaded): ${url}  - use --redownload to force`);
+        for (const issue of errors) {
+          console.error(`Warning: receipt failed: ${issue.error.message}`);
+        }
       }
     }
 
@@ -307,7 +439,7 @@ async function downloadUrls(urls, options, { ytDlpCommand, ffmpegPath }) {
   }
 
   if (targets.length === 0) {
-    return { failures: [], results };
+    return { failures, results };
   }
 
   // Build each command exactly once and reuse it for both printing and
@@ -324,8 +456,6 @@ async function downloadUrls(urls, options, { ytDlpCommand, ffmpegPath }) {
 
   const jobs = Math.min(options.jobs, targets.length);
   const queue = [...tasks];
-  const failures = [];
-
   // The aggregated progress block is only worth its complexity when several
   // downloads share one TTY. A single download keeps yt-dlp's native progress
   // (inherited stdio), which is already clean and battle-tested.
@@ -352,8 +482,16 @@ async function downloadUrls(urls, options, { ytDlpCommand, ffmpegPath }) {
         : undefined;
 
       try {
+        eventWriter?.emit("started", { url: task.url, attempt: 1 });
+        const onLine = lineHandler || eventWriter
+          ? (line) => {
+              lineHandler?.(line);
+              const info = parseProgressLine(line);
+              if (info) eventWriter?.emit("progress", { url: task.url, ...info });
+            }
+          : undefined;
         const outcome = await runCommand(ytDlpCommand, task.args, {
-          onLine: lineHandler,
+          onLine,
           quiet: options.json,
         });
 
@@ -377,40 +515,111 @@ async function downloadUrls(urls, options, { ytDlpCommand, ffmpegPath }) {
             outputDir: resolve(options.outputDir),
             error: errorDetails(error),
           });
+          eventWriter?.emit("failed", {
+            url: task.url,
+            message: error.message,
+            code: error.exitCode,
+          });
           continue;
         }
 
         renderer?.done(task.index, true);
 
+        const {
+          receipts,
+          receiptByArtifact,
+          errors: postDownloadErrors,
+        } = await writeArtifactReceipts(outcome.files, {
+          enabled: options.receipt,
+          includeSha256: options.receiptSha256,
+          overwrite: options.forceOverwrite,
+          toolPaths: {
+            ytDlp: ytDlpCommand,
+            ...(ffmpegPath ? { ffmpeg: ffmpegPath } : {}),
+          },
+        });
+
+        if (options.history) {
+          try {
+            recordDownload(
+              {
+                ts: new Date().toISOString(),
+                id: extractVideoId(task.url),
+                url: task.url,
+                mode: options.video ? "video" : "audio",
+                dir: resolve(options.outputDir),
+                files: outcome.files,
+              },
+              undefined,
+              { artifact: artifact.fingerprint },
+            );
+          } catch (error) {
+            postDownloadErrors.push({
+              stage: "history",
+              error: errorDetails(error),
+            });
+          }
+        }
+
         const result = {
           url: task.url,
           videoId: extractVideoId(task.url),
-          status: "downloaded",
+          status: postDownloadErrors.length > 0 ? "partial" : "downloaded",
+          ...(postDownloadErrors.length > 0 ? { reason: "post-download" } : {}),
           mode: options.video ? "video" : "audio",
           files: outcome.files,
+          ...(receipts.length > 0 ? { receipts } : {}),
+          ...(postDownloadErrors.length > 0
+            ? { postDownloadErrors }
+            : {}),
           outputDir: resolve(options.outputDir),
         };
         results.push(result);
+        for (const file of outcome.files) {
+          eventWriter?.emit("artifact", {
+            url: task.url,
+            path: file,
+            receiptPath: receiptByArtifact.get(file) ?? null,
+          });
+        }
+
+        if (postDownloadErrors.length > 0) {
+          const error = new Error(
+            `Media was saved, but post-download work failed: ` +
+              postDownloadErrors.map(({ stage, error: detail }) =>
+                `${stage}: ${detail.message}`
+              ).join("; "),
+          );
+          error.exitCode = 1;
+          failures.push({ url: task.url, error });
+          eventWriter?.emit("failed", {
+            url: task.url,
+            stage: "post-download",
+            message: error.message,
+            code: 1,
+            files: outcome.files,
+            receipts,
+            errors: postDownloadErrors,
+          });
+        } else {
+          eventWriter?.emit("completed", {
+            url: task.url,
+            status: "downloaded",
+            files: outcome.files,
+            receipts,
+          });
+        }
 
         if (!options.json) {
           for (const file of outcome.files) {
             console.log(`Saved: ${file}`);
           }
-        }
-
-        if (options.history) {
-          recordDownload(
-            {
-              ts: new Date().toISOString(),
-              id: extractVideoId(task.url),
-              url: task.url,
-              mode: options.video ? "video" : "audio",
-              dir: resolve(options.outputDir),
-              files: outcome.files,
-            },
-            undefined,
-            { artifact: artifact.fingerprint },
-          );
+          for (const issue of postDownloadErrors) {
+            console.error(
+              `Warning: ${issue.stage} failed after the media was saved: ` +
+                issue.error.message,
+            );
+          }
         }
       } catch (error) {
         renderer?.done(task.index, false);
@@ -423,6 +632,11 @@ async function downloadUrls(urls, options, { ytDlpCommand, ffmpegPath }) {
           files: [],
           outputDir: resolve(options.outputDir),
           error: errorDetails(error),
+        });
+        eventWriter?.emit("failed", {
+          url: task.url,
+          message: error.message,
+          code: error.exitCode ?? 1,
         });
       }
     }
@@ -439,7 +653,13 @@ async function downloadUrls(urls, options, { ytDlpCommand, ffmpegPath }) {
 function buildTasks(urls, options, { ffmpegPath }, { capturePaths = true } = {}) {
   const tasks = urls.map((url, index) => {
     const args = buildYtDlpArgs(url, options);
-    if (capturePaths) args.splice(args.indexOf("--"), 0, ...outputCaptureArgs());
+    if (capturePaths) {
+      const captures = [...outputCaptureArgs()];
+      if (options.subtitles.length > 0 || options.autoSubtitles.length > 0) {
+        captures.push(...subtitleCaptureArgs());
+      }
+      args.splice(args.indexOf("--"), 0, ...captures);
+    }
     return { url, index, args };
   });
 
@@ -690,6 +910,14 @@ export function runCommand(command, args, { onLine, quiet = false, cwd = process
         return;
       }
 
+      const subtitlePaths = extractSubtitlePaths(line, cwd);
+      if (subtitlePaths) {
+        for (const subtitlePath of subtitlePaths) {
+          if (!files.includes(subtitlePath)) files.push(subtitlePath);
+        }
+        return;
+      }
+
       onLine?.(line);
 
       if (!quiet && !onLine) {
@@ -760,4 +988,68 @@ export function outputTemplate(outputDir, template) {
 
 export function outputParent(outputPath) {
   return dirname(outputPath);
+}
+
+function valueAfter(argv, option) {
+  const index = argv.indexOf(option);
+  return index >= 0 ? argv[index + 1] : undefined;
+}
+
+export async function writeArtifactReceipts(
+  files,
+  {
+    enabled = false,
+    includeSha256 = false,
+    overwrite = false,
+    toolPaths = {},
+    createReceipt = createArtifactReceipt,
+    writeReceipt = writeFile,
+    readReceipt = readFile,
+    verifyReceipt = verifyArtifactReceipt,
+  } = {},
+) {
+  const receipts = [];
+  const receiptByArtifact = new Map();
+  const errors = [];
+
+  if (!enabled) return { receipts, receiptByArtifact, errors };
+
+  for (const file of files) {
+    try {
+      const receipt = await createReceipt(file, { includeSha256, toolPaths });
+      const receiptPath = `${file}.lyt-receipt.json`;
+      await writeReceipt(receiptPath, `${JSON.stringify(receipt, null, 2)}\n`, {
+        flag: overwrite ? "w" : "wx",
+      });
+      receipts.push(receiptPath);
+      receiptByArtifact.set(file, receiptPath);
+    } catch (error) {
+      const receiptPath = `${file}.lyt-receipt.json`;
+      if (!overwrite && error?.code === "EEXIST") {
+        try {
+          const existing = JSON.parse(await readReceipt(receiptPath, "utf8"));
+          const verification = await verifyReceipt(existing, {
+            artifactPath: file,
+          });
+          const hasRequestedStrength =
+            !includeSha256 || Boolean(existing?.artifact?.sha256);
+          if (verification.ok && hasRequestedStrength) {
+            receipts.push(receiptPath);
+            receiptByArtifact.set(file, receiptPath);
+            continue;
+          }
+        } catch {
+          // Fall through to the original collision error. A stale or malformed
+          // receipt must not be silently reused.
+        }
+      }
+      errors.push({
+        stage: "receipt",
+        file,
+        error: errorDetails(error),
+      });
+    }
+  }
+
+  return { receipts, receiptByArtifact, errors };
 }

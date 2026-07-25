@@ -49,10 +49,10 @@ correct package-manager command when ffmpeg is needed.
 
 | Friendly for people | Reliable for automation | Local by default |
 | --- | --- | --- |
-| Memorable `yt3` and `yt4` shortcuts | Stable `lyt.result.v1` JSON | Files, config, and history stay on your machine |
-| Quality names like `1080p`, `4k`, and `192K` | Exact final paths after conversion | No lyt account or hosted service |
-| Clipboard, profiles, clips, and prompts | Variant-aware history and meaningful exit codes | Zero npm runtime dependencies |
-| Capability-aware `lyt doctor` | One JSON document on stdout | Managed tools use a predictable local cache |
+| Memorable `yt3` and `yt4` shortcuts | Stable JSON and JSONL contracts | Files, config, and history stay on your machine |
+| Quality names like `1080p`, `4k`, and `192K` | Plans, exact paths, and local receipts | No lyt account or hosted service |
+| Clipboard, captions, clips, and prompts | Variant-aware history and meaningful exit codes | Zero npm runtime dependencies |
+| Capability-aware `lyt doctor` | Safe inspect/search before download | Managed tools use a predictable local cache |
 
 ## Install
 
@@ -98,6 +98,10 @@ lyt --video -q 1080p "URL"
 | preview without installing or downloading | `lyt --video -q 1080p --dry-run "URL"` |
 | use interactive prompts | `lyt --interactive` |
 | inspect available qualities | `lyt --list-formats "URL"` |
+| inspect metadata without downloading | `lyt inspect --json "URL"` |
+| preview selection, size, tools, and side effects | `lyt plan --video -q 1080p --json "URL"` |
+| search without downloading | `lyt search --limit 10 --json "query"` |
+| save publisher-provided English captions | `lyt --subs en "URL"` |
 | diagnose the environment as JSON | `lyt doctor --json` |
 
 Download several URLs with two workers:
@@ -151,7 +155,7 @@ lyt --mp3 -q 192K --max-filesize 2G --json "URL"
 ```json
 {
   "schema": "lyt.result.v1",
-  "version": "0.7.2",
+  "version": "0.8.0",
   "command": "download",
   "ok": true,
   "results": [
@@ -174,12 +178,27 @@ machine-readable document.
 - Downloaded files: `results[].files`
 - History dedupe: `status: "skipped"`, `reason: "history"`
 - Size guard: non-zero result with `reason: "max-filesize"`
+- Receipt/history write issue after media saved: `status: "partial"`,
+  `reason: "post-download"`; exact saved files remain in `files`
 - Result schema: [`schemas/lyt.result.v1.schema.json`](schemas/lyt.result.v1.schema.json)
 - Marketplace package: [`plugins/lyt`](plugins/lyt)
 - Demo kit: [`demos/agent-to-file`](demos/agent-to-file)
 
 Agents must ask before global installation, managed tool downloads, playlist
 mode, overwrites, authentication material, or external downloaders.
+
+For long-running integrations and the experimental desktop app, use the
+versioned JSONL job stream:
+
+```sh
+lyt --events-jsonl --job-id desktop:job-1 --video -q 1080p "URL"
+```
+
+Event mode accepts exactly one URL per job. Each stdout line is a
+`lyt.job-event.v1` document with an ordered sequence,
+progress, exact artifact paths, and a terminal `completed` or `failed` event.
+Canceling is performed by the calling process manager; retry starts a new
+explicit job, typically with a new job ID.
 
 ## Safe by default
 
@@ -228,6 +247,42 @@ lyt --normalize "URL"
 ```
 
 `--normalize` uses ffmpeg's EBU R128 loudness filter and implies MP3.
+
+### Captions and generated subtitles
+
+```sh
+lyt --subs en,es "URL"          # publisher-provided tracks only
+lyt --auto-subs en "URL"        # generated captions, explicit opt-in
+```
+
+Manual and generated caption modes are kept separate. lyt does not transcribe
+media, and subtitle sidecar paths are returned alongside downloaded files.
+
+### Inspect, plan, and search before downloading
+
+```sh
+lyt inspect --json "URL"
+lyt plan --video -q 1080p --json "URL"
+lyt search --limit 10 --json "query"
+```
+
+`inspect` and `search` read metadata only. `plan` reports the effective
+selection, output directory, available size estimate, required tools, history
+match, and the side effects a later approved download would perform. Search
+results never begin a download.
+
+### Local artifact receipts
+
+```sh
+lyt receipt --sha256 "downloaded-file.mp4"
+lyt verify "downloaded-file.mp4.lyt-receipt.json"
+lyt --receipt-sha256 --video "URL"
+```
+
+Receipts can include size, SHA-256, container, duration, codecs, and available
+tool versions. With SHA-256, verification checks local file contents against
+the receipt; without it, verification checks only the recorded size. Neither
+mode establishes remote authenticity or permission.
 
 ### Ready-made profiles
 

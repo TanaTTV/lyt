@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/tanattv/lyt/blob/main/schemas/lyt.job-event.v1.schema.json",
+  "title": "lyt job event v1",
+  "type": "object",
+  "required": ["schema", "version", "jobId", "sequence", "timestamp", "type"],
+  "properties": {
+    "schema": { "const": "lyt.job-event.v1" },
+    "version": { "type": "string" },
+    "jobId": { "type": "string", "minLength": 1 },
+    "sequence": { "type": "integer", "minimum": 1 },
+    "timestamp": { "type": "string", "format": "date-time" },
+    "type": {
+      "enum": [
+        "queued",
+        "started",
+        "progress",
+        "artifact",
+        "retrying",
+        "completed",
+        "failed",
+        "canceled"
+      ]
+    },
+    "url": { "type": "string" },
+    "data": { "type": "object", "additionalProperties": true }
+  },
+  "additionalProperties": false
+}

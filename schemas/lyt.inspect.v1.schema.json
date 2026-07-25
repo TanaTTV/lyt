@@ -1,0 +1,84 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/tanattv/lyt/blob/main/schemas/lyt.inspect.v1.schema.json",
+  "title": "lyt inspect v1",
+  "type": "object",
+  "required": ["schema", "version", "command", "ok", "requestedUrl", "media", "formats", "captions"],
+  "properties": {
+    "schema": { "const": "lyt.inspect.v1" },
+    "version": { "type": "string" },
+    "command": { "const": "inspect" },
+    "ok": { "const": true },
+    "requestedUrl": { "type": "string" },
+    "media": { "$ref": "#/$defs/media" },
+    "formats": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/format" }
+    },
+    "captions": {
+      "type": "object",
+      "required": ["manual", "automatic"],
+      "properties": {
+        "manual": { "$ref": "#/$defs/captionLanguages" },
+        "automatic": { "$ref": "#/$defs/captionLanguages" }
+      },
+      "additionalProperties": false
+    }
+  },
+  "$defs": {
+    "nullableString": { "type": ["string", "null"] },
+    "nullableNumber": { "type": ["number", "null"] },
+    "media": {
+      "type": "object",
+      "required": ["id", "title", "webpageUrl", "durationSeconds", "viewCount", "uploader", "channel", "thumbnail", "availability", "liveStatus"],
+      "properties": {
+        "id": { "$ref": "#/$defs/nullableString" },
+        "title": { "$ref": "#/$defs/nullableString" },
+        "webpageUrl": { "$ref": "#/$defs/nullableString" },
+        "durationSeconds": { "$ref": "#/$defs/nullableNumber" },
+        "viewCount": { "$ref": "#/$defs/nullableNumber" },
+        "uploader": { "$ref": "#/$defs/nullableString" },
+        "channel": { "$ref": "#/$defs/nullableString" },
+        "thumbnail": { "$ref": "#/$defs/nullableString" },
+        "availability": { "$ref": "#/$defs/nullableString" },
+        "liveStatus": { "$ref": "#/$defs/nullableString" }
+      },
+      "additionalProperties": false
+    },
+    "format": {
+      "type": "object",
+      "required": ["id", "extension", "resolution", "width", "height", "fps", "videoCodec", "audioCodec", "audioBitrateKbps", "totalBitrateKbps", "fileSizeBytes", "sizeKind", "hasVideo", "hasAudio"],
+      "properties": {
+        "id": { "$ref": "#/$defs/nullableString" },
+        "extension": { "$ref": "#/$defs/nullableString" },
+        "resolution": { "$ref": "#/$defs/nullableString" },
+        "width": { "$ref": "#/$defs/nullableNumber" },
+        "height": { "$ref": "#/$defs/nullableNumber" },
+        "fps": { "$ref": "#/$defs/nullableNumber" },
+        "videoCodec": { "$ref": "#/$defs/nullableString" },
+        "audioCodec": { "$ref": "#/$defs/nullableString" },
+        "audioBitrateKbps": { "$ref": "#/$defs/nullableNumber" },
+        "totalBitrateKbps": { "$ref": "#/$defs/nullableNumber" },
+        "fileSizeBytes": { "$ref": "#/$defs/nullableNumber" },
+        "sizeKind": { "enum": ["reported", "approximate", "unavailable"] },
+        "hasVideo": { "type": "boolean" },
+        "hasAudio": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    },
+    "captionLanguages": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["language", "formats", "trackCount"],
+        "properties": {
+          "language": { "type": "string" },
+          "formats": { "type": "array", "items": { "type": "string" } },
+          "trackCount": { "type": "integer", "minimum": 0 }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}
