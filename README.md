@@ -178,6 +178,23 @@ machine-readable document.
 - Marketplace package: [`plugins/lyt`](plugins/lyt)
 - Demo kit: [`demos/agent-to-file`](demos/agent-to-file)
 
+### Inspect before you download
+
+Agents can look before they leap. `lyt info` returns media metadata and
+available formats as JSON without downloading anything, and `lyt capabilities`
+returns a self-describing manifest of commands, modes, flags, and result
+schemas so a tool-calling agent can discover the surface without scraping help
+text.
+
+```sh
+lyt info --json "URL"          # lyt.info.v1: title, duration, uploader, formats
+lyt capabilities --json        # lyt.capabilities.v1: commands, flags, schemas
+```
+
+- Media metadata schema: [`schemas/lyt.info.v1.schema.json`](schemas/lyt.info.v1.schema.json)
+- Capabilities schema: [`schemas/lyt.capabilities.v1.schema.json`](schemas/lyt.capabilities.v1.schema.json)
+- `lyt info` reports capabilities of the URL; `lyt doctor` reports capabilities of the local environment.
+
 Agents must ask before global installation, managed tool downloads, playlist
 mode, overwrites, authentication material, or external downloaders.
 
@@ -322,6 +339,9 @@ lyt [options] <url> [more-urls...]
 yt3 <url>   # native-audio shortcut
 yt4 <url>   # video shortcut
 
+lyt info <url> [more-urls...] [--json]
+lyt inspect <url> [more-urls...] [--json]   # alias of info
+lyt capabilities [--json]
 lyt history [query] [--limit <n>] [--clear] [--json]
 lyt config <set|get|unset|list|path> [key] [value]
 lyt doctor [--fix] [--update] [--json]

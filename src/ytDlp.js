@@ -462,6 +462,10 @@ Grab just a slice of a long video:
   yt3 --clip 1:10-2:45 "URL"        (repeat --clip for multiple slices)
 
 Subcommands:
+  lyt info <url>            Show media metadata and formats without downloading
+                            (add --json for the lyt.info.v1 contract)
+  lyt capabilities          List commands, modes, flags, and result schemas
+                            (add --json for the lyt.capabilities.v1 contract)
   lyt history [query]       List/search past downloads (--clear wipes)
   lyt config <cmd>          Persistent defaults: set/get/unset/list/path
   lyt doctor                Check the environment (--fix installs missing

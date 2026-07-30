@@ -63,6 +63,13 @@ For machine-readable jobs, add `--json`. stdout contains one
 are returned in `results[].files`. Use `lyt doctor --json` to inspect available
 capabilities before requesting installation or a real download.
 
+Before downloading, agents can introspect without side effects:
+
+- `lyt info <url> --json` returns media metadata and available formats
+  (`lyt.info.v1`) without downloading.
+- `lyt capabilities --json` returns a manifest of commands, flags, and result
+  schemas (`lyt.capabilities.v1`) for tool discovery.
+
 Agents must ask before:
 
 - globally installing lyt;

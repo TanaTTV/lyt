@@ -33,6 +33,17 @@ lyt --clip 1:10-2:45 --mp3 --json "URL"
 lyt --list-formats --json "URL"
 ```
 
+Inspect before downloading. These commands have no side effects:
+
+```sh
+lyt info --json "URL"       # media metadata and formats (schema lyt.info.v1)
+lyt capabilities --json     # commands, flags, and schemas (lyt.capabilities.v1)
+```
+
+`lyt info` describes what a URL offers (title, duration, formats); `lyt doctor`
+describes what the local environment can do. Use `lyt capabilities` to discover
+the CLI surface instead of parsing human help text.
+
 Files go to `./downloads` under the current working directory unless `-o` is
 supplied. Before a real job, confirm the intended output directory when it is
 material to the user's workflow.
