@@ -5,6 +5,18 @@ versioning for the public CLI and machine-readable result contract.
 
 ## [Unreleased]
 
+### Added
+
+- `lyt info <url>` (alias `lyt inspect`) reports media metadata and available
+  formats without downloading, emitting the new `lyt.info.v1` contract with
+  `--json` (title, uploader, duration, live status, and per-format codec, size,
+  and bitrate details). This lets autonomous agents inspect a URL before
+  committing to a download.
+- `lyt capabilities` returns a self-describing manifest of commands, modes,
+  flags, profiles, result schemas, and exit codes, emitting the new
+  `lyt.capabilities.v1` contract with `--json` so tool-calling agents can
+  discover the CLI surface without scraping human help text.
+
 ### Fixed
 
 - YouTube downloads and format inspection now reuse lyt's supported Node.js
