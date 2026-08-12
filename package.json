@@ -1,6 +1,6 @@
 {
   "name": "@tanattv/lyt",
-  "version": "0.7.3",
+  "version": "0.7.4",
   "description": "Agent-ready local media CLI powered by yt-dlp and ffmpeg.",
   "type": "module",
   "bin": {

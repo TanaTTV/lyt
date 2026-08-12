@@ -43,6 +43,10 @@ import {
   resultEnvelope,
 } from "./result.js";
 import { VERSION } from "./version.js";
+import {
+  isUpdateCheckEnabled,
+  maybeNotifyUpdate,
+} from "./updateCheck.js";
 
 // Above this many URLs we skip the aggregated bar block (it would scroll the
 // terminal) and fall back to yt-dlp's own inherited progress output.
@@ -85,6 +89,11 @@ export async function main(argv, defaults = {}) {
 
   const parsed = parseArgs(argv);
 
+  // Option precedence (lowest to highest): entry-point defaults (yt4 ->
+  // video), persistent config file, --profile bundle, explicit flags.
+  const userConfig = loadConfig();
+  const updateCheckEnabled = isUpdateCheckEnabled(userConfig);
+
   if (parsed.help) {
     console.log(usage());
     return;
@@ -92,12 +101,12 @@ export async function main(argv, defaults = {}) {
 
   if (parsed.version) {
     console.log(`lyt ${VERSION}`);
+    if (updateCheckEnabled) {
+      await maybeNotifyUpdate({ enabled: true, force: false });
+    }
     return;
   }
 
-  // Option precedence (lowest to highest): entry-point defaults (yt4 ->
-  // video), persistent config file, --profile bundle, explicit flags.
-  const userConfig = loadConfig();
   const profileName = parsed.options.profile ?? userConfig.profile ?? null;
   const profileOptions = profileName ? resolveProfile(profileName) : {};
   parsed.options = {
@@ -253,6 +262,11 @@ export async function main(argv, defaults = {}) {
     error.exitCode = 1;
     error.jsonPrinted = options.json;
     throw error;
+  }
+
+  // Human runs only: quiet npm registry check so people notice new releases.
+  if (!options.json && updateCheckEnabled) {
+    await maybeNotifyUpdate({ enabled: true });
   }
 }
 

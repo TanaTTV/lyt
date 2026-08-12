@@ -1,7 +1,7 @@
 # lyt desktop app
 
 > **Status: experimental.** The desktop UI is a design and integration
-> prototype, not part of the lyt CLI v0.7.3 release. Do not publish production
+> prototype, not part of the lyt CLI v0.7.4 release. Do not publish production
 > installers until the app uses the canonical lyt engine and passes desktop CI.
 
 The Tauri application demonstrates a lightweight GUI for searching YouTube and

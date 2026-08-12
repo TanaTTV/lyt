@@ -152,7 +152,7 @@ lyt --mp3 -q 192K --max-filesize 2G --json "URL"
 ```json
 {
   "schema": "lyt.result.v1",
-  "version": "0.7.3",
+  "version": "0.7.4",
   "command": "download",
   "ok": true,
   "results": [
@@ -259,7 +259,14 @@ lyt doctor
 lyt doctor --json
 lyt doctor --fix
 lyt doctor --update
+
+# Optional: disable “update available” notices
+lyt config set update-check false
+# or: LYT_NO_UPDATE_CHECK=1
 ```
+
+Human downloads, `lyt doctor`, and `lyt --version` can notice when a newer lyt
+is on npm (cached about once a day). JSON/agent runs never print the hint.
 
 A malformed config is moved aside with a `.corrupt-<timestamp>` suffix instead
 of being ignored silently. Config writes use a complete temporary file before

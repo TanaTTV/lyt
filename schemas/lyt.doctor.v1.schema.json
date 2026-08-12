@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/TanaTTV/lyt/blob/v0.7.3/schemas/lyt.doctor.v1.schema.json",
+  "$id": "https://github.com/TanaTTV/lyt/blob/v0.7.4/schemas/lyt.doctor.v1.schema.json",
   "title": "lyt doctor v1",
   "type": "object",
   "required": ["schema", "version", "command", "ok", "checks", "capabilities", "paths"],

@@ -68,6 +68,8 @@ const CONFIG_KEYS = new Map([
   ["normalize", { option: "normalize", parse: BOOL }],
   ["downloader", { option: "downloader" }],
   ["downloader-args", { option: "downloaderArgs" }],
+  // Meta preference: not mapped into download options.
+  ["update-check", { parse: BOOL }],
 ]);
 
 export function configKeys() {
@@ -152,7 +154,7 @@ export function configToOptions(config) {
 
   for (const [key, value] of Object.entries(config)) {
     const spec = CONFIG_KEYS.get(key);
-    if (!spec || spec.option === "profile") continue;
+    if (!spec?.option || spec.option === "profile") continue;
     options[spec.option] = spec.parse ? spec.parse(value) : value;
   }
 

@@ -469,7 +469,8 @@ Subcommands:
   lyt history [query]       List/search past downloads (--clear wipes)
   lyt config <cmd>          Persistent defaults: set/get/unset/list/path
   lyt doctor                Check the environment (--fix installs missing
-                            tools, --update self-updates yt-dlp)
+                            tools, --update self-updates yt-dlp; also reports
+                            when a newer lyt release is on npm)
   lyt agent install [name]  Install the lyt skill for codex, claude, or all
                             (optional: --home <dir>)
 
@@ -512,7 +513,12 @@ Options:
   --json                    Emit stable lyt.result.v1 JSON with final paths
   -i, --interactive         Prompt for options interactively
   -h, --help                Show this help
-  -v, --version             Show version`;
+  -v, --version             Show version (and an update hint when available)
+
+Update checks:
+  After human downloads and on doctor/--version, lyt may check npm for a newer
+  release (cached ~24h). Disable with LYT_NO_UPDATE_CHECK=1 or:
+    lyt config set update-check false`;
 }
 
 function requireUrl(value) {

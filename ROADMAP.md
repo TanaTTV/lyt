@@ -4,11 +4,12 @@ The core product stays lightweight: one local CLI, one tested download engine,
 and predictable machine-readable results. New capabilities should extend that
 engine rather than duplicate it.
 
-## Shipped — v0.7.3
+## Shipped — v0.7.3 / v0.7.4
 
 - Copy-link-then-`lyt` clipboard auto-read on interactive terminals.
 - `lyt`-first docs and help (`yt3` / `yt4` as optional aliases).
 - Node.js as yt-dlp JavaScript runtime for more reliable extraction.
+- Quiet npm “update available” notices (`doctor`, `--version`, human downloads).
 
 ## Next — v0.8 search and discovery
 

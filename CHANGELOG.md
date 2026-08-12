@@ -5,6 +5,21 @@ versioning for the public CLI and machine-readable result contract.
 
 ## [Unreleased]
 
+## [0.7.4] - 2026-08-12
+
+### Added
+
+- Quiet “update available” notices when a newer lyt is published on npm.
+  Human downloads, `lyt doctor`, and `lyt --version` may check the registry
+  (cached about 24 hours) and print an install command on stderr. JSON/agent
+  runs stay silent. Disable with `LYT_NO_UPDATE_CHECK=1` or
+  `lyt config set update-check false`.
+
+### Compatibility
+
+- No breaking CLI or result-contract changes.
+- Update checks are optional and never fail a download.
+
 ## [0.7.3] - 2026-08-12
 
 ### Added
@@ -158,3 +173,4 @@ versioning for the public CLI and machine-readable result contract.
 [0.7.1]: https://github.com/TanaTTV/lyt/releases/tag/v0.7.1
 [0.7.2]: https://github.com/TanaTTV/lyt/releases/tag/v0.7.2
 [0.7.3]: https://github.com/TanaTTV/lyt/releases/tag/v0.7.3
+[0.7.4]: https://github.com/TanaTTV/lyt/releases/tag/v0.7.4

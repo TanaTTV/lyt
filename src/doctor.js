@@ -13,7 +13,12 @@ import { configPath } from "./config.js";
 import { resolveExecutableOnPath } from "./executables.js";
 import { historyPath, loadHistory } from "./history.js";
 import { binDir, dataDir } from "./paths.js";
+import { loadConfig } from "./config.js";
 import { VERSION } from "./version.js";
+import {
+  checkForUpdate,
+  isUpdateCheckEnabled,
+} from "./updateCheck.js";
 
 export async function runDoctor({
   fix = false,
@@ -32,6 +37,8 @@ export async function runDoctor({
     detail: `node ${process.versions.node}`,
     hint: nodeOk ? null : "lyt needs Node.js 20 or newer",
   });
+
+  checks.push(await lytVersionCheck());
 
   const ytDlp = await locate(() => ensureYtDlp({ noDownload: !fix }));
   checks.push({
@@ -225,7 +232,49 @@ function printHumanReport(payload, { fix, log }) {
 function printCheck(log, check) {
   const marker = check.ok ? "[ok]" : check.required ? "[!!]" : "[--]";
   log(`  ${marker} ${check.detail}`);
-  if (!check.ok && check.hint) log(`       ${check.hint}`);
+  if (check.hint) log(`       ${check.hint}`);
+}
+
+async function lytVersionCheck() {
+  const enabled = isUpdateCheckEnabled(loadConfig());
+  if (!enabled) {
+    return {
+      name: "lyt",
+      required: false,
+      ok: true,
+      detail: `lyt ${VERSION} (update checks disabled)`,
+      hint: null,
+    };
+  }
+
+  const update = await checkForUpdate({ force: true });
+  if (!update) {
+    return {
+      name: "lyt",
+      required: false,
+      ok: true,
+      detail: `lyt ${VERSION}`,
+      hint: "Could not reach npm to check for a newer lyt release.",
+    };
+  }
+
+  if (update.updateAvailable) {
+    return {
+      name: "lyt",
+      required: false,
+      ok: false,
+      detail: `lyt ${VERSION} (latest ${update.latestVersion})`,
+      hint: update.installCommand,
+    };
+  }
+
+  return {
+    name: "lyt",
+    required: false,
+    ok: true,
+    detail: `lyt ${VERSION} (up to date)`,
+    hint: null,
+  };
 }
 
 async function locate(ensure) {
