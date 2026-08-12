@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/tanattv/lyt/blob/main/schemas/lyt.capabilities.v1.schema.json",
+  "title": "lyt capabilities v1",
+  "type": "object",
+  "required": [
+    "schema",
+    "version",
+    "command",
+    "ok",
+    "node",
+    "commands",
+    "modes",
+    "profiles",
+    "schemas",
+    "exitCodes",
+    "options"
+  ],
+  "properties": {
+    "schema": { "const": "lyt.capabilities.v1" },
+    "version": { "type": "string" },
+    "command": { "const": "capabilities" },
+    "ok": { "type": "boolean" },
+    "node": { "type": "string" },
+    "commands": { "type": "array", "items": { "type": "string" } },
+    "modes": { "type": "array", "items": { "type": "string" } },
+    "profiles": { "type": "array", "items": { "type": "string" } },
+    "schemas": { "type": "array", "items": { "type": "string" } },
+    "exitCodes": {
+      "type": "object",
+      "additionalProperties": { "type": "string" }
+    },
+    "options": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["flag", "takesValue", "summary"],
+        "properties": {
+          "flag": { "type": "string" },
+          "takesValue": { "type": "boolean" },
+          "summary": { "type": "string" }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

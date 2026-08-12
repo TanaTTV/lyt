@@ -11,7 +11,14 @@ engine rather than duplicate it.
 - Node.js as yt-dlp JavaScript runtime for more reliable extraction.
 - Quiet npm “update available” notices (`doctor`, `--version`, human downloads).
 
-## Next — v0.8 search and discovery
+## In progress — v0.8 agent introspection + discovery
+
+### Shipped or shipping first (agent inspect)
+
+- `lyt info` / `lyt inspect` + `lyt.info.v1` (PR #40 rebased after cleanup)
+- `lyt capabilities` + `lyt.capabilities.v1`
+- Salvage tracking issues from mega-PR #39: #42 search, #43 plan, #44 receipts,
+  #45 jobs, #46 desktop sidecar
 
 ### CLI search
 

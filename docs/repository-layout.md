@@ -14,7 +14,7 @@ lyt/
 │   ├── download.js         Tools, workers, watch mode
 │   ├── process.js          Spawn / runCommand
 │   ├── errors.js           usageError + top-level error handler
-│   ├── commands/           history, config, agent subcommands
+│   ├── commands/           history, config, agent, info, capabilities
 │   └── …                   ytDlp, bootstrap, history, doctor, …
 ├── test/                   Node test suite
 ├── schemas/                Versioned machine-readable contracts

@@ -4,14 +4,17 @@
 import process from "node:process";
 import { run } from "./cli.js";
 import { runAgentCommand } from "./commands/agent.js";
+import { runCapabilitiesCommand } from "./commands/capabilities.js";
 import { runConfigCommand } from "./commands/config.js";
 import { runHistoryCommand } from "./commands/history.js";
+import { runInfoCommand } from "./commands/info.js";
 import { runDoctor } from "./doctor.js";
 import { handleCliError } from "./errors.js";
 import { extractVideoId } from "./urls.js";
 import { VALUE_OPTIONS } from "./ytDlp.js";
 
 export { parseHistoryArgs } from "./commands/history.js";
+export { parseInfoArgs } from "./commands/info.js";
 
 export function runEntry(argv, defaults = {}) {
   return mainEntry(argv, defaults).catch((error) => {
@@ -29,6 +32,11 @@ export async function mainEntry(argv, defaults = {}) {
         update: argv.includes("--update") || argv.includes("-U"),
         json: argv.includes("--json"),
       });
+    case "info":
+    case "inspect":
+      return runInfoCommand(argv.slice(1));
+    case "capabilities":
+      return runCapabilitiesCommand(argv.slice(1));
     case "config":
       return runConfigCommand(argv.slice(1));
     case "agent":
