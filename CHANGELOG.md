@@ -5,13 +5,21 @@ versioning for the public CLI and machine-readable result contract.
 
 ## [Unreleased]
 
+### Added
+
+- `lyt info <url>` (alias `lyt inspect`) reports media metadata and available
+  formats without downloading, emitting `lyt.info.v1` with `--json` (title,
+  uploader, duration, live status, and per-format codec/size/bitrate details).
+- `lyt capabilities` returns a self-describing manifest of commands, modes,
+  flags, profiles, result schemas, and exit codes as `lyt.capabilities.v1` with
+  `--json`, so agents can discover the surface without scraping help text.
+- `AGENTS.md` with Cursor Cloud environment notes for zero-dependency setup.
+
 ### Changed
 
-- Internal modular cleanup: single public router in `entry.js`, download engine
-  in `download.js` / `process.js`, subcommands under `src/commands/`, shared
-  `errors.js` helpers, and removal of dead cli shadow history/doctor handlers
-  and unused path helpers. Public CLI behavior, bins, flags, and JSON schemas
-  are unchanged.
+- Internal modular cleanup (merged via #41): single public router in `entry.js`,
+  download engine in `download.js` / `process.js`, subcommands under
+  `src/commands/`, shared `errors.js` helpers.
 
 ## [0.7.4] - 2026-08-12
 

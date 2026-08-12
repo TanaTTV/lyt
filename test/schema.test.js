@@ -29,3 +29,22 @@ test("the packaged history schema describes list and clear results", () => {
   assert.deepEqual(schema.properties.command.enum, ["history.list", "history.clear"]);
   assert.ok(schema.required.includes("path"));
 });
+
+test("the packaged info schema describes media inspection results", () => {
+  const schema = readSchema("lyt.info.v1");
+  assert.equal(schema.properties.schema.const, "lyt.info.v1");
+  assert.equal(schema.properties.command.const, "info");
+  assert.ok(schema.required.includes("results"));
+  const result = schema.properties.results.items;
+  assert.deepEqual(result.properties.status.enum, ["available", "failed"]);
+  assert.ok("formats" in result.properties);
+});
+
+test("the packaged capabilities schema describes the product surface", () => {
+  const schema = readSchema("lyt.capabilities.v1");
+  assert.equal(schema.properties.schema.const, "lyt.capabilities.v1");
+  assert.equal(schema.properties.command.const, "capabilities");
+  for (const field of ["commands", "modes", "profiles", "schemas", "options"]) {
+    assert.ok(schema.required.includes(field), `missing required field: ${field}`);
+  }
+});

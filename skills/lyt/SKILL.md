@@ -21,6 +21,17 @@ Do not perform either without explicit user approval. Check capabilities with:
 lyt doctor --json
 ```
 
+Inspect before downloading. These commands have no download side effects:
+
+```sh
+lyt info --json "URL"       # media metadata and formats (schema lyt.info.v1)
+lyt capabilities --json     # commands, flags, and schemas (lyt.capabilities.v1)
+```
+
+`lyt info` describes what a URL offers (title, duration, formats); `lyt doctor`
+describes what the local environment can do. Use `lyt capabilities` to discover
+the CLI surface instead of parsing human help text.
+
 Always quote URLs. Prefer `--dry-run --json` before a large or uncertain job.
 For bounded agent calls, `--json` emits one JSON document using schema `lyt.result.v1` on stdout; setup and progress diagnostics go to stderr.
 

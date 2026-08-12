@@ -72,4 +72,6 @@ node bin/yt4.js --help
 
 ## Versioning
 
-Pure internal cleanup → ship as **0.7.5** (patch) with a Maintenance / Internal changelog section when ready to release.
+Pure internal cleanup → shipped via **#41** (merged). Agent introspection
+(`info` / `capabilities`) ports onto that base as the first **v0.8** product
+slice (updated **#40**).

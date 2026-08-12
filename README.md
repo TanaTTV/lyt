@@ -99,6 +99,8 @@ lyt --video -q 1080p "URL"
 | preview without installing or downloading | `lyt --video -q 1080p --dry-run "URL"` |
 | use interactive prompts | `lyt --interactive` |
 | inspect available qualities | `lyt --list-formats "URL"` |
+| inspect media without downloading | `lyt info --json "URL"` |
+| list CLI surface for agents | `lyt capabilities --json` |
 | diagnose the environment as JSON | `lyt doctor --json` |
 
 Download several URLs with two workers:
@@ -143,6 +145,19 @@ claude plugin marketplace add TanaTTV/lyt
 claude plugin install lyt@lyt-plugins
 ```
 
+### Inspect before you download
+
+Agents can look before they leap. `lyt info` returns media metadata and
+available formats as JSON without downloading anything, and `lyt capabilities`
+returns a self-describing manifest of commands, modes, flags, and result
+schemas so a tool-calling agent can discover the surface without scraping help
+text:
+
+```sh
+lyt info --json "URL"          # lyt.info.v1: title, duration, uploader, formats
+lyt capabilities --json        # lyt.capabilities.v1: commands, flags, schemas
+```
+
 For bounded machine-readable jobs, add `--json`:
 
 ```sh
@@ -176,6 +191,9 @@ machine-readable document.
 - History dedupe: `status: "skipped"`, `reason: "history"`
 - Size guard: non-zero result with `reason: "max-filesize"`
 - Result schema: [`schemas/lyt.result.v1.schema.json`](schemas/lyt.result.v1.schema.json)
+- Media metadata schema: [`schemas/lyt.info.v1.schema.json`](schemas/lyt.info.v1.schema.json)
+- Capabilities schema: [`schemas/lyt.capabilities.v1.schema.json`](schemas/lyt.capabilities.v1.schema.json)
+- `lyt info` reports what a URL offers; `lyt doctor` reports what the local environment can do
 - Marketplace package: [`plugins/lyt`](plugins/lyt)
 - Demo kit: [`demos/agent-to-file`](demos/agent-to-file)
 
@@ -329,6 +347,9 @@ Use `--no-download` or `LYT_NO_DOWNLOAD=1` to require tools on `PATH`.
 ```text
 lyt [options] <url> [more-urls...]
 
+lyt info <url> [more-urls...] [--json]
+lyt inspect <url> [more-urls...] [--json]   # alias of info
+lyt capabilities [--json]
 lyt history [query] [--limit <n>] [--clear] [--json]
 lyt config <set|get|unset|list|path> [key] [value]
 lyt doctor [--fix] [--update] [--json]
