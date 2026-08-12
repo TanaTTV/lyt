@@ -443,7 +443,10 @@ export function formatCommand(command, args) {
 export function usage() {
   return `Usage:
   lyt [options] <youtube-url> [more-urls...]
-  yt3 <url>   audio shortcut        yt4 <url>   video shortcut
+
+Aliases (optional):
+  yt3 <url>   same as lyt with audio defaults
+  yt4 <url>   same as lyt with video defaults
 
 Audio (default):
   lyt "https://www.youtube.com/watch?v=..."
@@ -452,14 +455,15 @@ MP3 conversion:
   lyt --mp3 -q 192K "https://www.youtube.com/watch?v=..."
 
 Video at a chosen quality:
-  yt4 -q 1080p "https://www.youtube.com/watch?v=..."
+  lyt --video -q 1080p "https://www.youtube.com/watch?v=..."
 
 Zero typing — download straight from the clipboard:
-  yt3 --paste              download every YouTube link on the clipboard
-  yt3 --watch              keep watching the clipboard; grab links as you copy
+  lyt                      with a link already copied (interactive terminal)
+  lyt --paste              always read the clipboard (scripts and non-TTY too)
+  lyt --watch              keep watching the clipboard; grab links as you copy
 
 Grab just a slice of a long video:
-  yt3 --clip 1:10-2:45 "URL"        (repeat --clip for multiple slices)
+  lyt --clip 1:10-2:45 "URL"        (repeat --clip for multiple slices)
 
 Subcommands:
   lyt history [query]       List/search past downloads (--clear wipes)
@@ -483,7 +487,8 @@ Options:
   --split-chapters          Split into one file per chapter, named by chapter
   --normalize               Loudness-normalize audio (EBU R128; implies --mp3)
   --no-normalize            Disable normalization inherited from config/profile
-  -p, --paste               Add YouTube URL(s) found on the clipboard
+  -p, --paste               Add YouTube URL(s) from the clipboard (always;
+                            interactive terminals also auto-read when no URL)
   --watch, --queue          Watch the clipboard and download every copied link
   --profile <name>          Preset bundle: music, podcast, or voice
   --redownload              Download even if the video is already in history

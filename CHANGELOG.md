@@ -5,11 +5,32 @@ versioning for the public CLI and machine-readable result contract.
 
 ## [Unreleased]
 
+## [0.7.3] - 2026-08-12
+
+### Added
+
+- Interactive terminals auto-read YouTube URLs from the clipboard when no URL
+  argument is given, so the default workflow is copy a link and run `lyt`.
+  Explicit `--paste` still works everywhere, including scripts and non-TTY
+  runs. `--json` and non-interactive invocations never read the clipboard
+  unless `--paste` is set.
+
+### Changed
+
+- Docs and CLI help now present `yt3` and `yt4` as optional aliases, with `lyt`
+  as the primary interface.
+
 ### Fixed
 
 - YouTube downloads and format inspection now reuse lyt's supported Node.js
   executable as yt-dlp's JavaScript runtime, avoiding extractor failures when
   no separate runtime such as Deno is installed.
+
+### Compatibility
+
+- Existing `lyt`, `yt3`, and `yt4` commands remain supported.
+- Explicit URL arguments, `--paste`, `--watch`, and agent `--json` behavior are
+  unchanged aside from the TTY auto-clipboard path above.
 
 ## [0.7.2] - 2026-07-19
 
@@ -136,3 +157,4 @@ versioning for the public CLI and machine-readable result contract.
 [0.7.0]: https://github.com/TanaTTV/lyt/releases/tag/v0.7.0
 [0.7.1]: https://github.com/TanaTTV/lyt/releases/tag/v0.7.1
 [0.7.2]: https://github.com/TanaTTV/lyt/releases/tag/v0.7.2
+[0.7.3]: https://github.com/TanaTTV/lyt/releases/tag/v0.7.3

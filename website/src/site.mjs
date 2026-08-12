@@ -41,13 +41,13 @@ export const pages = [
           <div>
             <div class="kicker">For people</div>
             <h2>Stop memorizing flags.</h2>
-            <p>Use readable quality names, quick audio and video shortcuts, profiles, clips, chapters, history, and clipboard workflows.</p>
+            <p>Copy a link and run <code>lyt</code>. Use readable quality names, profiles, clips, chapters, history, and clipboard watch when you need more.</p>
           </div>
           <div class="command-stack">
-            <code>yt3 "URL" <span>native audio</span></code>
+            <code>lyt <span>clipboard link</span></code>
+            <code>lyt "URL" <span>native audio</span></code>
             <code>lyt --mp3 -q 192K "URL" <span>MP3</span></code>
-            <code>yt4 -q 1080p "URL" <span>video</span></code>
-            <code>lyt --clip 1:10-2:45 --mp3 "URL" <span>clip</span></code>
+            <code>lyt --video -q 1080p "URL" <span>video</span></code>
           </div>
         </section>
 
@@ -107,7 +107,7 @@ export const pages = [
         <p class="lede">lyt requires Node.js 20 or newer. It can fetch verified yt-dlp binaries automatically. On Windows it can also provision ffmpeg; on macOS and Linux, <code>lyt doctor</code> provides the correct package-manager command.</p>
         <section><h2>1. Install the CLI</h2><div class="code-block"><code>npm install --global @tanattv/lyt</code><button class="copy" data-copy="npm install --global @tanattv/lyt" aria-live="polite">Copy</button></div></section>
         <section><h2>2. Check your capabilities</h2><div class="code-block"><code>lyt doctor</code><button class="copy" data-copy="lyt doctor" aria-live="polite">Copy</button></div><p>The doctor separates required core tools from optional capabilities such as MP3/video processing and clipboard integration.</p></section>
-        <section><h2>3. Download one permitted item</h2><div class="recipe-grid"><article><span>Native audio</span><code>lyt --audio "URL"</code></article><article><span>MP3 · 192K</span><code>lyt --mp3 -q 192K "URL"</code></article><article><span>Video · 1080p</span><code>lyt --video -q 1080p "URL"</code></article></div></section>
+        <section><h2>3. Download one permitted item</h2><div class="recipe-grid"><article><span>Clipboard</span><code>lyt</code></article><article><span>MP3 · 192K</span><code>lyt --mp3 -q 192K "URL"</code></article><article><span>Video · 1080p</span><code>lyt --video -q 1080p "URL"</code></article></div></section>
         <section class="callout"><h2>Where does the file go?</h2><p>By default, lyt saves to a <code>downloads</code> folder under the current working directory and prints the exact final path. Choose another location with <code>-o "D:/Media"</code>.</p></section>
         <section><h2>Common first-run fixes</h2><ul class="check-list"><li>Confirm <code>node --version</code> is 20 or newer.</li><li>Run <code>lyt doctor --fix</code> only after approving managed tool installation.</li><li>Quote every URL so the shell does not interpret special characters.</li><li>Use <code>--dry-run</code> to preview a job without installing or downloading.</li><li>Open a GitHub issue without sharing cookies, private URLs, tokens, or personal paths.</li></ul></section>
         <div class="page-actions"><a class="button primary" href="https://www.npmjs.com/package/@tanattv/lyt">Open npm package</a><a class="button secondary" href="https://github.com/TanaTTV/lyt/issues">Get help</a></div>

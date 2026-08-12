@@ -49,7 +49,7 @@ correct package-manager command when ffmpeg is needed.
 
 | Friendly for people | Reliable for automation | Local by default |
 | --- | --- | --- |
-| Memorable `yt3` and `yt4` shortcuts | Stable `lyt.result.v1` JSON | Files, config, and history stay on your machine |
+| One command: `lyt` | Stable `lyt.result.v1` JSON | Files, config, and history stay on your machine |
 | Quality names like `1080p`, `4k`, and `192K` | Exact final paths after conversion | No lyt account or hosted service |
 | Clipboard, profiles, clips, and prompts | Variant-aware history and meaningful exit codes | Zero npm runtime dependencies |
 | Capability-aware `lyt doctor` | One JSON document on stdout | Managed tools use a predictable local cache |
@@ -91,9 +91,10 @@ lyt --video -q 1080p "URL"
 
 | I want to… | Command |
 | --- | --- |
-| save native audio quickly | `yt3 "URL"` |
+| copy a link, then download | `lyt` (interactive terminal reads the clipboard) |
+| save native audio quickly | `lyt "URL"` |
 | create an MP3 | `lyt --mp3 -q 192K "URL"` |
-| save a 1080p video | `yt4 -q 1080p "URL"` |
+| save a 1080p video | `lyt --video -q 1080p "URL"` |
 | choose a folder | `lyt --mp3 -o "D:/Music" "URL"` |
 | preview without installing or downloading | `lyt --video -q 1080p --dry-run "URL"` |
 | use interactive prompts | `lyt --interactive` |
@@ -151,7 +152,7 @@ lyt --mp3 -q 192K --max-filesize 2G --json "URL"
 ```json
 {
   "schema": "lyt.result.v1",
-  "version": "0.7.2",
+  "version": "0.7.3",
   "command": "download",
   "ok": true,
   "results": [
@@ -206,8 +207,9 @@ lyt --no-history "URL"
 ### Clipboard downloads
 
 ```sh
-yt3 --paste     # download supported links currently on the clipboard
-yt4 --watch     # watch for newly copied links until Ctrl+C
+lyt             # interactive terminal: use a YouTube link already on the clipboard
+lyt --paste     # always read the clipboard (scripts / non-TTY too)
+lyt --watch     # watch for newly copied links until Ctrl+C
 ```
 
 ### Grab part of a video
@@ -319,14 +321,25 @@ Use `--no-download` or `LYT_NO_DOWNLOAD=1` to require tools on `PATH`.
 
 ```text
 lyt [options] <url> [more-urls...]
-yt3 <url>   # native-audio shortcut
-yt4 <url>   # video shortcut
 
 lyt history [query] [--limit <n>] [--clear] [--json]
 lyt config <set|get|unset|list|path> [key] [value]
 lyt doctor [--fix] [--update] [--json]
 lyt agent install [codex|claude|all] [--home <dir>]
 ```
+
+### Aliases
+
+`yt3` and `yt4` remain installed for compatibility. They are optional shortcuts,
+not a second product surface:
+
+| Alias | Equivalent |
+| --- | --- |
+| `yt3 "URL"` | `lyt "URL"` (native audio defaults) |
+| `yt4 "URL"` | `lyt --video "URL"` (video defaults) |
+
+Everything else — flags, subcommands, config, history, and JSON — is the same
+`lyt` interface.
 
 <details>
 <summary><strong>Show every CLI option</strong></summary>

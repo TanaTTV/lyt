@@ -107,16 +107,25 @@ export async function main(argv, defaults = {}) {
     ...parsed.options,
   };
 
-  if (parsed.options.paste) {
-    const fromClipboard = extractYouTubeUrls(readClipboard());
-
-    if (fromClipboard.length === 0 && parsed.urls.length === 0 && !parsed.options.watch) {
-      const error = new Error("No YouTube URLs found on the clipboard.");
-      error.exitCode = 2;
-      throw error;
-    }
-
-    parsed.urls = dedupeUrls([...parsed.urls, ...fromClipboard]);
+  // Explicit --paste always reads the clipboard. With no URL on an interactive
+  // TTY, also auto-read so "copy link → lyt" works without flags. Scripts,
+  // --json, and non-TTY runs stay explicit (no silent clipboard access).
+  if (
+    shouldReadClipboardForUrls({
+      urls: parsed.urls,
+      paste: parsed.options.paste,
+      watch: parsed.options.watch,
+      json: parsed.options.json,
+      isTTY: Boolean(process.stdin.isTTY),
+    })
+  ) {
+    const { urls, fromClipboard } = mergeClipboardUrls({
+      urls: parsed.urls,
+      clipboardText: readClipboard(),
+      paste: parsed.options.paste,
+      watch: parsed.options.watch,
+    });
+    parsed.urls = urls;
 
     if (fromClipboard.length > 0) {
       console.error(`Picked up ${fromClipboard.length} URL(s) from the clipboard.`);
@@ -644,6 +653,45 @@ function usageError(message) {
 // Helpers
 // ---------------------------------------------------------------------------
 
+/** Whether this invocation should consult the clipboard for media URLs. */
+export function shouldReadClipboardForUrls({
+  urls = [],
+  paste = false,
+  watch = false,
+  json = false,
+  isTTY = false,
+} = {}) {
+  if (paste) return true;
+  if (watch) return false;
+  if (urls.length > 0) return false;
+  if (json) return false;
+  return Boolean(isTTY);
+}
+
+/**
+ * Merge YouTube URLs found in clipboard text into the argv URL list.
+ * Explicit --paste errors when nothing usable is found; auto-paste does not.
+ */
+export function mergeClipboardUrls({
+  urls = [],
+  clipboardText = "",
+  paste = false,
+  watch = false,
+} = {}) {
+  const fromClipboard = extractYouTubeUrls(clipboardText);
+
+  if (paste && fromClipboard.length === 0 && urls.length === 0 && !watch) {
+    const error = new Error("No YouTube URLs found on the clipboard.");
+    error.exitCode = 2;
+    throw error;
+  }
+
+  return {
+    urls: fromClipboard.length > 0 ? dedupeUrls([...urls, ...fromClipboard]) : urls,
+    fromClipboard,
+  };
+}
+
 function dedupeUrls(urls) {
   const seen = new Set();
   const unique = [];
@@ -735,7 +783,7 @@ function printFormats(url, formats) {
     const labels = formats.heights.map((height) => labelHeight(height));
     console.log(`  video: ${labels.join(", ")}`);
     const best = formats.heights[0];
-    console.log(`  download best with: ${formatCommand("yt4", ["-q", `${best}p`, "--", url])}`);
+    console.log(`  download best with: ${formatCommand("lyt", ["--video", "-q", `${best}p`, "--", url])}`);
   }
 
   if (formats.audioBitrates.length > 0) {

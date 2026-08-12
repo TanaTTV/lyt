@@ -4,14 +4,11 @@ The core product stays lightweight: one local CLI, one tested download engine,
 and predictable machine-readable results. New capabilities should extend that
 engine rather than duplicate it.
 
-## Now — v0.7.2 stabilization
+## Shipped — v0.7.3
 
-- Variant-aware history and duplicate prevention.
-- Strict JSON stdout behavior.
-- Safer managed tool downloads.
-- Capability-aware diagnostics.
-- Accurate install and website claims.
-- Cross-platform tests and repository documentation.
+- Copy-link-then-`lyt` clipboard auto-read on interactive terminals.
+- `lyt`-first docs and help (`yt3` / `yt4` as optional aliases).
+- Node.js as yt-dlp JavaScript runtime for more reliable extraction.
 
 ## Next — v0.8 search and discovery
 
