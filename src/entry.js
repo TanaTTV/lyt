@@ -1,72 +1,41 @@
+// Public entry: sole router for bins (lyt / yt3 / yt4).
+// Subcommands live under src/commands; downloads go through cli.js.
+
 import process from "node:process";
 import { run } from "./cli.js";
-import {
-  clearHistory,
-  historyPath,
-  loadHistory,
-  searchHistory,
-} from "./history.js";
+import { runAgentCommand } from "./commands/agent.js";
+import { runConfigCommand } from "./commands/config.js";
+import { runHistoryCommand } from "./commands/history.js";
 import { runDoctor } from "./doctor.js";
-import { errorDetails, resultEnvelope } from "./result.js";
+import { handleCliError } from "./errors.js";
 import { extractVideoId } from "./urls.js";
-import { VERSION } from "./version.js";
+import { VALUE_OPTIONS } from "./ytDlp.js";
 
-const VALUE_OPTIONS = new Set([
-  "--clip",
-  "--profile",
-  "-o",
-  "--output-dir",
-  "-q",
-  "--quality",
-  "-f",
-  "--fragments",
-  "-j",
-  "--jobs",
-  "--template",
-  "--max-height",
-  "--downloader",
-  "--downloader-args",
-  "--max-filesize",
-]);
-
-const PASSTHROUGH_SUBCOMMANDS = new Set(["agent", "config"]);
+export { parseHistoryArgs } from "./commands/history.js";
 
 export function runEntry(argv, defaults = {}) {
   return mainEntry(argv, defaults).catch((error) => {
-    if (argv.includes("--json")) {
-      console.log(JSON.stringify(resultEnvelope({
-        command: "error",
-        ok: false,
-        error: errorDetails(error),
-        version: VERSION,
-      })));
-    } else {
-      console.error(error instanceof Error ? error.message : String(error));
-    }
-
-    process.exitCode = error?.exitCode ?? 1;
+    handleCliError(error, { json: argv.includes("--json") });
   });
 }
 
 export async function mainEntry(argv, defaults = {}) {
-  if (argv[0] === "history") {
-    return runHistoryCommand(argv.slice(1));
+  switch (argv[0]) {
+    case "history":
+      return runHistoryCommand(argv.slice(1));
+    case "doctor":
+      return runDoctor({
+        fix: argv.includes("--fix"),
+        update: argv.includes("--update") || argv.includes("-U"),
+        json: argv.includes("--json"),
+      });
+    case "config":
+      return runConfigCommand(argv.slice(1));
+    case "agent":
+      return runAgentCommand(argv.slice(1));
+    default:
+      return run(prepareDownloadArgv(argv), defaults);
   }
-
-  if (argv[0] === "doctor") {
-    return runDoctor({
-      fix: argv.includes("--fix"),
-      update: argv.includes("--update") || argv.includes("-U"),
-      json: argv.includes("--json"),
-    });
-  }
-
-  if (PASSTHROUGH_SUBCOMMANDS.has(argv[0])) {
-    return run(argv, defaults);
-  }
-
-  const prepared = prepareDownloadArgv(argv);
-  return run(prepared, defaults);
 }
 
 export function prepareDownloadArgv(argv) {
@@ -119,107 +88,4 @@ export function dedupePositionalUrls(argv) {
   }
 
   return result;
-}
-
-export function parseHistoryArgs(argv) {
-  let clear = false;
-  let json = false;
-  let limit = 20;
-  const query = [];
-
-  for (let index = 0; index < argv.length; index += 1) {
-    const arg = argv[index];
-
-    if (arg === "--clear") {
-      clear = true;
-      continue;
-    }
-
-    if (arg === "--json") {
-      json = true;
-      continue;
-    }
-
-    if (arg === "--limit") {
-      const raw = argv[++index];
-      if (raw === undefined || !/^\d+$/.test(raw) || Number(raw) < 1) {
-        throw usageError("--limit requires a positive integer");
-      }
-      limit = Number(raw);
-      continue;
-    }
-
-    if (arg.startsWith("-")) {
-      throw usageError(`Unknown history option: ${arg}`);
-    }
-
-    query.push(arg);
-  }
-
-  if (clear && query.length > 0) {
-    throw usageError("lyt history --clear cannot be combined with a search query");
-  }
-
-  return { clear, json, limit, query: query.join(" ") };
-}
-
-function runHistoryCommand(argv) {
-  const options = parseHistoryArgs(argv);
-
-  if (options.clear) {
-    clearHistory();
-    if (options.json) {
-      console.log(JSON.stringify({
-        schema: "lyt.history.v1",
-        version: VERSION,
-        command: "history.clear",
-        ok: true,
-        path: historyPath(),
-      }));
-    } else {
-      console.log("Download history cleared.");
-    }
-    return;
-  }
-
-  const entries = searchHistory(loadHistory(), options.query);
-  const visible = entries.slice(-options.limit);
-
-  if (options.json) {
-    console.log(JSON.stringify({
-      schema: "lyt.history.v1",
-      version: VERSION,
-      command: "history.list",
-      ok: true,
-      query: options.query,
-      total: entries.length,
-      entries: visible,
-      path: historyPath(),
-    }));
-    return;
-  }
-
-  if (entries.length === 0) {
-    console.log(options.query
-      ? `No history entries match "${options.query}".`
-      : "No downloads recorded yet.");
-    console.log(`(history file: ${historyPath()})`);
-    return;
-  }
-
-  for (const entry of visible) {
-    const when = String(entry.ts ?? "").replace("T", " ").slice(0, 16);
-    const mode = (entry.mode ?? "?").padEnd(5);
-    console.log(`${when}  ${mode}  ${entry.url ?? entry.id ?? "?"}`);
-  }
-
-  if (entries.length > options.limit) {
-    console.log(`(${entries.length - options.limit} older entries not shown - use --limit <n>)`);
-  }
-}
-
-function usageError(message) {
-  const error = new Error(message);
-  error.exitCode = 2;
-  return error;
 }

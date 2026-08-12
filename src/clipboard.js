@@ -5,6 +5,7 @@
 import { spawnSync } from "node:child_process";
 import process from "node:process";
 import { resolveExecutableOnPath } from "./executables.js";
+import { dedupeUrlList, extractYouTubeUrls } from "./urls.js";
 
 // Candidate readers per platform, tried in order until one works.
 export function clipboardCommands(platform = process.platform) {
@@ -54,4 +55,43 @@ export function readClipboard({
   }
 
   return "";
+}
+
+/** Whether this invocation should consult the clipboard for media URLs. */
+export function shouldReadClipboardForUrls({
+  urls = [],
+  paste = false,
+  watch = false,
+  json = false,
+  isTTY = false,
+} = {}) {
+  if (paste) return true;
+  if (watch) return false;
+  if (urls.length > 0) return false;
+  if (json) return false;
+  return Boolean(isTTY);
+}
+
+/**
+ * Merge YouTube URLs found in clipboard text into the argv URL list.
+ * Explicit --paste errors when nothing usable is found; auto-paste does not.
+ */
+export function mergeClipboardUrls({
+  urls = [],
+  clipboardText = "",
+  paste = false,
+  watch = false,
+} = {}) {
+  const fromClipboard = extractYouTubeUrls(clipboardText);
+
+  if (paste && fromClipboard.length === 0 && urls.length === 0 && !watch) {
+    const error = new Error("No YouTube URLs found on the clipboard.");
+    error.exitCode = 2;
+    throw error;
+  }
+
+  return {
+    urls: fromClipboard.length > 0 ? dedupeUrlList([...urls, ...fromClipboard]) : urls,
+    fromClipboard,
+  };
 }

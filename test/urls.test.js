@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { extractVideoId, extractYouTubeUrls } from "../src/urls.js";
+import { dedupeUrlList, extractVideoId, extractYouTubeUrls } from "../src/urls.js";
 
 test("extracts watch, short-link, shorts, live, and playlist URLs from text", () => {
   const text = `
@@ -59,4 +59,18 @@ test("extractVideoId returns null when there is no video id", () => {
   assert.equal(extractVideoId("https://www.youtube.com/playlist?list=PL123"), null);
   assert.equal(extractVideoId("not a url"), null);
   assert.equal(extractVideoId(null), null);
+});
+
+test("dedupeUrlList keeps first-seen order by video id", () => {
+  assert.deepEqual(
+    dedupeUrlList([
+      "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+      "https://youtu.be/dQw4w9WgXcQ",
+      "https://www.youtube.com/watch?v=AAAAAAAAAAA",
+    ]),
+    [
+      "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+      "https://www.youtube.com/watch?v=AAAAAAAAAAA",
+    ],
+  );
 });

@@ -1,5 +1,7 @@
 import { spawn } from "node:child_process";
 import { ytDlpJsRuntimeArgs } from "./jsRuntime.js";
+import { labelHeight } from "./quality.js";
+import { formatCommand } from "./ytDlp.js";
 
 // Parses `yt-dlp -J` (JSON dump) output into the set of qualities actually
 // available for a URL. Pure, so it is unit-tested with sample payloads.
@@ -83,4 +85,25 @@ export function listFormats(
       }
     });
   });
+}
+
+export function printFormats(url, formats) {
+  console.log(formats.title ? `${formats.title}` : url);
+
+  if (formats.heights.length > 0) {
+    const labels = formats.heights.map((height) => labelHeight(height));
+    console.log(`  video: ${labels.join(", ")}`);
+    const best = formats.heights[0];
+    console.log(`  download best with: ${formatCommand("lyt", ["--video", "-q", `${best}p`, "--", url])}`);
+  }
+
+  if (formats.audioBitrates.length > 0) {
+    console.log(`  audio: ${formats.audioBitrates.map((rate) => `${rate}k`).join(", ")}`);
+  }
+
+  if (formats.heights.length === 0 && formats.audioBitrates.length === 0) {
+    console.log("  no downloadable formats reported");
+  }
+
+  console.log("");
 }
