@@ -4,6 +4,28 @@ import { resolveHeight } from "./quality.js";
 
 const DEFAULT_OUTPUT_TEMPLATE = "%(title).180B [%(id)s].%(ext)s";
 
+/**
+ * Flags that consume the next argv token as a value. Shared with entry.js so
+ * URL dedupe does not treat option values as media URLs.
+ */
+export const VALUE_OPTIONS = new Set([
+  "--clip",
+  "--profile",
+  "-o",
+  "--output-dir",
+  "-q",
+  "--quality",
+  "-f",
+  "--fragments",
+  "-j",
+  "--jobs",
+  "--template",
+  "--max-height",
+  "--downloader",
+  "--downloader-args",
+  "--max-filesize",
+]);
+
 export function parseArgs(argv) {
   const options = {};
   const urls = [];

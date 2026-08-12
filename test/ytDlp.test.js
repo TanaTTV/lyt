@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
+  VALUE_OPTIONS,
   buildYtDlpArgs,
   formatCommand,
   normalizeOptions,
@@ -356,6 +357,32 @@ test("video mode clears inherited normalization and supports explicit negation",
 // ---------------------------------------------------------------------------
 // Clipboard / watch / history flags
 // ---------------------------------------------------------------------------
+
+test("VALUE_OPTIONS covers every value-taking flag used by parseArgs", () => {
+  // Shared with entry.js URL dedupe. Missing entries cause option values to
+  // be treated as media URLs during prepareDownloadArgv.
+  const required = [
+    "--clip",
+    "--profile",
+    "-o",
+    "--output-dir",
+    "-q",
+    "--quality",
+    "-f",
+    "--fragments",
+    "-j",
+    "--jobs",
+    "--template",
+    "--max-height",
+    "--downloader",
+    "--downloader-args",
+    "--max-filesize",
+  ];
+
+  for (const flag of required) {
+    assert.equal(VALUE_OPTIONS.has(flag), true, `missing VALUE_OPTIONS entry: ${flag}`);
+  }
+});
 
 test("paste, watch, redownload, and no-history flags parse", () => {
   const parsed = parseArgs([

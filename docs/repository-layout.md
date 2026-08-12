@@ -9,6 +9,13 @@ specific paths. Tests keep those copies byte-for-byte synchronized.
 lyt/
 ├── bin/                    Executable entry points: lyt, yt3, yt4
 ├── src/                    Canonical Node.js CLI implementation
+│   ├── entry.js            Public router + download argv prep
+│   ├── cli.js              Download coordinator only
+│   ├── download.js         Tools, workers, watch mode
+│   ├── process.js          Spawn / runCommand
+│   ├── errors.js           usageError + top-level error handler
+│   ├── commands/           history, config, agent subcommands
+│   └── …                   ytDlp, bootstrap, history, doctor, …
 ├── test/                   Node test suite
 ├── schemas/                Versioned machine-readable contracts
 ├── skills/                 Canonical npm-packaged agent skill
@@ -27,13 +34,14 @@ lyt/
 
 ## Canonical sources
 
-- CLI behavior: `src/`
+- CLI behavior: `src/` (entry routes; cli coordinates downloads)
 - Public executables: `bin/`
 - Agent instructions: `skills/lyt/SKILL.md`
 - Result contract: `schemas/lyt.result.v1.schema.json`
 - Website content: `website/src/site.mjs`
 - Website styling: `website/src/styles.css`
 - Desktop status: `app/README.md`
+- Cleanup plan: `docs/cleanup-plan.md`
 
 ## Generated or synchronized copies
 
@@ -59,6 +67,7 @@ The following skill copies must match `skills/lyt/SKILL.md`:
 ## Maintenance rule
 
 Prefer adding a small focused module over expanding `src/cli.js`. The
-`src/entry.js` layer handles public command preprocessing and compatibility,
-while `src/cli.js` remains the established download coordinator. New product
-features should avoid creating a second download engine.
+`src/entry.js` layer is the sole public router (subcommands + argv prep).
+`src/cli.js` is the download coordinator only; workers and watch live in
+`src/download.js`. New product features should avoid creating a second
+download engine.

@@ -39,3 +39,20 @@ export function extractVideoId(url) {
     null
   );
 }
+
+/** Deduplicate a URL list by video ID when present, else exact URL. */
+export function dedupeUrlList(urls) {
+  const seen = new Set();
+  const unique = [];
+
+  for (const url of urls) {
+    const key = extractVideoId(url) ?? url;
+
+    if (!seen.has(key)) {
+      seen.add(key);
+      unique.push(url);
+    }
+  }
+
+  return unique;
+}

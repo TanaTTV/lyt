@@ -5,6 +5,14 @@ versioning for the public CLI and machine-readable result contract.
 
 ## [Unreleased]
 
+### Changed
+
+- Internal modular cleanup: single public router in `entry.js`, download engine
+  in `download.js` / `process.js`, subcommands under `src/commands/`, shared
+  `errors.js` helpers, and removal of dead cli shadow history/doctor handlers
+  and unused path helpers. Public CLI behavior, bins, flags, and JSON schemas
+  are unchanged.
+
 ## [0.7.4] - 2026-08-12
 
 ### Added
