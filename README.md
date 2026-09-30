@@ -164,6 +164,8 @@ managed tool provisioning during inspection; otherwise a missing yt-dlp binary
 can be downloaded automatically. Reuse setup authorization already given, or
 ask once if setup is needed and has not been authorized.
 
+For bounded machine-readable jobs, add `--json`:
+
 ```sh
 lyt --mp3 -q 192K --max-filesize 2G --json "URL"
 ```
