@@ -12,6 +12,7 @@ test("builds an after-move print marker for exact final paths", () => {
   assert.deepEqual(outputCaptureArgs(), [
     "--print",
     "after_move:__LYT_FILE__:%(filepath)s",
+    "--no-quiet",
   ]);
 });
 
@@ -46,4 +47,11 @@ test("command execution captures final paths without leaking the marker", async 
   });
 
   assert.deepEqual(outcome.files, [resolve("C:/work", "downloads/final.mp3")]);
+});
+
+test("size-limit evidence survives progress-line filtering", async () => {
+  const outcome = await runCommand(process.execPath, ["-e",
+    "console.log('[download] File is larger than max-filesize (2 > 1). Aborting.')"], { quiet: true });
+  assert.equal(outcome.sizeLimited, true);
+  assert.deepEqual(outcome.files, []);
 });

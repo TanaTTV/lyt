@@ -1,5 +1,6 @@
 import { spawn } from "node:child_process";
 import { ytDlpJsRuntimeArgs } from "./jsRuntime.js";
+import { taggedError } from "./failures.js";
 
 // Shapes a `yt-dlp -J` (JSON dump) payload into the stable lyt.info.v1 media
 // description agents can read before committing to a download. Pure, so it is
@@ -96,6 +97,7 @@ export function fetchInfo(
             (stderr.trim() ? `\n${stderr.trim()}` : ""),
         );
         error.exitCode = code ?? 1;
+        error.diagnostic = stderr.trim();
         reject(error);
         return;
       }
@@ -103,7 +105,7 @@ export function fetchInfo(
       try {
         resolve(parseInfo(stdout));
       } catch {
-        reject(new Error(`Could not parse yt-dlp output for ${url}.`));
+        reject(taggedError(`Could not parse yt-dlp output for ${url}.`, "tool_output_invalid"));
       }
     });
   });

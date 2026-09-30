@@ -5,6 +5,27 @@ versioning for the public CLI and machine-readable result contract.
 
 ## [Unreleased]
 
+### Added
+
+- `lyt search "query"` returns bounded YouTube candidates as `lyt.search.v1`
+  JSON, with titles, channels, durations, canonical URLs, and live status.
+  Search does not download media or automatically choose a candidate.
+- Download and history-skip results include artifact receipts: actual file size,
+  verification status, and optional ffprobe container/stream metadata. Failed
+  verification retains file paths and does not record success in history.
+- JSON errors retain numeric codes and messages while adding stable recovery
+  categories, retryability, and suggested next steps. Capabilities expose search
+  options and error categories.
+
+### Changed
+
+- Size-limit failures require downloader evidence rather than assuming every
+  missing output with `--max-filesize` was a size rejection.
+- History-write failures produce one result with retained output paths.
+- Tool version checks allow bounded Windows cold starts and distinguish an
+  installed but unusable yt-dlp from a missing tool. Doctor JSON includes
+  actionable errors for failed tool checks.
+
 ## [0.8.0] - 2026-09-30
 
 ### Added

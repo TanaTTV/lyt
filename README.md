@@ -207,6 +207,40 @@ Global installation, managed tool downloads, playlist mode, overwrites,
 authentication material, and external downloaders require explicit opt-in.
 Agents should reuse authorization already given instead of asking again.
 
+### Search by name
+
+```sh
+lyt search "artist song title" --limit 5 --no-download --json
+```
+
+Search returns `lyt.search.v1` candidates with their title, uploader, duration,
+canonical YouTube URL, thumbnail, and live/upcoming status. It never downloads
+media or chooses a result for you. The default is five results, bounded to 1-25.
+Flat search metadata can be incomplete or approximate; inspect the selected URL
+with `lyt info` before choosing a format. `--no-download` prevents tool setup.
+
+### Verified results and actionable failures
+
+Successful downloads retain `results[].files` and now include `results[].artifacts`.
+Each artifact has an exact path, size, and verification status. An existing
+ffprobe adds container, duration, stream codecs, and probe version. lyt never
+installs ffprobe just to inspect results.
+
+- `verified`: ffprobe recognized the requested audio/video stream in a nonempty file.
+- `file-only`: the file exists and is nonempty; ffprobe was missing or unavailable,
+  or its inspection timed out. `verification.reason` explains the limitation.
+- `failed`: file or media inspection failed. The job fails and retains reported
+  paths for inspection; it does not record the artifact as a successful download.
+
+Verification checks file and container metadata, not a full decode of every frame.
+History skips also inspect the existing artifact without downloading it again.
+
+Errors keep their numeric `code` and `message` and add `kind`, `retryable`, and
+`suggestion`. For example, HTTP 429 reports `rate_limited`, while HTTP 403 reports
+`access_denied` rather than assuming you need to sign in. `retryable` describes
+a potentially transient failure; lyt does not start an automatic retry loop.
+See [the agent result reference](docs/agent-results.md) for the contract.
+
 The maintained skill assesses requests in context, including licenses, public
 domain, and applicable copyright exceptions. It adds no blanket license statement
 requirement for ordinary local downloads; rights questions depend on governing
@@ -368,6 +402,7 @@ Use `--no-download` or `LYT_NO_DOWNLOAD=1` to require tools on `PATH`.
 lyt [options] <url> [more-urls...]
 
 lyt info <url> [more-urls...] [--json]
+lyt search "query" [--limit <1-25>] [--json] [--no-download]
 lyt inspect <url> [more-urls...] [--json]   # alias of info
 lyt capabilities [--json]
 lyt history [query] [--limit <n>] [--clear] [--json]

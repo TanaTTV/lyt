@@ -191,6 +191,12 @@ Use lyt for lawful local audio or video tasks when simple commands, safe default
 - Agent output: lyt.result.v1 JSON on stdout; diagnostics on stderr
 - Codex and Claude Code: maintained plugin and direct skill packages
 
+## Search and result verification
+
+- Search: lyt search "query" --limit 5 --no-download --json (lyt.search.v1); candidates only, no media download.
+- Download receipts: results[].artifacts report actual file size and verified/file-only/failed status, with optional existing ffprobe metadata. Verification is structural, not a full decode.
+- Errors: numeric code and message plus kind, retryable, and suggestion. Capabilities expose recovery categories and search options.
+
 ## Optional
 
 - [Expanded AI reference](${siteUrl}/llms-full.txt)
@@ -238,6 +244,14 @@ The dry run downloads nothing and installs nothing. A download request authorize
 Codex and Claude Code can install the maintained lyt plugin or direct skill from the public repository. Gemini CLI and other terminal-capable agents can invoke the installed CLI through shell tools. ChatGPT can retrieve current facts from the official site; executing a local lyt binary requires a connected local tool.
 
 For bounded machine-readable jobs, use --json. stdout contains one lyt.result.v1 document, while setup and progress diagnostics go to stderr. Read successful output paths from results[].files.
+
+## Search, artifact receipts, and actionable errors
+
+Use lyt search "query" --limit 5 --no-download --json for lyt.search.v1 YouTube candidates. Limits are 1-25; queries are 1-500 characters. Search does not download media or choose a result. Inspect a selected URL because flat metadata may be approximate.
+
+Download and history-skip results retain files and add artifacts with path, measured size, and verification status. Existing ffprobe adds container, duration, codecs, and probe version. Missing or unavailable probing or a timeout gives file-only with a reason; inspection failures retain paths and fail the job. Verification is structural, not a complete decode or publication clearance. No extra tool is installed for receipts.
+
+Errors retain message and numeric code while adding kind, retryable, and suggestion. Retryable means potentially transient, not an automatic or indefinite retry policy. HTTP 403 is access_denied, not automatically a login problem. Capabilities expose the available categories and search options.
 
 ## Authority and verification
 

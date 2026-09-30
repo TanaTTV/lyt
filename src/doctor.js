@@ -7,7 +7,8 @@
 import { spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import process from "node:process";
-import { ensureFfmpeg, ensureYtDlp } from "./bootstrap.js";
+import { ensureFfmpeg, ensureYtDlp, TOOL_VERSION_TIMEOUT_MS } from "./bootstrap.js";
+import { errorDetails } from "./result.js";
 import { clipboardCommands } from "./clipboard.js";
 import { configPath } from "./config.js";
 import { resolveExecutableOnPath } from "./executables.js";
@@ -47,9 +48,10 @@ export async function runDoctor({
     ok: Boolean(ytDlp.path),
     detail: ytDlp.path
       ? `yt-dlp ${version(ytDlp.path)} (${describe(ytDlp.path)})`
-      : "yt-dlp not found",
+      : trimmed(ytDlp.error) || "yt-dlp unavailable",
     hint: ytDlp.path ? null : trimmed(ytDlp.error),
     path: ytDlp.path,
+    ...(ytDlp.failure ? { error: ytDlp.failure } : {}),
   });
 
   const ffmpeg = await locate(() => ensureFfmpeg({ noDownload: !fix }));
@@ -64,6 +66,7 @@ export async function runDoctor({
       ? null
       : `${trimmed(ffmpeg.error)} Required for MP3, video merging, clips, chapters, thumbnails, and normalization.`,
     path: ffmpeg.path,
+    ...(ffmpeg.failure ? { error: ffmpeg.failure } : {}),
   });
 
   const clipTool = probeClipboard();
@@ -281,7 +284,7 @@ async function locate(ensure) {
   try {
     return { path: await ensure() };
   } catch (error) {
-    return { path: null, error: error.message };
+    return { path: null, error: error.message, failure: errorDetails(error) };
   }
 }
 
@@ -289,7 +292,7 @@ function version(command, flag = "--version") {
   try {
     const result = spawnSync(command, [flag], {
       encoding: "utf8",
-      timeout: 5000,
+      timeout: flag === "--version" ? TOOL_VERSION_TIMEOUT_MS : 5000,
       windowsHide: true,
     });
     const first = `${result.stdout || ""}${result.stderr || ""}`

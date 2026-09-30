@@ -48,3 +48,15 @@ test("the packaged capabilities schema describes the product surface", () => {
     assert.ok(schema.required.includes(field), `missing required field: ${field}`);
   }
 });
+
+test("search and additive receipt/error contracts are packaged", () => {
+  const search = readSchema("lyt.search.v1");
+  assert.equal(search.properties.schema.const, "lyt.search.v1");
+  assert.equal(search.properties.limit.maximum, 25);
+  assert.ok(search.properties.results.items.required.includes("url"));
+  const result = readSchema("lyt.result.v1");
+  assert.ok(result.$defs.error.properties.kind.enum.includes("verification_failed"));
+  assert.ok(result.$defs.artifact.required.includes("verification"));
+  assert.ok(result.properties.results.items.properties.artifacts);
+  assert.ok(result.properties.results.items.properties.files);
+});

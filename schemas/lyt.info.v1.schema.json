@@ -3,49 +3,164 @@
   "$id": "https://github.com/tanattv/lyt/blob/main/schemas/lyt.info.v1.schema.json",
   "title": "lyt info v1",
   "type": "object",
-  "required": ["schema", "version", "command", "ok", "results"],
+  "required": [
+    "schema",
+    "version",
+    "command",
+    "ok",
+    "results"
+  ],
   "properties": {
-    "schema": { "const": "lyt.info.v1" },
-    "version": { "type": "string" },
-    "command": { "const": "info" },
-    "ok": { "type": "boolean" },
+    "schema": {
+      "const": "lyt.info.v1"
+    },
+    "version": {
+      "type": "string"
+    },
+    "command": {
+      "const": "info"
+    },
+    "ok": {
+      "type": "boolean"
+    },
     "results": {
       "type": "array",
       "items": {
         "type": "object",
-        "required": ["url", "status"],
+        "required": [
+          "url",
+          "status"
+        ],
         "properties": {
-          "url": { "type": "string" },
-          "status": { "enum": ["available", "failed"] },
-          "id": { "type": ["string", "null"] },
-          "extractor": { "type": ["string", "null"] },
-          "title": { "type": "string" },
-          "uploader": { "type": ["string", "null"] },
-          "durationSeconds": { "type": ["number", "null"] },
-          "isLive": { "type": "boolean" },
-          "thumbnail": { "type": ["string", "null"] },
-          "webpageUrl": { "type": ["string", "null"] },
-          "heights": { "type": "array", "items": { "type": "integer" } },
-          "audioBitrates": { "type": "array", "items": { "type": "integer" } },
+          "url": {
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "available",
+              "failed"
+            ]
+          },
+          "id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "extractor": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "title": {
+            "type": "string"
+          },
+          "uploader": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "durationSeconds": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "isLive": {
+            "type": "boolean"
+          },
+          "thumbnail": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "webpageUrl": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "heights": {
+            "type": "array",
+            "items": {
+              "type": "integer"
+            }
+          },
+          "audioBitrates": {
+            "type": "array",
+            "items": {
+              "type": "integer"
+            }
+          },
           "formats": {
             "type": "array",
             "items": {
               "type": "object",
               "properties": {
-                "formatId": { "type": ["string", "null"] },
-                "ext": { "type": ["string", "null"] },
-                "height": { "type": ["integer", "null"] },
-                "fps": { "type": ["number", "null"] },
-                "vcodec": { "type": ["string", "null"] },
-                "acodec": { "type": ["string", "null"] },
-                "abr": { "type": ["integer", "null"] },
-                "filesize": { "type": ["integer", "null"] },
-                "note": { "type": ["string", "null"] }
+                "formatId": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "ext": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "height": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
+                "fps": {
+                  "type": [
+                    "number",
+                    "null"
+                  ]
+                },
+                "vcodec": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "acodec": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "abr": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
+                "filesize": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
+                "note": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
               },
               "additionalProperties": true
             }
           },
-          "error": { "$ref": "#/$defs/error" }
+          "error": {
+            "$ref": "#/$defs/error"
+          }
         },
         "additionalProperties": true
       }
@@ -54,10 +169,46 @@
   "$defs": {
     "error": {
       "type": "object",
-      "required": ["message", "code"],
+      "required": [
+        "message",
+        "code"
+      ],
       "properties": {
-        "message": { "type": "string" },
-        "code": { "type": "integer" }
+        "message": {
+          "type": "string"
+        },
+        "code": {
+          "type": "integer"
+        },
+        "kind": {
+          "type": "string",
+          "enum": [
+            "usage",
+            "tool_missing",
+            "tool_unavailable",
+            "setup_failed",
+            "network",
+            "rate_limited",
+            "authentication_required",
+            "access_denied",
+            "media_unavailable",
+            "unsupported_url",
+            "format_unavailable",
+            "filesystem",
+            "verification_failed",
+            "size_limit",
+            "no_output",
+            "cancelled",
+            "tool_output_invalid",
+            "unknown"
+          ]
+        },
+        "retryable": {
+          "type": "boolean"
+        },
+        "suggestion": {
+          "type": "string"
+        }
       },
       "additionalProperties": false
     }

@@ -5,6 +5,8 @@ import { resolve } from "node:path";
 import process from "node:process";
 import { ensureYtDlp, ensureFfmpeg } from "./bootstrap.js";
 import { readClipboard } from "./clipboard.js";
+import { findFfprobe, inspectArtifacts } from "./artifacts.js";
+import { taggedError } from "./failures.js";
 import {
   buildArtifactFingerprint,
   existingHistoryFiles,
@@ -45,11 +47,15 @@ export async function prepareTools(options, noDownload) {
 
 // Downloads a batch of URLs. Returns the failures instead of throwing so
 // watch mode can keep going after a bad link.
-export async function downloadUrls(urls, options, { ytDlpCommand, ffmpegPath }) {
+export async function downloadUrls(urls, options, { ytDlpCommand, ffmpegPath }, {
+  execute = runCommand, inspect = inspectArtifacts, ffprobePath = findFfprobe(ffmpegPath),
+  readHistory = loadHistory, writeHistory = recordDownload,
+} = {}) {
   const artifact = buildArtifactFingerprint(options);
   let targets = urls;
   const results = [];
-  const historyEntries = options.history ? loadHistory() : [];
+  const failures = [];
+  const historyEntries = options.history ? readHistory() : [];
 
   // Instant dedupe against the download history (by video ID).
   if (!options.redownload && options.history) {
@@ -63,13 +69,24 @@ export async function downloadUrls(urls, options, { ytDlpCommand, ffmpegPath }) 
     for (const url of skipped) {
       const id = extractVideoId(url);
       const previous = [...historyEntries].reverse().find((entry) => entry.id === id);
+      const previousFiles = existingHistoryFiles(previous);
+      let artifacts;
+      try { artifacts = await inspect(previousFiles, { ffprobePath, mode: options.video ? "video" : "audio" }); }
+      catch (error) {
+        failures.push({ url, error });
+        results.push({ url, videoId: id, status: "failed", mode: options.video ? "video" : "audio",
+          files: previousFiles, outputDir: resolve(previous?.dir ?? options.outputDir),
+          ...(error.artifacts ? { artifacts: error.artifacts } : {}), error: errorDetails(error) });
+        continue;
+      }
       results.push({
         url,
         videoId: id,
         status: "skipped",
         reason: "history",
         mode: previous?.mode ?? (options.video ? "video" : "audio"),
-        files: existingHistoryFiles(previous),
+        files: previousFiles,
+        artifacts,
         outputDir: resolve(previous?.dir ?? options.outputDir),
       });
       if (!options.json) {
@@ -81,7 +98,7 @@ export async function downloadUrls(urls, options, { ytDlpCommand, ffmpegPath }) 
   }
 
   if (targets.length === 0) {
-    return { failures: [], results };
+    return { failures, results };
   }
 
   // Build each command exactly once and reuse it for both printing and
@@ -98,7 +115,6 @@ export async function downloadUrls(urls, options, { ytDlpCommand, ffmpegPath }) 
 
   const jobs = Math.min(options.jobs, targets.length);
   const queue = [...tasks];
-  const failures = [];
 
   // Multi-job TTY progress only; single jobs stream yt-dlp lines via runCommand.
   const useRenderer =
@@ -123,19 +139,23 @@ export async function downloadUrls(urls, options, { ytDlpCommand, ffmpegPath }) 
           }
         : undefined;
 
+      let reportedFiles = [];
+      let completedArtifacts;
       try {
-        const outcome = await runCommand(ytDlpCommand, task.args, {
+        const outcome = await execute(ytDlpCommand, task.args, {
           onLine: lineHandler,
           quiet: options.json,
         });
+        reportedFiles = outcome.files;
 
         if (outcome.files.length === 0) {
           renderer?.done(task.index, false);
-          const guarded = Boolean(options.maxFilesize);
-          const error = new Error(
+          const guarded = Boolean(options.maxFilesize && outcome.sizeLimited);
+          const error = taggedError(
             guarded
               ? `No file downloaded; media exceeded --max-filesize ${options.maxFilesize}.`
               : "yt-dlp completed without reporting a final output file.",
+            guarded ? "size_limit" : "no_output",
           );
           error.exitCode = 1;
           failures.push({ url: task.url, error });
@@ -152,6 +172,8 @@ export async function downloadUrls(urls, options, { ytDlpCommand, ffmpegPath }) 
           continue;
         }
 
+        const artifacts = await inspect(outcome.files, { ffprobePath, mode: options.video ? "video" : "audio" });
+        completedArtifacts = artifacts;
         renderer?.done(task.index, true);
 
         const result = {
@@ -160,18 +182,11 @@ export async function downloadUrls(urls, options, { ytDlpCommand, ffmpegPath }) 
           status: "downloaded",
           mode: options.video ? "video" : "audio",
           files: outcome.files,
+          artifacts,
           outputDir: resolve(options.outputDir),
         };
-        results.push(result);
-
-        if (!options.json) {
-          for (const file of outcome.files) {
-            console.log(`Saved: ${file}`);
-          }
-        }
-
         if (options.history) {
-          recordDownload(
+          writeHistory(
             {
               ts: new Date().toISOString(),
               id: extractVideoId(task.url),
@@ -184,6 +199,10 @@ export async function downloadUrls(urls, options, { ytDlpCommand, ffmpegPath }) 
             { artifact: artifact.fingerprint },
           );
         }
+        results.push(result);
+        if (!options.json) {
+          for (const file of outcome.files) console.log(`Saved: ${file}`);
+        }
       } catch (error) {
         renderer?.done(task.index, false);
         failures.push({ url: task.url, error });
@@ -192,7 +211,8 @@ export async function downloadUrls(urls, options, { ytDlpCommand, ffmpegPath }) 
           videoId: extractVideoId(task.url),
           status: "failed",
           mode: options.video ? "video" : "audio",
-          files: [],
+          files: reportedFiles,
+          ...(error.artifacts || completedArtifacts ? { artifacts: error.artifacts ?? completedArtifacts } : {}),
           outputDir: resolve(options.outputDir),
           error: errorDetails(error),
         });
