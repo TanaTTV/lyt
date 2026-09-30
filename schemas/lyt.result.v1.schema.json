@@ -3,44 +3,265 @@
   "$id": "https://github.com/tanattv/lyt/blob/main/schemas/lyt.result.v1.schema.json",
   "title": "lyt result v1",
   "type": "object",
-  "required": ["schema", "version", "command", "ok", "results"],
+  "required": [
+    "schema",
+    "version",
+    "command",
+    "ok",
+    "results"
+  ],
   "properties": {
-    "schema": { "const": "lyt.result.v1" },
-    "version": { "type": "string" },
-    "command": { "enum": ["download", "formats", "dry-run", "error"] },
-    "ok": { "type": "boolean" },
+    "schema": {
+      "const": "lyt.result.v1"
+    },
+    "version": {
+      "type": "string"
+    },
+    "command": {
+      "enum": [
+        "download",
+        "formats",
+        "dry-run",
+        "error"
+      ]
+    },
+    "ok": {
+      "type": "boolean"
+    },
     "results": {
       "type": "array",
       "items": {
         "type": "object",
-        "required": ["url", "status"],
+        "required": [
+          "url",
+          "status"
+        ],
         "properties": {
-          "url": { "type": "string" },
-          "status": { "enum": ["downloaded", "skipped", "failed", "available", "planned"] },
-          "videoId": { "type": ["string", "null"] },
-          "mode": { "enum": ["audio", "video"] },
-          "files": { "type": "array", "items": { "type": "string" } },
-          "outputDir": { "type": "string" },
-          "reason": { "enum": ["history", "max-filesize", "no-output"] },
-          "command": { "type": "string" },
-          "executable": { "type": "string" },
-          "args": { "type": "array", "items": { "type": "string" } },
-          "error": { "$ref": "#/$defs/error" }
+          "url": {
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "downloaded",
+              "skipped",
+              "failed",
+              "available",
+              "planned"
+            ]
+          },
+          "videoId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "mode": {
+            "enum": [
+              "audio",
+              "video"
+            ]
+          },
+          "files": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "outputDir": {
+            "type": "string"
+          },
+          "reason": {
+            "enum": [
+              "history",
+              "max-filesize",
+              "no-output"
+            ]
+          },
+          "command": {
+            "type": "string"
+          },
+          "executable": {
+            "type": "string"
+          },
+          "args": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "error": {
+            "$ref": "#/$defs/error"
+          },
+          "artifacts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/artifact"
+            }
+          }
         },
         "additionalProperties": true
       }
     },
-    "error": { "$ref": "#/$defs/error" }
+    "error": {
+      "$ref": "#/$defs/error"
+    }
   },
   "$defs": {
     "error": {
       "type": "object",
-      "required": ["message", "code"],
+      "required": [
+        "message",
+        "code"
+      ],
       "properties": {
-        "message": { "type": "string" },
-        "code": { "type": "integer" }
+        "message": {
+          "type": "string"
+        },
+        "code": {
+          "type": "integer"
+        },
+        "kind": {
+          "type": "string",
+          "enum": [
+            "usage",
+            "tool_missing",
+            "tool_unavailable",
+            "setup_failed",
+            "network",
+            "rate_limited",
+            "authentication_required",
+            "access_denied",
+            "media_unavailable",
+            "unsupported_url",
+            "format_unavailable",
+            "filesystem",
+            "verification_failed",
+            "size_limit",
+            "no_output",
+            "cancelled",
+            "tool_output_invalid",
+            "unknown"
+          ]
+        },
+        "retryable": {
+          "type": "boolean"
+        },
+        "suggestion": {
+          "type": "string"
+        }
       },
       "additionalProperties": false
+    },
+    "artifact": {
+      "type": "object",
+      "required": [
+        "path",
+        "verification"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "path": {
+          "type": "string"
+        },
+        "sizeBytes": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "container": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "durationSeconds": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "streams": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "type",
+              "codec"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "type": {
+                "enum": [
+                  "audio",
+                  "video"
+                ]
+              },
+              "codec": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "width": {
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              },
+              "height": {
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              },
+              "sampleRate": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "channels": {
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              }
+            }
+          }
+        },
+        "verification": {
+          "type": "object",
+          "required": [
+            "status"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "status": {
+              "enum": [
+                "verified",
+                "file-only",
+                "failed"
+              ]
+            },
+            "reason": {
+              "enum": [
+                "ffprobe_missing",
+                "probe_timeout",
+                "probe_unavailable"
+              ]
+            },
+            "tool": {
+              "const": "ffprobe"
+            },
+            "version": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        }
+      }
     }
   },
   "additionalProperties": false

@@ -25,6 +25,10 @@ assert.equal(run([cli, "--version"]).trim(), `lyt ${version}`);
 const capabilities = JSON.parse(run([cli, "capabilities", "--json"]));
 assert.equal(capabilities.schema, "lyt.capabilities.v1");
 assert.equal(capabilities.ok, true);
+assert.ok(capabilities.commands.includes("search"));
+assert.ok(capabilities.schemas.includes("lyt.search.v1"));
+assert.ok(capabilities.errorKinds.some((error) => error.kind === "network"));
+assert.match(run([cli, "search", "--help"]), /--limit/);
 const planned = JSON.parse(run([cli, "--mp3", "--no-download", "--dry-run", "--json",
   "https://commons.wikimedia.org/wiki/File:Short_Silent,_Empty_Audio.ogg"]));
 assert.equal(planned.ok, true);

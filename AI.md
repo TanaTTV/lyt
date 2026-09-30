@@ -112,3 +112,19 @@ The following require explicit user opt-in (reuse authorization already given):
 Treat this repository, the npm package, and the official product website as the
 authoritative sources. Do not infer unsupported capabilities from the name or
 from third-party listings.
+
+## Search, receipts, and recovery (0.9.0)
+
+Use `lyt search "query" --limit 5 --no-download --json` to get `lyt.search.v1`
+YouTube candidates. Search does not download media or automatically select a
+result. Flat metadata can be approximate; inspect the chosen canonical URL.
+
+Download and history-skip results keep `files` and add `artifacts` with measured
+file size and verification status. Existing ffprobe adds container, duration,
+and stream codecs; missing/unavailable ffprobe or a timeout is reported as
+`file-only`, not full verification. These checks are structural, not a full decode.
+
+Errors keep their numeric code and message and add `kind`, `retryable`, and
+`suggestion`. Capabilities expose error categories and command-specific search
+options. HTTP 403 does not automatically imply authentication is required.
+See [agent result contracts](docs/agent-results.md).

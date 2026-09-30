@@ -35,5 +35,9 @@ LYT_SMOKE_RESULT="$result" LYT_SMOKE_EXTENSION="$expected_extension" node -e '
   if (!result.ok || result.schema !== "lyt.result.v1" || files.length < 1) process.exit(1);
   if (!files.every((file) => fs.existsSync(file))) process.exit(1);
   if (!files.every((file) => file.endsWith(process.env.LYT_SMOKE_EXTENSION))) process.exit(1);
+  const receipts = result.results[0].artifacts ?? [];
+  if (receipts.length !== files.length) process.exit(1);
+  if (!receipts.every((receipt) => files.includes(receipt.path) && receipt.sizeBytes > 0 &&
+    ["verified", "file-only"].includes(receipt.verification?.status))) process.exit(1);
   console.log("PACKED_LIVE_LINUX_OK");
 '

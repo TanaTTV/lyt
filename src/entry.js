@@ -8,6 +8,7 @@ import { runCapabilitiesCommand } from "./commands/capabilities.js";
 import { runConfigCommand } from "./commands/config.js";
 import { runHistoryCommand } from "./commands/history.js";
 import { runInfoCommand } from "./commands/info.js";
+import { runSearchCommand } from "./commands/search.js";
 import { runDoctor } from "./doctor.js";
 import { handleCliError } from "./errors.js";
 import { extractVideoId } from "./urls.js";
@@ -24,6 +25,8 @@ export function runEntry(argv, defaults = {}) {
 
 export async function mainEntry(argv, defaults = {}) {
   switch (argv[0]) {
+    case "search":
+      return runSearchCommand(argv.slice(1));
     case "history":
       return runHistoryCommand(argv.slice(1));
     case "doctor":

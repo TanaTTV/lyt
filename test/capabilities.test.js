@@ -4,6 +4,7 @@ import { buildCapabilities, OPTIONS, SCHEMAS } from "../src/capabilities.js";
 import { profileNames } from "../src/config.js";
 import { parseArgs } from "../src/ytDlp.js";
 import { VERSION } from "../src/version.js";
+import { parseSearchArgs } from "../src/commands/search.js";
 
 test("buildCapabilities describes the lyt.capabilities.v1 contract", () => {
   const capabilities = buildCapabilities();
@@ -14,11 +15,21 @@ test("buildCapabilities describes the lyt.capabilities.v1 contract", () => {
   assert.equal(capabilities.version, VERSION);
   assert.equal(typeof capabilities.node, "string");
   assert.ok(capabilities.commands.includes("info"));
+  assert.ok(capabilities.commands.includes("search"));
+  assert.ok(SCHEMAS.includes("lyt.search.v1"));
   assert.ok(capabilities.commands.includes("capabilities"));
   assert.deepEqual(capabilities.profiles, profileNames());
   assert.ok(SCHEMAS.includes("lyt.result.v1"));
   assert.ok(SCHEMAS.includes("lyt.info.v1"));
   assert.equal(capabilities.exitCodes["2"], "usage or validation error");
+});
+
+test("search command options and recovery categories are discoverable", () => {
+  const capabilities = buildCapabilities();
+  for (const option of capabilities.commandOptions.search) {
+    parseSearchArgs(["song", option.flag, ...(option.takesValue ? ["3"] : [])]);
+  }
+  assert.ok(capabilities.errorKinds.some((error) => error.kind === "access_denied" && error.retryable === false));
 });
 
 test("every advertised option is recognized by the argument parser", () => {

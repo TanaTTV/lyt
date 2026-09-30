@@ -488,6 +488,8 @@ Grab just a slice of a long video:
   lyt --clip 1:10-2:45 "URL"        (repeat --clip for multiple slices)
 
 Subcommands:
+  lyt search "query"       Find YouTube candidates; never downloads media
+                            (--limit 1-25; --json → lyt.search.v1)
   lyt info <url>            Media metadata and formats without downloading
                             (alias: lyt inspect; --json → lyt.info.v1)
   lyt capabilities          Commands, modes, flags, and result schemas

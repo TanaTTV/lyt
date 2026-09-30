@@ -7,9 +7,10 @@ import { extractOutputPath } from "./result.js";
 
 export function runCommand(command, args, { onLine, quiet = false, cwd = process.cwd() } = {}) {
   return new Promise((resolve, reject) => {
-    const child = spawn(command, args, { stdio: ["ignore", "pipe", "pipe"] });
+    const child = spawn(command, args, { stdio: ["ignore", "pipe", "pipe"], windowsHide: true });
     const recent = [];
     const files = [];
+    let sizeLimited = false;
     const buffers = { stdout: "", stderr: "" };
 
     const feed = (stream, chunk) => {
@@ -24,6 +25,7 @@ export function runCommand(command, args, { onLine, quiet = false, cwd = process
     };
 
     const handleLine = (stream, line) => {
+      if (/larger than max-filesize/i.test(line)) sizeLimited = true;
       const outputPath = extractOutputPath(line, cwd);
 
       if (outputPath) {
@@ -48,16 +50,16 @@ export function runCommand(command, args, { onLine, quiet = false, cwd = process
     child.stdout.setEncoding("utf8").on("data", (chunk) => feed("stdout", chunk));
     child.stderr.setEncoding("utf8").on("data", (chunk) => feed("stderr", chunk));
     child.on("error", reject);
-    child.on("close", (code) => {
+    child.on("close", (code, signal) => {
       for (const stream of ["stdout", "stderr"]) {
         if (buffers[stream]) handleLine(stream, buffers[stream].replace(/\r$/, ""));
       }
-      settle(resolve, reject, command, code, recent, { files });
+      settle(resolve, reject, command, code, recent, { files, sizeLimited }, signal);
     });
   });
 }
 
-function settle(resolve, reject, command, code, recent = [], outcome = { files: [] }) {
+function settle(resolve, reject, command, code, recent = [], outcome = { files: [] }, signal) {
   if (code === 0) {
     resolve(outcome);
     return;
@@ -66,5 +68,7 @@ function settle(resolve, reject, command, code, recent = [], outcome = { files: 
   const detail = recent.length > 0 ? `\n${recent.join("\n")}` : "";
   const error = new Error(`${command} exited with code ${code}${detail}`);
   error.exitCode = code;
+  error.diagnostic = recent.join("\n");
+  if (signal) error.kind = "cancelled";
   reject(error);
 }

@@ -1,6 +1,6 @@
 ---
 name: lyt
-description: Download permitted audio or video from YouTube and other yt-dlp-supported sites with the lyt CLI. Use for media downloads, MP3 extraction, quality selection, clips, format inspection, and exact local output paths.
+description: Find and download permitted audio or video with lyt. Use for YouTube search, media downloads, MP3 extraction, clips, format inspection, verified file results, and actionable JSON errors.
 ---
 
 # Use lyt for local media
@@ -75,6 +75,18 @@ lyt capabilities --json     # commands, flags, and schemas (lyt.capabilities.v1)
 describes what the local environment can do. Use `lyt capabilities` to discover
 the CLI surface instead of parsing human help text.
 
+When a source URL is missing, use bounded YouTube search:
+
+```sh
+lyt search "artist song title" --limit 5 --no-download --json
+```
+
+Read `lyt.search.v1` candidates: title, uploader, duration, canonical URL, and
+live/upcoming status. Search never downloads media. Inspect the chosen URL with
+`info`; ask which result the user wants when versions or matches are ambiguous.
+Flat search metadata can be incomplete or approximate. Do not silently replace
+an explicitly requested recording with a cover, live version, or unrelated match.
+
 Without `--no-download`, `lyt info` can provision a missing yt-dlp binary. If
 inspection reports a missing tool, use existing setup authorization or ask once
 before provisioning. Do not treat a dependency or network failure as a copyright
@@ -116,3 +128,15 @@ user explicitly requests it. Never include those values in logs or bug reports.
 After success, read `results[].files` and report those exact paths. If a result
 is skipped, explain whether a matching artifact already exists or a size guard
 was triggered. Use `--redownload` only when the user asks for another copy.
+
+Read `results[].artifacts` to distinguish `verified` media from `file-only`
+checks. `verified` means ffprobe recognized the requested stream in a nonempty
+file; it is not a full decode or publication clearance. Missing/unavailable
+ffprobe or a probe timeout returns `file-only` with a reason, not fabricated
+duration or codec metadata. Failed verification retains paths and fails the job.
+Never report a dry run as a saved or verified file.
+
+On failure, use `error.kind`, `error.retryable`, and `error.suggestion` alongside
+the original message and numeric code. Retryable errors may be transient; keep
+any retry bounded. Do not interpret every HTTP 403 as a login problem. Missing
+tools and setup failures require their own diagnosis, not a copyright refusal.

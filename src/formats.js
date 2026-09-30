@@ -2,6 +2,7 @@ import { spawn } from "node:child_process";
 import { ytDlpJsRuntimeArgs } from "./jsRuntime.js";
 import { labelHeight } from "./quality.js";
 import { formatCommand } from "./ytDlp.js";
+import { taggedError } from "./failures.js";
 
 // Parses `yt-dlp -J` (JSON dump) output into the set of qualities actually
 // available for a URL. Pure, so it is unit-tested with sample payloads.
@@ -74,6 +75,7 @@ export function listFormats(
             (stderr.trim() ? `\n${stderr.trim()}` : ""),
         );
         error.exitCode = code ?? 1;
+        error.diagnostic = stderr.trim();
         reject(error);
         return;
       }
@@ -81,7 +83,7 @@ export function listFormats(
       try {
         resolve(parseFormats(stdout));
       } catch {
-        reject(new Error(`Could not parse yt-dlp output for ${url}.`));
+        reject(taggedError(`Could not parse yt-dlp output for ${url}.`, "tool_output_invalid"));
       }
     });
   });

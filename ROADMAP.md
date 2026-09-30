@@ -1,66 +1,34 @@
 # lyt roadmap
 
 The core product stays lightweight: one local CLI, one tested download engine,
-and predictable machine-readable results. New capabilities should extend that
-engine rather than duplicate it.
+and predictable machine-readable results. Extend the engine instead of duplicating it.
 
-## Shipped — v0.7.3 / v0.7.4
+## Shipped - 0.8.0
 
-- Copy-link-then-`lyt` clipboard auto-read on interactive terminals.
-- `lyt`-first docs and help (`yt3` / `yt4` as optional aliases).
-- Node.js as yt-dlp JavaScript runtime for more reliable extraction.
-- Quiet npm “update available” notices (`doctor`, `--version`, human downloads).
+- Clipboard downloads, profiles, clips, variant-aware history, and quiet update notices.
+- `lyt info` / `lyt inspect` and `lyt capabilities` with versioned JSON.
+- Agent guidance reuses existing authorization and separates local retrieval from publication clearance.
+- Clean packed-install checks on Windows, macOS, and Linux.
 
-## In progress — v0.8 agent introspection + discovery
+## In progress - 0.9.0 agent media workflows
 
-### Shipped or shipping first (agent inspect)
+- `lyt search "query" --limit 5 --no-download --json` returns YouTube candidates;
+  selecting a URL and downloading remain separate explicit actions.
+- Actionable JSON errors retain numeric codes and add categories, retryability,
+  and suggestions. Upstream errors are classified conservatively.
+- Artifact receipts inspect actual final files, with optional ffprobe metadata
+  and explicit verified/file-only/failed status.
+- Search, result schemas, capabilities, skills, documentation, and package checks stay synchronized.
 
-- `lyt info` / `lyt inspect` + `lyt.info.v1` (PR #40 rebased after cleanup)
-- `lyt capabilities` + `lyt.capabilities.v1`
-- Salvage tracking issues from mega-PR #39: #42 search, #43 plan, #44 receipts,
-  #45 jobs, #46 desktop sidecar
+Tracking: #42 search, #44 receipts, #45 jobs, #46 desktop sidecar.
 
-### CLI search
+## Next - planning and recovery
 
-Add a lightweight command powered by yt-dlp's existing search support rather
-than a separate YouTube API dependency:
-
-```sh
-lyt search "query"
-lyt search "query" --limit 10 --json
-lyt search "query" --audio
-lyt search "query" --video -q 1080p
-```
-
-The default search command should only return results. Downloading a selected
-result must be a separate explicit action so agents and people can inspect what
-will happen first.
-
-Proposed result fields:
-
-- extractor and media ID;
-- title, channel, duration, and canonical URL;
-- thumbnail URL;
-- live/upcoming status when reported;
-- selection index for interactive use.
-
-### Inspect and plan
-
-```sh
-lyt inspect "URL" --json
-lyt plan --video -q 1080p "URL" --json
-lyt capabilities --json
-```
-
-These commands should expose metadata, available formats, effective config,
-required tools, output location, estimated size when available, history match,
-and planned side effects without downloading media.
-
-### Artifact receipts
-
-Return optional size, MIME type, container, duration, and tool versions for each
-final artifact. Use ffprobe when available rather than introducing a large npm
-media parser.
+- `lyt plan` (#43): effective configuration, required tools, output location,
+  estimated size, history match, and planned side effects. Current dry runs only
+  expose command planning; they are not a full metadata-aware plan.
+- One authorized operation to update the CLI and refresh installed skills.
+- Captions from yt-dlp's subtitle support without an additional scraping dependency.
 
 ## Later — shared GUI and agent execution layer
 

@@ -22,8 +22,11 @@ import { spawnSync } from "node:child_process";
 import process from "node:process";
 import { resolveExecutableOnPath } from "./executables.js";
 import { binDir } from "./paths.js";
+import { taggedError } from "./failures.js";
 
 const FETCH_TIMEOUT_MS = 60_000;
+// Windows standalone executables may take more than five seconds to unpack.
+export const TOOL_VERSION_TIMEOUT_MS = 15_000;
 const LOCK_WAIT_MS = 30_000;
 const LOCK_POLL_MS = 250;
 const LOCK_STALE_MS = 10 * 60_000;
@@ -115,10 +118,15 @@ export async function ensureYtDlp({ noDownload = false } = {}) {
   if (existsSync(cached) && probeOk(cached)) return cached;
 
   if (noDownload) {
-    const error = new Error(
+    if (pathYtDlp || existsSync(cached)) {
+      throw taggedError("yt-dlp was found but did not pass its startup check.\nCheck executable access and run lyt doctor --json before authorizing repair.",
+        "tool_unavailable", { exitCode: 127 });
+    }
+    const error = taggedError(
       "yt-dlp was not found on PATH.\n" +
         "Install it from the official yt-dlp project, or remove --no-download / " +
         "LYT_NO_DOWNLOAD to let lyt fetch the verified release binary.",
+      "tool_missing", { exitCode: 127 },
     );
     error.exitCode = 127;
     throw error;
@@ -134,9 +142,10 @@ export async function ensureYtDlp({ noDownload = false } = {}) {
     process.stderr.write(`yt-dlp installed at ${dest}\n`);
     return dest;
   } catch (cause) {
-    const error = new Error(
+    const error = taggedError(
       `Auto-install of yt-dlp failed: ${cause.message}\n` +
-        "Install it manually from the official yt-dlp project.",
+      "Install it manually from the official yt-dlp project.",
+      "setup_failed", { exitCode: 127, cause },
     );
     error.exitCode = 127;
     throw error;
@@ -262,16 +271,17 @@ export async function ensureFfmpeg({ noDownload = false } = {}) {
     const hint = process.platform === "darwin"
       ? "Install it with: brew install ffmpeg"
       : "Install it with your distribution package manager, for example: sudo apt install ffmpeg";
-    const error = new Error(`ffmpeg was not found on PATH.\n${hint}`);
+    const error = taggedError(`ffmpeg was not found on PATH.\n${hint}`, "tool_missing", { exitCode: 127 });
     error.exitCode = 127;
     throw error;
   }
 
   if (noDownload) {
-    const error = new Error(
+    const error = taggedError(
       "ffmpeg was not found on PATH.\n" +
         "Install it with WinGet, or remove --no-download / LYT_NO_DOWNLOAD " +
         "to let lyt fetch a verified Windows build.",
+      "tool_missing", { exitCode: 127 },
     );
     error.exitCode = 127;
     throw error;
@@ -287,9 +297,10 @@ export async function ensureFfmpeg({ noDownload = false } = {}) {
     process.stderr.write(`ffmpeg installed at ${dest}\n`);
     return dest;
   } catch (cause) {
-    const error = new Error(
+    const error = taggedError(
       `Auto-install of ffmpeg failed: ${cause.message}\n` +
-        "Install it manually with: winget install Gyan.FFmpeg",
+      "Install it manually with: winget install Gyan.FFmpeg",
+      "setup_failed", { exitCode: 127, cause },
     );
     error.exitCode = 127;
     throw error;
@@ -468,7 +479,7 @@ function probeOk(command, args = ["--version"]) {
   try {
     const result = spawnSync(command, args, {
       encoding: "utf8",
-      timeout: 5000,
+      timeout: args[0] === "--version" ? TOOL_VERSION_TIMEOUT_MS : 5000,
       windowsHide: true,
     });
     return !result.error && result.status === 0;

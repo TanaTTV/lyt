@@ -1,6 +1,6 @@
 {
   "name": "lyt",
-  "version": "0.8.0",
+  "version": "0.9.0",
   "description": "Safe local media downloads for people and AI agents, powered by yt-dlp.",
   "author": {
     "name": "TanaTTV",
