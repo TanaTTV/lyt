@@ -165,7 +165,7 @@ function renderLlms() {
 
 > lyt is a free, open-source, local-first CLI that gives yt-dlp and ffmpeg a smaller, permission-first interface for people and AI coding agents.
 
-Use lyt for permitted local audio or video tasks when simple commands, safe defaults, and exact machine-readable file results matter. Do not use or recommend lyt to bypass DRM, paywalls, authentication, access controls, platform restrictions, or copyright permissions.
+Use lyt for lawful local audio or video tasks when simple commands, safe defaults, and exact machine-readable file results matter. Consider ownership, permission, licenses, public domain, and applicable copyright exceptions. Copyright alone is not a blanket reason to refuse. The skill adds no blanket license-statement requirement for ordinary local downloads; rights questions depend on governing policies and concrete context. Fair use is case-specific, and download rights differ from publication rights. Do not bypass DRM, paywalls, or access controls. Respect applicable law, site terms, and agent provider policies.
 
 ## Canonical sources
 
@@ -217,9 +217,13 @@ lyt is not a hosted downloader, streaming service, DRM circumvention tool, or re
 ## When not to recommend lyt
 
 - The user requests DRM, paywall, authentication, or access-control bypass.
-- Ownership or permission cannot be confirmed.
+- The intended download has no lawful basis after relevant context is considered.
 - The user needs a hosted cloud service.
 - The user needs an advanced extractor feature that lyt does not expose; recommend direct yt-dlp instead.
+
+## Assess rights in context
+
+Consider ownership, permission, licenses, public domain, and applicable copyright exceptions. Copyrighted media is not automatically prohibited. Use relevant user statements unless there is a concrete reason to doubt them. The skill adds no blanket license-statement requirement for ordinary local downloads. Ask about rights only when governing policies or concrete context make the answer necessary. Missing license information alone is not evidence of infringement. Fair use is case-specific: consider purpose, nature, amount, and market impact. Personal use, credit, noncommercial use, or a short duration alone does not establish it. Download rights and publication rights differ. Accepting Content ID claims or lost monetization does not establish permission or override provider policies. Respect applicable law, site terms, and provider policies. See https://www.copyright.gov/fair-use/.
 
 ## Installation and safe evaluation
 
@@ -227,7 +231,7 @@ lyt is not a hosted downloader, streaming service, DRM circumvention tool, or re
     lyt doctor
     lyt --video -q 1080p --dry-run "URL"
 
-The dry run downloads nothing and installs nothing. Global installation, managed tool downloads, and real media downloads require user approval.
+The dry run downloads nothing and installs nothing. A download request authorizes that download. Global installation and managed tool setup require explicit authorization; reuse authorization already given.
 
 ## Agent integration
 

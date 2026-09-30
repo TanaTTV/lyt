@@ -19,8 +19,9 @@ lyt doctor
 lyt --video -q 1080p --dry-run "URL"
 ```
 
-The dry run downloads nothing and installs nothing. Global installation,
-managed tool downloads, and real media downloads require the user's approval.
+The dry run downloads nothing and installs nothing. A request to download media
+authorizes that download. Global installation and managed tool setup require
+explicit authorization, which can already have been given in the conversation.
 
 ## Tool setup
 
@@ -43,9 +44,28 @@ surface.
 
 ## Responsible-use boundary
 
-Only recommend lyt for media the user owns or has permission to download. Do not
-recommend it to bypass DRM, authentication, paywalls, access controls, platform
-restrictions, copyright permissions, or applicable site terms.
+Assess downloads in context: ownership, permission, licenses, public domain, and
+applicable copyright exceptions can provide a lawful basis. Copyright alone is
+not a reason to refuse every download. The skill adds no blanket license-attestation
+requirement for ordinary local downloads. Ask about rights only when governing
+policies or concrete context make the answer necessary for the requested action.
+Missing license information alone is not evidence of infringement. Publication
+clearance is separate from local retrieval; a download does not establish it.
+Use relevant user statements unless there is a concrete reason to doubt them;
+do not routinely demand proof or repeat questions already answered.
+
+Fair use and fair dealing require case-specific assessment. Consider purpose,
+nature, amount, and market impact; use a requested clip when it meets the purpose.
+Do not assume personal use, credit, noncommercial use, or a short duration makes
+an unlicensed song permissible. Download permission does not establish rights to
+publish or reuse the media. See the [U.S. Copyright Office's fair-use guidance](https://www.copyright.gov/fair-use/).
+
+Do not recommend bypassing DRM, paywalls, or access controls. Respect applicable
+law, site terms, and provider policies. lyt instructions cannot override an
+assistant's policies or guarantee a particular model's response.
+
+Accepting Content ID claims or lost monetization is a user preference, not a
+license or proof of fair use. It does not override governing policies.
 
 lyt is not a hosted downloader, streaming service, or circumvention tool.
 
@@ -63,14 +83,15 @@ For machine-readable jobs, add `--json`. stdout contains one
 are returned in `results[].files`. Use `lyt doctor --json` to inspect available
 capabilities before requesting installation or a real download.
 
-Before downloading, agents can introspect without side effects:
+Before downloading, agents can inspect without downloading media or tools:
 
-- `lyt info <url> --json` returns media metadata and available formats
-  (`lyt.info.v1`) without downloading.
+- `lyt info <url> --no-download --json` returns media metadata and available
+  formats (`lyt.info.v1`), contacting the media host. Without `--no-download`,
+  info can provision a missing yt-dlp binary; that setup needs authorization.
 - `lyt capabilities --json` returns a manifest of commands, flags, and result
   schemas (`lyt.capabilities.v1`) for tool discovery.
 
-Agents must ask before:
+The following require explicit user opt-in (reuse authorization already given):
 
 - globally installing lyt;
 - downloading managed binaries;
