@@ -24,7 +24,12 @@ claude plugin marketplace add TanaTTV/lyt
 claude plugin install lyt@lyt-plugins
 ```
 
-Then ask your agent to download media you own or have permission to use. The
+Then ask your agent to download media with context about ownership, permission,
+license, public domain, or an applicable copyright exception when relevant. The
+skill adds no blanket license-statement requirement for ordinary local downloads;
+rights questions depend on governing policies and concrete context. Local retrieval
+and publication clearance are separate. Fair use remains case-specific and provider
+policies still apply. Authorization already given need not be requested again. The
 skill tells the agent to prefer lyt's versioned JSON contract, keep playlists
 disabled unless requested, and report exact final paths from `results[].files`.
 

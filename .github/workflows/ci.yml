@@ -41,6 +41,10 @@ jobs:
           set -o pipefail
           npm run check:website 2>&1 | tee website.log
 
+      - name: Verify a clean packed install and agent skills
+        if: matrix.node == 22
+        run: npm run smoke:pack
+
       - name: Upload failure logs
         if: failure()
         uses: actions/upload-artifact@v4

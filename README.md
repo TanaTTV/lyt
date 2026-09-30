@@ -42,8 +42,9 @@ provision a verified ffmpeg build; on macOS and Linux, `lyt doctor` provides the
 correct package-manager command when ffmpeg is needed.
 
 > [!IMPORTANT]
-> Only download media you own or have permission to use. A site's terms may
-> restrict downloading even when media is publicly viewable.
+> Download media when ownership, permission, a license, public domain status, or
+> an applicable copyright exception allows it. Download and reuse rights differ;
+> public availability alone does not establish either. Respect applicable site terms.
 
 ## Why lyt
 
@@ -99,7 +100,7 @@ lyt --video -q 1080p "URL"
 | preview without installing or downloading | `lyt --video -q 1080p --dry-run "URL"` |
 | use interactive prompts | `lyt --interactive` |
 | inspect available qualities | `lyt --list-formats "URL"` |
-| inspect media without downloading | `lyt info --json "URL"` |
+| inspect media without downloading or provisioning tools | `lyt info --no-download --json "URL"` |
 | list CLI surface for agents | `lyt capabilities --json` |
 | diagnose the environment as JSON | `lyt doctor --json` |
 
@@ -148,15 +149,20 @@ claude plugin install lyt@lyt-plugins
 ### Inspect before you download
 
 Agents can look before they leap. `lyt info` returns media metadata and
-available formats as JSON without downloading anything, and `lyt capabilities`
+available formats as JSON without downloading media, and `lyt capabilities`
 returns a self-describing manifest of commands, modes, flags, and result
 schemas so a tool-calling agent can discover the surface without scraping help
 text:
 
 ```sh
-lyt info --json "URL"          # lyt.info.v1: title, duration, uploader, formats
+lyt info --no-download --json "URL" # lyt.info.v1: title, duration, uploader, formats
 lyt capabilities --json        # lyt.capabilities.v1: commands, flags, schemas
 ```
+
+Metadata inspection contacts the media host. Use `--no-download` to prevent
+managed tool provisioning during inspection; otherwise a missing yt-dlp binary
+can be downloaded automatically. Reuse setup authorization already given, or
+ask once if setup is needed and has not been authorized.
 
 For bounded machine-readable jobs, add `--json`:
 
@@ -197,8 +203,22 @@ machine-readable document.
 - Marketplace package: [`plugins/lyt`](plugins/lyt)
 - Demo kit: [`demos/agent-to-file`](demos/agent-to-file)
 
-Agents must ask before global installation, managed tool downloads, playlist
-mode, overwrites, authentication material, or external downloaders.
+Global installation, managed tool downloads, playlist mode, overwrites,
+authentication material, and external downloaders require explicit opt-in.
+Agents should reuse authorization already given instead of asking again.
+
+The maintained skill assesses requests in context, including licenses, public
+domain, and applicable copyright exceptions. It adds no blanket license statement
+requirement for ordinary local downloads; rights questions depend on governing
+policies and concrete context. Local retrieval and publication clearance are
+separate. Fair use is case-specific; a short clip, credit, or personal use alone
+does not establish it. These instructions do not override provider policies.
+
+After updating your CLI, refresh installed direct skills with `lyt agent install
+all` (or `codex` / `claude`). In a source checkout, use `node bin/lyt.js agent
+install all` to install the checkout's skill. Start a new agent session to load
+the updated instructions. For marketplace installations, see the
+[plugin update instructions](plugins/lyt/README.md#update).
 
 ## Safe by default
 

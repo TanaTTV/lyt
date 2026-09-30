@@ -5,6 +5,8 @@ versioning for the public CLI and machine-readable result contract.
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-09-30
+
 ### Added
 
 - `lyt info <url>` (alias `lyt inspect`) reports media metadata and available
@@ -17,6 +19,17 @@ versioning for the public CLI and machine-readable result contract.
 
 ### Changed
 
+- Agent skills remove blanket license-attestation gates for ordinary local
+  downloads and distinguish file retrieval from publication clearance.
+- Agents reuse existing authorization, complete authorized jobs, and report
+  exact saved paths instead of repeatedly asking for confirmation.
+- Metadata inspection examples use `--no-download` to prevent unapproved
+  managed tool provisioning. Setup and network errors are distinguished from
+  policy decisions.
+- Codex, Claude, plugin, and website AI guidance are synchronized. Governing
+  provider policies still apply; Content ID preferences do not establish rights.
+- CI verifies clean packed installs and direct skill installation on Windows,
+  macOS, and Linux, alongside the existing permitted-media integration test.
 - Internal modular cleanup (merged via #41): single public router in `entry.js`,
   download engine in `download.js` / `process.js`, subcommands under
   `src/commands/`, shared `errors.js` helpers.
