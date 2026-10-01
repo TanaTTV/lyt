@@ -24,6 +24,8 @@ const { files = [] } = report ?? {};
 const paths = new Set(files.map((file) => file.path));
 const required = [
   "README.md",
+  "AI.md",
+  "SECURITY.md",
   "CHANGELOG.md",
   "LICENSE",
   "bin/lyt.js",

@@ -10,16 +10,26 @@
       "name": "lyt",
       "source": "./plugins/lyt",
       "description": "Safe local media downloads for people and AI agents, powered by yt-dlp.",
-      "version": "0.8.0",
+      "version": "0.8.1",
       "author": {
         "name": "TanaTTV"
       },
       "homepage": "https://tanattv.github.io/lyt/",
       "repository": "https://github.com/TanaTTV/lyt",
       "license": "MIT",
-      "keywords": ["yt-dlp", "media", "audio", "video", "ai-agents"],
+      "keywords": [
+        "yt-dlp",
+        "media",
+        "audio",
+        "video",
+        "ai-agents"
+      ],
       "category": "Productivity",
-      "tags": ["codex", "claude-code", "local-first"],
+      "tags": [
+        "codex",
+        "claude-code",
+        "local-first"
+      ],
       "strict": true
     }
   ]

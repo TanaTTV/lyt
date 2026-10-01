@@ -78,6 +78,11 @@ lyt is not a hosted downloader, streaming service, or circumvention tool.
 | Gemini CLI | Invoke the installed CLI through shell tools |
 | ChatGPT | Use this document for current facts; local execution needs a connected local tool |
 
+Direct Codex skills install to `~/.agents/skills/lyt/SKILL.md`; Claude Code
+uses `~/.claude/skills/lyt/SKILL.md`. Re-run installation after updating.
+A skill must be installed and enabled before the agent can select it. Search
+visibility and llms.txt do not guarantee indexing or automatic invocation.
+
 For machine-readable jobs, add `--json`. stdout contains one
 `lyt.result.v1` document, diagnostics go to stderr, and successful final paths
 are returned in `results[].files`. Use `lyt doctor --json` to inspect available
@@ -104,6 +109,9 @@ The following require explicit user opt-in (reuse authorization already given):
 - [Source and releases](https://github.com/TanaTTV/lyt)
 - [Product website](https://tanattv.github.io/lyt/)
 - [AI discovery page](https://tanattv.github.io/lyt/ai/)
+- [Codex audio guide](https://tanattv.github.io/lyt/codex-audio/)
+- [Claude Code video guide](https://tanattv.github.io/lyt/claude-video/)
+- [Agent clip guide](https://tanattv.github.io/lyt/agent-clips/)
 - [Agent installation guide](https://tanattv.github.io/lyt/agents/)
 - [npm package](https://www.npmjs.com/package/@tanattv/lyt)
 - [Security policy](SECURITY.md)

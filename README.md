@@ -146,6 +146,16 @@ claude plugin marketplace add TanaTTV/lyt
 claude plugin install lyt@lyt-plugins
 ```
 
+Codex direct skills install to `~/.agents/skills/lyt/SKILL.md`; Claude Code
+skills install to `~/.claude/skills/lyt/SKILL.md`. Run the installer again after
+upgrading from 0.8.0. The installer does not delete older or custom skill copies.
+If an older `~/.codex/skills/lyt` copy is still loaded by your agent, compare it
+with the packaged skill and remove only the obsolete copy yourself.
+
+Task guides: [Codex audio](https://tanattv.github.io/lyt/codex-audio/),
+[Claude Code video](https://tanattv.github.io/lyt/claude-video/), and
+[agent clips](https://tanattv.github.io/lyt/agent-clips/).
+
 ### Inspect before you download
 
 Agents can look before they leap. `lyt info` returns media metadata and
@@ -173,7 +183,7 @@ lyt --mp3 -q 192K --max-filesize 2G --json "URL"
 ```json
 {
   "schema": "lyt.result.v1",
-  "version": "0.7.4",
+  "version": "0.8.1",
   "command": "download",
   "ok": true,
   "results": [

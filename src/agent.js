@@ -12,7 +12,7 @@ export function agentSkillPath(agent, home = homedir()) {
     throw error;
   }
 
-  const root = agent === "codex" ? ".codex" : ".claude";
+  const root = agent === "codex" ? ".agents" : ".claude";
   return join(home, root, "skills", "lyt", "SKILL.md");
 }
 export function installAgentSkills(target = "all", {

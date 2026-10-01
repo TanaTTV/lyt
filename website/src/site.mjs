@@ -1,4 +1,7 @@
+import { discoveryPages } from "./discovery.mjs";
+
 export const pages = [
+  ...discoveryPages,
   {
     slug: "",
     nav: "Home",
@@ -126,6 +129,7 @@ export const pages = [
         <section><h2>1. Install the lyt CLI</h2><div class="code-block"><code>npm install --global @tanattv/lyt
 lyt doctor</code><button class="copy" data-copy="npm install --global @tanattv/lyt&#10;lyt doctor" aria-live="polite">Copy</button></div><p>Global package installation and first-use managed binary downloads require explicit authorization. Reuse authorization already given in the conversation.</p></section>
         <section><h2>2. Install the direct skills</h2><div class="recipe-grid"><article><span>Codex</span><code>lyt agent install codex</code></article><article><span>Claude Code</span><code>lyt agent install claude</code></article><article><span>Both</span><code>lyt agent install all</code></article></div></section>
+        <section><h2>Task guides</h2><p><a href="../codex-audio/">Download audio with Codex</a> · <a href="../claude-video/">Save video with Claude Code</a> · <a href="../agent-clips/">Extract a clip with an agent</a></p><p>Direct skills install under <code>~/.agents/skills/lyt/</code> for Codex and <code>~/.claude/skills/lyt/</code> for Claude Code. Re-run the installer after upgrading.</p><p>Installing a skill makes it available to that agent. Selection depends on the task and agent configuration; it does not guarantee automatic use.</p></section>
         <section><h2>Optional marketplace path</h2><p>Compatible Codex and Claude Code versions can also install the maintained plugin packages from this repository:</p><div class="code-block"><code>codex plugin marketplace add TanaTTV/lyt
 codex plugin add lyt@lyt-plugins</code><button class="copy" data-copy="codex plugin marketplace add TanaTTV/lyt&#10;codex plugin add lyt@lyt-plugins" aria-live="polite">Copy</button></div><div class="code-block stacked"><code>claude plugin marketplace add TanaTTV/lyt
 claude plugin install lyt@lyt-plugins</code><button class="copy" data-copy="claude plugin marketplace add TanaTTV/lyt&#10;claude plugin install lyt@lyt-plugins" aria-live="polite">Copy</button></div></section>

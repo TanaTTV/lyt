@@ -6,7 +6,7 @@ import { join } from "node:path";
 import { agentSkillPath, installAgentSkills } from "../src/agent.js";
 
 test("resolves Codex and Claude skill destinations", () => {
-  assert.equal(agentSkillPath("codex", "C:/Users/Test"), join("C:/Users/Test", ".codex", "skills", "lyt", "SKILL.md"));
+  assert.equal(agentSkillPath("codex", "C:/Users/Test"), join("C:/Users/Test", ".agents", "skills", "lyt", "SKILL.md"));
   assert.equal(agentSkillPath("claude", "C:/Users/Test"), join("C:/Users/Test", ".claude", "skills", "lyt", "SKILL.md"));
   assert.throws(() => agentSkillPath("other", "C:/Users/Test"), /Unknown agent/);
 });

@@ -31,7 +31,7 @@ assert.equal(planned.ok, true);
 assert.equal(planned.results[0].status, "planned");
 run([cli, "agent", "install", "all", "--home", join(root, "agent-home")]);
 const skill = readFileSync(join(packageRoot, "skills", "lyt", "SKILL.md"));
-for (const agent of [".codex", ".claude"]) {
+for (const agent of [".agents", ".claude"]) {
   assert.deepEqual(readFileSync(join(root, "agent-home", agent, "skills", "lyt", "SKILL.md")), skill);
 }
 console.log(`PACKED_INSTALL_OK ${process.platform} lyt ${version}`);
