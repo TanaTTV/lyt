@@ -5,6 +5,27 @@ versioning for the public CLI and machine-readable result contract.
 
 ## [Unreleased]
 
+## [0.8.1] - 2026-10-01
+
+### Fixed
+
+- Install direct Codex skills in the documented user discovery location,
+  `~/.agents/skills`, and verify that location in clean packed installs.
+- Include AI.md and its security-policy link in the npm publish payload.
+- Synchronize README examples and plugin versions with the CLI release.
+
+### Added
+
+- Searchable task guides for Codex audio, Claude Code video, and agent clips,
+  linked from the agent guide, sitemap, and both AI reference files.
+- Release consistency checks, directory preparation instructions, and a
+  natural-language skill selection evaluation fixture.
+
+### Changed
+
+- Clarify plugin listing metadata, requirements, and local execution limits.
+
+
 ## [0.8.0] - 2026-09-30
 
 ### Added

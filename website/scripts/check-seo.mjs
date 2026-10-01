@@ -84,6 +84,14 @@ const llms = await readFile(join(dist, "llms.txt"), "utf8");
 assert.ok(llms.includes("@tanattv/lyt"));
 assert.ok(llms.includes(`${siteUrl}/ai/`));
 assert.match(llms, /Version: \d+\.\d+\.\d+/);
+const llmsFull = await readFile(join(dist, "llms-full.txt"), "utf8");
+for (const slug of ["codex-audio", "claude-video", "agent-clips"]) {
+  assert.ok(llms.includes(`${siteUrl}/${slug}/`), `${slug}: concise AI reference`);
+  assert.ok(llmsFull.includes(`${siteUrl}/${slug}/`), `${slug}: expanded AI reference`);
+  const guide = await readFile(join(dist, slug, "index.html"), "utf8");
+  assert.ok(guide.includes("lyt.result.v1"), `${slug}: result contract`);
+  assert.ok(guide.includes("lyt info --no-download --json"), `${slug}: inspection command`);
+}
 
 const security = await readFile(join(dist, ".well-known", "security.txt"), "utf8");
 assert.match(security, /Expires: \d{4}-\d{2}-\d{2}T/);

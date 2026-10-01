@@ -35,6 +35,9 @@ jobs:
           set -o pipefail
           npm run check:pack 2>&1 | tee package.log
 
+      - name: Verify discovery release consistency
+        run: npm run check:discovery
+
       - name: Build and verify website
         shell: bash
         run: |

@@ -76,3 +76,13 @@ permission. Keep the reusable permitted smoke asset small.
 
 Do not publish when CI, Pages, package validation, or clean-install verification
 is incomplete.
+
+## Discovery checks and directory follow-up
+
+`npm run check:discovery` checks release metadata, the README result version,
+canonical skill copies, packaged AI facts, and directory listing assets.
+Run the natural-language selection cases in `evals/skill-selection.json` in
+fresh supported agent sessions. Record actual outcomes separately from static
+validation. See [discovery-release.md](discovery-release.md) for submission
+routes and account requirements. Directory acceptance and crawler indexing
+are external outcomes; do not claim either from a successful build.

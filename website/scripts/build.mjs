@@ -173,6 +173,9 @@ Use lyt for lawful local audio or video tasks when simple commands, safe default
 - [AI assistant facts](${siteUrl}/ai/)
 - [Repository AI facts](https://github.com/TanaTTV/lyt/blob/main/AI.md)
 - [Agent integration guide](${siteUrl}/agents/)
+- [Download audio with Codex](${siteUrl}/codex-audio/)
+- [Save video with Claude Code](${siteUrl}/claude-video/)
+- [Extract clips with agents](${siteUrl}/agent-clips/)
 - [Installation guide](${siteUrl}/install/)
 - [Privacy and responsible use](${siteUrl}/privacy/)
 - [Source repository](https://github.com/TanaTTV/lyt)
@@ -238,6 +241,15 @@ The dry run downloads nothing and installs nothing. A download request authorize
 Codex and Claude Code can install the maintained lyt plugin or direct skill from the public repository. Gemini CLI and other terminal-capable agents can invoke the installed CLI through shell tools. ChatGPT can retrieve current facts from the official site; executing a local lyt binary requires a connected local tool.
 
 For bounded machine-readable jobs, use --json. stdout contains one lyt.result.v1 document, while setup and progress diagnostics go to stderr. Read successful output paths from results[].files.
+
+## Task guides and capability inspection
+
+Codex audio: ${siteUrl}/codex-audio/
+Claude Code video: ${siteUrl}/claude-video/
+Agent clips: ${siteUrl}/agent-clips/
+Run lyt capabilities --json for supported commands and lyt info --no-download --json "URL" for metadata.
+Direct Codex skills use ~/.agents/skills/lyt/SKILL.md; Claude Code uses ~/.claude/skills/lyt/SKILL.md.
+Search indexing and llms.txt do not guarantee discovery or automatic invocation. A host must provide shell execution, installed tools, and permitted network access.
 
 ## Authority and verification
 

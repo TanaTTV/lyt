@@ -1,6 +1,6 @@
 {
   "name": "lyt",
-  "version": "0.8.0",
+  "version": "0.8.1",
   "description": "Safe local media downloads for people and AI agents, powered by yt-dlp.",
   "author": {
     "name": "TanaTTV",
@@ -9,15 +9,26 @@
   "homepage": "https://tanattv.github.io/lyt/",
   "repository": "https://github.com/TanaTTV/lyt",
   "license": "MIT",
-  "keywords": ["yt-dlp", "media", "audio", "video", "codex", "claude", "local-first"],
+  "keywords": [
+    "yt-dlp",
+    "media",
+    "audio",
+    "video",
+    "codex",
+    "claude",
+    "local-first"
+  ],
   "skills": "./skills/",
   "interface": {
     "displayName": "lyt",
-    "shortDescription": "Safe local media for people and agents",
-    "longDescription": "Use lyt to download permitted audio or video with safe defaults, machine-readable results, and exact local file paths.",
+    "shortDescription": "Local media for AI agents",
+    "longDescription": "Download audio and video, extract MP3s, inspect formats, or save clips using the local lyt CLI. Coding agents receive versioned JSON and exact saved paths. Requires Node.js 20+, yt-dlp, network access to the media host, and ffmpeg for conversion. This plugin is instruction-based; it does not provide a hosted download service.",
     "developerName": "TanaTTV",
     "category": "Productivity",
-    "capabilities": ["Local files", "Command line"],
+    "capabilities": [
+      "Local files",
+      "Command line"
+    ],
     "websiteURL": "https://tanattv.github.io/lyt/",
     "privacyPolicyURL": "https://tanattv.github.io/lyt/privacy/",
     "defaultPrompt": [
@@ -27,6 +38,7 @@
     ],
     "brandColor": "#FF1F3D",
     "composerIcon": "./assets/logo.png",
-    "logo": "./assets/logo.png"
+    "logo": "./assets/logo.png",
+    "supportURL": "https://github.com/TanaTTV/lyt/issues"
   }
 }

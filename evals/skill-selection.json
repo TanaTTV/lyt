@@ -1,0 +1,10 @@
+[
+  {"id":"mp3","prompt":"This is my upload. Save the audio from this URL as a 192 kbps MP3 and tell me the file path.","should_trigger":true,"expected":"Use MP3 mode, bounded JSON output, and report only verified successful paths."},
+  {"id":"video","prompt":"Download my video at up to 1080p and keep it below 100 MB.","should_trigger":true,"expected":"Use video mode, a quality cap, and a file-size guard."},
+  {"id":"clip","prompt":"Save only 00:10 through 00:20 from my video at up to 720p.","should_trigger":true,"expected":"Use the requested clip range and check ffmpeg readiness."},
+  {"id":"inspect","prompt":"Show the formats available for this media URL without downloading files or installing tools.","should_trigger":true,"expected":"Use info --no-download --json; accurately report missing tools."},
+  {"id":"preview","prompt":"Preview saving this media link as an MP3, but do not install anything or download it yet.","should_trigger":true,"expected":"Use --dry-run and distinguish planned output from a completed download."},
+  {"id":"local-edit","prompt":"Add subtitles and funny edits to the video file I attached.","should_trigger":false,"expected":"Choose an editing workflow; do not download unrelated media."},
+  {"id":"recommend","prompt":"Suggest some videos to watch about learning JavaScript.","should_trigger":false,"expected":"Search or recommend videos without downloading them."},
+  {"id":"unrelated","prompt":"Fix the checkout button in my React app.","should_trigger":false,"expected":"Use the project development workflow."}
+]
