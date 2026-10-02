@@ -5,9 +5,20 @@ versioning for the public CLI and machine-readable result contract.
 
 ## [Unreleased]
 
-## [0.8.1] - 2026-10-01
+## [0.8.1] - 2026-10-02
 
 ### Fixed
+
+- Match existing artifacts before preparing tools, so history-only downloads do
+  not require executable probes or managed installation.
+- Allow bounded 15-second yt-dlp cold-start checks and report an unusable installed
+  executable separately from a missing tool. Doctor reuses successful probe output.
+- Classify a missing output as a size-limit skip only when yt-dlp reports the limit.
+- Bound metadata extraction to 60 seconds and 16 MiB of combined output, terminating
+  the child process on timeout or excess output.
+- Validate complete versions and compare prereleases correctly for upgrade notices.
+- Refresh release information after the installed version changes; cache failures
+  never fail the media operation and offline checks back off for five minutes.
 
 - Install direct Codex skills in the documented user discovery location,
   `~/.agents/skills`, and verify that location in clean packed installs.
@@ -22,6 +33,15 @@ versioning for the public CLI and machine-readable result contract.
   natural-language skill selection evaluation fixture.
 
 ### Changed
+
+- Load help, version, and subcommands without the full download engine.
+- Inspect up to three URLs concurrently by default; `info` / `inspect --jobs 1-16`
+  controls concurrency while preserving result order and partial failures.
+- Cache successful npm release checks for six hours. `doctor --check-updates` forces
+  a fresh check, and human download checks run alongside the job.
+- Label stale release information explicitly. JSON download/inspection behavior
+  and update opt-outs are preserved; no automatic self-update is introduced.
+- Agent guidance favors batched calls and reuses session discovery results.
 
 - Clarify plugin listing metadata, requirements, and local execution limits.
 

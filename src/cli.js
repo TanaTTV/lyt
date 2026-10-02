@@ -27,7 +27,9 @@ import {
 import { handleCliError, usageError } from "./errors.js";
 import { errorDetails, resultEnvelope } from "./result.js";
 import { VERSION } from "./version.js";
+import { runMetaCommand } from "./commands/meta.js";
 import {
+  checkForUpdate,
   isUpdateCheckEnabled,
   maybeNotifyUpdate,
 } from "./updateCheck.js";
@@ -53,18 +55,8 @@ export async function main(argv, defaults = {}) {
   const userConfig = loadConfig();
   const updateCheckEnabled = isUpdateCheckEnabled(userConfig);
 
-  if (parsed.help) {
-    console.log(usage());
-    return;
-  }
-
-  if (parsed.version) {
-    console.log(`lyt ${VERSION}`);
-    if (updateCheckEnabled) {
-      await maybeNotifyUpdate({ enabled: true, force: false });
-    }
-    return;
-  }
+  if (parsed.help) return runMetaCommand("--help", userConfig);
+  if (parsed.version) return runMetaCommand("--version", userConfig);
 
   const profileName = parsed.options.profile ?? userConfig.profile ?? null;
   const profileOptions = profileName ? resolveProfile(profileName) : {};
@@ -195,16 +187,20 @@ export async function main(argv, defaults = {}) {
     return;
   }
 
-  const tools = await prepareTools(options, noDownload);
-
   if (options.watch) {
     if (options.json) {
       throw usageError("--json cannot be combined with --watch; use bounded URL batches.");
     }
+    const tools = await prepareTools(options, noDownload);
     return runWatchMode(urls, options, tools);
   }
 
-  const { failures, results } = await downloadUrls(urls, options, tools);
+  // Refresh notices alongside useful work rather than after a download finishes.
+  const updatePromise = !options.json && updateCheckEnabled
+    ? checkForUpdate().catch(() => null)
+    : null;
+
+  const { failures, results } = await downloadUrls(urls, options, () => prepareTools(options, noDownload));
 
   if (options.json) {
     console.log(JSON.stringify(resultEnvelope({
@@ -225,6 +221,6 @@ export async function main(argv, defaults = {}) {
 
   // Human runs only: quiet npm registry check so people notice new releases.
   if (!options.json && updateCheckEnabled) {
-    await maybeNotifyUpdate({ enabled: true });
+    await maybeNotifyUpdate({ enabled: true, check: () => updatePromise });
   }
 }

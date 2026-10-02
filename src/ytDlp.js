@@ -490,13 +490,15 @@ Grab just a slice of a long video:
 Subcommands:
   lyt info <url>            Media metadata and formats without downloading
                             (alias: lyt inspect; --json → lyt.info.v1)
+                            --jobs 1-16 controls inspection workers (default: 3)
   lyt capabilities          Commands, modes, flags, and result schemas
                             (--json → lyt.capabilities.v1)
   lyt history [query]       List/search past downloads (--clear wipes)
   lyt config <cmd>          Persistent defaults: set/get/unset/list/path
   lyt doctor                Check the environment (--fix installs missing
                             tools, --update self-updates yt-dlp; also reports
-                            when a newer lyt release is on npm)
+                            when a newer lyt release is on npm; --check-updates
+                            refreshes cached release information)
   lyt agent install [name]  Install the lyt skill for codex, claude, or all
                             (optional: --home <dir>)
 
@@ -543,7 +545,7 @@ Options:
 
 Update checks:
   After human downloads and on doctor/--version, lyt may check npm for a newer
-  release (cached ~24h). Disable with LYT_NO_UPDATE_CHECK=1 or:
+  release (cached ~6h; failed checks back off ~5m). Disable with LYT_NO_UPDATE_CHECK=1 or:
     lyt config set update-check false`;
 }
 

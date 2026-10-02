@@ -1,4 +1,5 @@
 import { spawn } from "node:child_process";
+import { runJsonTool } from "./jsonProcess.js";
 import { ytDlpJsRuntimeArgs } from "./jsRuntime.js";
 import { labelHeight } from "./quality.js";
 import { formatCommand } from "./ytDlp.js";
@@ -6,7 +7,10 @@ import { formatCommand } from "./ytDlp.js";
 // Parses `yt-dlp -J` (JSON dump) output into the set of qualities actually
 // available for a URL. Pure, so it is unit-tested with sample payloads.
 export function parseFormats(jsonText) {
-  const info = JSON.parse(jsonText);
+  const info = typeof jsonText === "string" ? JSON.parse(jsonText) : jsonText;
+  if (!info || typeof info !== "object" || Array.isArray(info)) {
+    throw new Error("Tool output did not contain media metadata.");
+  }
   // A playlist dump nests entries; fall back to the first real video.
   const video = Array.isArray(info.entries) ? info.entries.find(Boolean) ?? info : info;
 
@@ -37,54 +41,26 @@ export function parseFormats(jsonText) {
 
 // Runs `yt-dlp -J` for a URL and returns the parsed quality set. The spawn is
 // injectable so callers can test the wiring without a real yt-dlp.
-export function listFormats(
+export async function listFormats(
   url,
   {
     command = "yt-dlp",
     spawnFn = spawn,
     runtimeArgs = ytDlpJsRuntimeArgs(),
+    ...toolOptions
   } = {},
 ) {
-  return new Promise((resolve, reject) => {
-    const args = [
-      "-J",
-      "--no-warnings",
-      ...runtimeArgs,
-      "--no-playlist",
-      "--",
-      url,
-    ];
-    const child = spawnFn(command, args, { stdio: ["ignore", "pipe", "pipe"] });
-
-    let stdout = "";
-    let stderr = "";
-
-    child.stdout.setEncoding("utf8").on("data", (chunk) => {
-      stdout += chunk;
-    });
-    child.stderr.setEncoding("utf8").on("data", (chunk) => {
-      stderr += chunk;
-    });
-
-    child.on("error", reject);
-    child.on("close", (code) => {
-      if (code !== 0) {
-        const error = new Error(
-          `yt-dlp could not read formats for ${url}` +
-            (stderr.trim() ? `\n${stderr.trim()}` : ""),
-        );
-        error.exitCode = code ?? 1;
-        reject(error);
-        return;
-      }
-
-      try {
-        resolve(parseFormats(stdout));
-      } catch {
-        reject(new Error(`Could not parse yt-dlp output for ${url}.`));
-      }
-    });
-  });
+  try {
+    const payload = await runJsonTool(command, [
+      "-J", "--no-warnings", ...runtimeArgs, "--no-playlist", "--", url,
+    ], { spawnFn, ...toolOptions });
+    return parseFormats(payload);
+  } catch (cause) {
+    const error = new Error(`yt-dlp could not read formats for ${url}\n${cause.message}`, { cause });
+    error.exitCode = cause.exitCode ?? 1;
+    if (cause.code) error.code = cause.code;
+    throw error;
+  }
 }
 
 export function printFormats(url, formats) {

@@ -20,7 +20,8 @@ import { VERSION } from "./version.js";
 export const PACKAGE_NAME = "@tanattv/lyt";
 export const DEFAULT_REGISTRY_URL =
   "https://registry.npmjs.org/@tanattv%2flyt/latest";
-export const DEFAULT_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
+export const DEFAULT_CACHE_TTL_MS = 6 * 60 * 60 * 1000;
+export const DEFAULT_FAILURE_BACKOFF_MS = 5 * 60 * 1000;
 export const DEFAULT_FETCH_TIMEOUT_MS = 1500;
 
 export function updateCheckPath(dir = dataDir()) {
@@ -44,25 +45,46 @@ export function isUpdateCheckEnabled(
   return true;
 }
 
-/** Compare dotted semver cores (pre-release suffixes ignored). Returns -1/0/1. */
+/** Compare complete SemVer versions, including prerelease precedence. */
 export function compareSemver(left, right) {
-  const a = parseSemver(left);
-  const b = parseSemver(right);
+  const a = semverParts(left);
+  const b = semverParts(right);
   if (!a || !b) return 0;
-
-  for (let index = 0; index < 3; index += 1) {
-    if (a[index] > b[index]) return 1;
-    if (a[index] < b[index]) return -1;
+  for (let index = 0; index < 3; index++) {
+    if (a.core[index] !== b.core[index]) return a.core[index] > b.core[index] ? 1 : -1;
   }
-
+  if (!a.pre.length || !b.pre.length) {
+    return a.pre.length === b.pre.length ? 0 : a.pre.length ? -1 : 1;
+  }
+  for (let index = 0; index < Math.max(a.pre.length, b.pre.length); index++) {
+    const x = a.pre[index];
+    const y = b.pre[index];
+    if (x === y) continue;
+    if (x === undefined || y === undefined) return x === undefined ? -1 : 1;
+    const xNumeric = /^\d+$/.test(x);
+    const yNumeric = /^\d+$/.test(y);
+    if (xNumeric !== yNumeric) return xNumeric ? -1 : 1;
+    if (xNumeric) {
+      // Compare arbitrarily long numeric identifiers without losing precision.
+      if (x.length !== y.length) return x.length > y.length ? 1 : -1;
+    }
+    return x > y ? 1 : -1;
+  }
   return 0;
 }
 
 export function parseSemver(value) {
+  return semverParts(value)?.core ?? null;
+}
+
+function semverParts(value) {
   if (typeof value !== "string") return null;
-  const match = value.trim().match(/^v?(\d+)\.(\d+)\.(\d+)/i);
+  const match = /^v?(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-([0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?(?:\+([0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?$/.exec(value);
   if (!match) return null;
-  return [Number(match[1]), Number(match[2]), Number(match[3])];
+  const core = match.slice(1, 4).map(Number);
+  const pre = match[4]?.split(".") ?? [];
+  if (core.some((n) => !Number.isSafeInteger(n)) || pre.some((id) => /^0\d+$/.test(id))) return null;
+  return { core, pre };
 }
 
 export function loadUpdateCache(file = updateCheckPath()) {
@@ -137,48 +159,52 @@ export async function checkForUpdate({
   force = false,
   now = Date.now(),
   cacheTtlMs = DEFAULT_CACHE_TTL_MS,
+  failureBackoffMs = DEFAULT_FAILURE_BACKOFF_MS,
   cacheFile = updateCheckPath(),
   fetchLatest = fetchLatestVersion,
   loadCache = loadUpdateCache,
   saveCache = saveUpdateCache,
 } = {}) {
-  const cached = loadCache(cacheFile);
-  const cacheAge = cached?.checkedAt ? now - Date.parse(cached.checkedAt) : Number.POSITIVE_INFINITY;
-  const cacheFresh = Number.isFinite(cacheAge) && cacheAge >= 0 && cacheAge < cacheTtlMs;
+  // Cache failures are optional and must never prevent the actual operation.
+  let cached;
+  try { cached = loadCache(cacheFile); } catch { cached = null; }
+  const validLatest = parseSemver(cached?.latest) ? cached.latest : null;
+  const age = (timestamp) => timestamp ? now - Date.parse(timestamp) : Infinity;
+  const fresh = (timestamp, ttl) => Number.isFinite(age(timestamp)) && age(timestamp) >= 0 && age(timestamp) < ttl;
+  const fromCache = (source) => validLatest ? buildUpdateResult(currentVersion, validLatest, {
+    source, checkedAt: cached.checkedAt ?? null,
+  }) : null;
+  const save = (value) => { try { saveCache(value, cacheFile); } catch { /* Best effort. */ } };
 
-  if (!force && cacheFresh && typeof cached?.latest === "string") {
-    return buildUpdateResult(currentVersion, cached.latest, { source: "cache" });
+  if (!force && cached?.failedVersion === currentVersion && fresh(cached.failedAt, failureBackoffMs)) {
+    return fromCache("stale-cache");
+  }
+  if (!force && cached?.current === currentVersion && validLatest && fresh(cached.checkedAt, cacheTtlMs)) {
+    return fromCache("cache");
   }
 
   try {
     const latest = await fetchLatest();
-    const result = buildUpdateResult(currentVersion, latest, { source: "registry" });
-    try {
-      saveCache({
-        checkedAt: new Date(now).toISOString(),
-        current: currentVersion,
-        latest,
-        updateAvailable: result.updateAvailable,
-      }, cacheFile);
-    } catch {
-      // Cache writes are best-effort; still report the live result.
-    }
+    if (!parseSemver(latest)) throw new Error("Registry returned an invalid version.");
+    const checkedAt = new Date(now).toISOString();
+    const result = buildUpdateResult(currentVersion, latest, { source: "registry", checkedAt });
+    save({ checkedAt, current: currentVersion, latest, updateAvailable: result.updateAvailable });
     return result;
   } catch {
-    if (typeof cached?.latest === "string") {
-      return buildUpdateResult(currentVersion, cached.latest, { source: "stale-cache" });
-    }
-    return null;
+    // Avoid paying the network timeout on every invocation while offline.
+    save({ ...cached, failedAt: new Date(now).toISOString(), failedVersion: currentVersion });
+    return fromCache("stale-cache");
   }
 }
 
-export function buildUpdateResult(currentVersion, latestVersion, { source } = {}) {
+export function buildUpdateResult(currentVersion, latestVersion, { source, checkedAt = null } = {}) {
   const updateAvailable = compareSemver(latestVersion, currentVersion) > 0;
   return {
     currentVersion,
     latestVersion,
     updateAvailable,
     source,
+    checkedAt,
     installCommand: `npm install --global ${PACKAGE_NAME}@latest`,
   };
 }
@@ -186,7 +212,7 @@ export function buildUpdateResult(currentVersion, latestVersion, { source } = {}
 export function formatUpdateNotice(update) {
   if (!update?.updateAvailable) return null;
   return [
-    `Update available: lyt ${update.latestVersion} (you have ${update.currentVersion})`,
+    `Update available: lyt ${update.latestVersion} (you have ${update.currentVersion})${update.source === "stale-cache" ? " — cached; latest check unavailable" : ""}`,
     `  ${update.installCommand}`,
   ].join("\n");
 }

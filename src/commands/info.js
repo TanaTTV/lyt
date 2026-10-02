@@ -8,57 +8,52 @@ import { fetchInfo } from "../info.js";
 import { errorDetails } from "../result.js";
 import { VERSION } from "../version.js";
 
-export function parseInfoArgs(argv) {
-  let json = false;
-  let noDownload = false;
-  const urls = [];
+import { parseInfoArgs } from "../commandArgs.js";
+export { parseInfoArgs } from "../commandArgs.js";
 
-  for (const arg of argv) {
-    if (arg === "--json") {
-      json = true;
-      continue;
-    }
-
-    if (arg === "--no-download") {
-      noDownload = true;
-      continue;
-    }
-
-    if (arg.startsWith("-")) {
-      throw usageError(`Unknown info option: ${arg}`);
-    }
-
-    urls.push(arg);
-  }
-
-  return { json, noDownload, urls };
-}
-
-export async function runInfoCommand(argv) {
-  const { json, noDownload, urls } = parseInfoArgs(argv);
+export async function runInfoCommand(argv, {
+  ensureTool = ensureYtDlp,
+  inspect = fetchInfo,
+  log = console.log,
+  logError = console.error,
+} = {}) {
+  const { json, noDownload, jobs, urls } = parseInfoArgs(argv);
 
   if (urls.length === 0) {
-    throw usageError("Usage: lyt info <url> [more-urls...] [--json]");
+    throw usageError("Usage: lyt info <url> [more-urls...] [--jobs 1-16] [--json]");
   }
 
-  const command = await ensureYtDlp({
+  const command = await ensureTool({
     noDownload: noDownload || process.env.LYT_NO_DOWNLOAD === "1",
   });
-  const results = [];
-
-  for (const url of urls) {
-    try {
-      const media = await fetchInfo(url, { command });
-      results.push({ url, status: "available", ...media });
-      if (!json) printInfo(url, media);
-    } catch (error) {
-      results.push({ url, status: "failed", error: errorDetails(error) });
-      if (!json) console.error(`- ${url}: ${error.message}`);
+  const results = new Array(urls.length);
+  let next = 0;
+  let nextToPrint = 0;
+  function printReadyResults() {
+    // Human output can stream as soon as earlier input items are complete.
+    while (!json && nextToPrint < results.length && results[nextToPrint]) {
+      const result = results[nextToPrint++];
+      if (result.status === "available") printInfo(result.url, result, log);
+      else logError(`- ${result.url}: ${result.error.message}`);
     }
   }
+  async function worker() {
+    while (next < urls.length) {
+      const index = next++;
+      const url = urls[index];
+      try {
+        const media = await inspect(url, { command });
+        results[index] = { url, status: "available", ...media };
+      } catch (error) {
+        results[index] = { url, status: "failed", error: errorDetails(error) };
+      }
+      printReadyResults();
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(jobs, urls.length) }, worker));
 
   if (json) {
-    console.log(JSON.stringify({
+    log(JSON.stringify({
       schema: "lyt.info.v1",
       version: VERSION,
       command: "info",
@@ -72,28 +67,28 @@ export async function runInfoCommand(argv) {
   }
 }
 
-function printInfo(url, media) {
-  console.log(media.title || url);
+function printInfo(url, media, log = console.log) {
+  log(media.title || url);
 
   const summary = [];
   if (media.uploader) summary.push(media.uploader);
   if (media.durationSeconds != null) summary.push(formatDuration(media.durationSeconds));
   if (media.extractor) summary.push(media.extractor);
   if (media.isLive) summary.push("LIVE");
-  if (summary.length > 0) console.log(`  ${summary.join("  -  ")}`);
+  if (summary.length > 0) log(`  ${summary.join("  -  ")}`);
 
   if (media.heights.length > 0) {
-    console.log(`  video: ${media.heights.map((height) => `${height}p`).join(", ")}`);
+    log(`  video: ${media.heights.map((height) => `${height}p`).join(", ")}`);
   }
   if (media.audioBitrates.length > 0) {
-    console.log(`  audio: ${media.audioBitrates.map((rate) => `${rate}k`).join(", ")}`);
+    log(`  audio: ${media.audioBitrates.map((rate) => `${rate}k`).join(", ")}`);
   }
   if (media.heights.length === 0 && media.audioBitrates.length === 0) {
-    console.log("  no downloadable formats reported");
+    log("  no downloadable formats reported");
   }
-  if (media.webpageUrl) console.log(`  url: ${media.webpageUrl}`);
+  if (media.webpageUrl) log(`  url: ${media.webpageUrl}`);
 
-  console.log("");
+  log("");
 }
 
 function formatDuration(totalSeconds) {

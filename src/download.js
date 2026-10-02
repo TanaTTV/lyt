@@ -45,7 +45,9 @@ export async function prepareTools(options, noDownload) {
 
 // Downloads a batch of URLs. Returns the failures instead of throwing so
 // watch mode can keep going after a bad link.
-export async function downloadUrls(urls, options, { ytDlpCommand, ffmpegPath }) {
+export async function downloadUrls(urls, options, tools, {
+  execute = runCommand,
+} = {}) {
   const artifact = buildArtifactFingerprint(options);
   let targets = urls;
   const results = [];
@@ -83,6 +85,9 @@ export async function downloadUrls(urls, options, { ytDlpCommand, ffmpegPath }) 
   if (targets.length === 0) {
     return { failures: [], results };
   }
+
+  // History-only requests do not require tool discovery or installation.
+  const { ytDlpCommand, ffmpegPath } = typeof tools === "function" ? await tools() : tools;
 
   // Build each command exactly once and reuse it for both printing and
   // running so the printed command always matches what executes.
@@ -124,14 +129,14 @@ export async function downloadUrls(urls, options, { ytDlpCommand, ffmpegPath }) 
         : undefined;
 
       try {
-        const outcome = await runCommand(ytDlpCommand, task.args, {
+        const outcome = await execute(ytDlpCommand, task.args, {
           onLine: lineHandler,
           quiet: options.json,
         });
 
         if (outcome.files.length === 0) {
           renderer?.done(task.index, false);
-          const guarded = Boolean(options.maxFilesize);
+          const guarded = Boolean(options.maxFilesize && outcome.sizeLimited);
           const error = new Error(
             guarded
               ? `No file downloaded; media exceeded --max-filesize ${options.maxFilesize}.`
@@ -211,7 +216,11 @@ export async function downloadUrls(urls, options, { ytDlpCommand, ffmpegPath }) 
 export function buildTasks(urls, options, { ffmpegPath }, { capturePaths = true } = {}) {
   const tasks = urls.map((url, index) => {
     const args = buildYtDlpArgs(url, options);
-    if (capturePaths) args.splice(args.indexOf("--"), 0, ...outputCaptureArgs());
+    if (capturePaths) {
+      // --print implies quiet mode in yt-dlp. Keep size-limit diagnostics;
+      // the process wrapper still keeps JSON stdout clean.
+      args.splice(args.indexOf("--"), 0, "--no-quiet", ...outputCaptureArgs());
+    }
     return { url, index, args };
   });
 

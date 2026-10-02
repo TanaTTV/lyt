@@ -1,11 +1,15 @@
 import { spawn } from "node:child_process";
+import { runJsonTool } from "./jsonProcess.js";
 import { ytDlpJsRuntimeArgs } from "./jsRuntime.js";
 
 // Shapes a `yt-dlp -J` (JSON dump) payload into the stable lyt.info.v1 media
 // description agents can read before committing to a download. Pure, so it is
 // unit-tested with sample payloads.
 export function parseInfo(jsonText) {
-  const info = JSON.parse(jsonText);
+  const info = typeof jsonText === "string" ? JSON.parse(jsonText) : jsonText;
+  if (!info || typeof info !== "object" || Array.isArray(info)) {
+    throw new Error("Tool output did not contain media metadata.");
+  }
   // A playlist dump nests entries; describe the first real item.
   const media = Array.isArray(info.entries)
     ? info.entries.find(Boolean) ?? info
@@ -59,54 +63,26 @@ export function parseInfo(jsonText) {
 // Runs `yt-dlp -J` for a URL and returns the shaped media description without
 // downloading media. The spawn is injectable so callers can test the wiring
 // without a real yt-dlp.
-export function fetchInfo(
+export async function fetchInfo(
   url,
   {
     command = "yt-dlp",
     spawnFn = spawn,
     runtimeArgs = ytDlpJsRuntimeArgs(),
+    ...toolOptions
   } = {},
 ) {
-  return new Promise((resolve, reject) => {
-    const args = [
-      "-J",
-      "--no-warnings",
-      ...runtimeArgs,
-      "--no-playlist",
-      "--",
-      url,
-    ];
-    const child = spawnFn(command, args, { stdio: ["ignore", "pipe", "pipe"] });
-
-    let stdout = "";
-    let stderr = "";
-
-    child.stdout.setEncoding("utf8").on("data", (chunk) => {
-      stdout += chunk;
-    });
-    child.stderr.setEncoding("utf8").on("data", (chunk) => {
-      stderr += chunk;
-    });
-
-    child.on("error", reject);
-    child.on("close", (code) => {
-      if (code !== 0) {
-        const error = new Error(
-          `yt-dlp could not read media info for ${url}` +
-            (stderr.trim() ? `\n${stderr.trim()}` : ""),
-        );
-        error.exitCode = code ?? 1;
-        reject(error);
-        return;
-      }
-
-      try {
-        resolve(parseInfo(stdout));
-      } catch {
-        reject(new Error(`Could not parse yt-dlp output for ${url}.`));
-      }
-    });
-  });
+  try {
+    const payload = await runJsonTool(command, [
+      "-J", "--no-warnings", ...runtimeArgs, "--no-playlist", "--", url,
+    ], { spawnFn, ...toolOptions });
+    return parseInfo(payload);
+  } catch (cause) {
+    const error = new Error(`yt-dlp could not read media info for ${url}\n${cause.message}`, { cause });
+    error.exitCode = cause.exitCode ?? 1;
+    if (cause.code) error.code = cause.code;
+    throw error;
+  }
 }
 
 function stringOrNull(value) {
