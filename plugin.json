@@ -1,0 +1,25 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "lyt",
+  "version": "0.8.0",
+  "description": "Download, inspect, clip, extract audio from, convert, and prepare online media locally for people and AI agents.",
+  "author": {
+    "name": "TanaTTV",
+    "url": "https://github.com/TanaTTV"
+  },
+  "homepage": "https://tanattv.github.io/lyt/",
+  "repository": "https://github.com/TanaTTV/lyt",
+  "license": "MIT",
+  "keywords": [
+    "media",
+    "download",
+    "video",
+    "audio",
+    "mp3",
+    "yt-dlp",
+    "ffmpeg",
+    "ai-agent",
+    "codex",
+    "claude-code"
+  ]
+}
