@@ -10,10 +10,24 @@ import {
   withInstallLock,
   YT_DLP_CHECKSUM_ASSETS,
   ytDlpReleaseAsset,
+  probeOk,
+  TOOL_VERSION_TIMEOUT_MS,
 } from "../src/bootstrap.js";
 
 test("uses the current yt-dlp checksum manifest name with a legacy fallback", () => {
   assert.deepEqual(YT_DLP_CHECKSUM_ASSETS, ["SHA2-256SUMS", "SHA256SUMS"]);
+});
+
+test("cold yt-dlp probes allow a bounded 15 seconds while ffmpeg stays at 5 seconds", () => {
+  const timeouts = [];
+  const spawn = (_command, _args, { timeout }) => {
+    timeouts.push(timeout);
+    return { status: 0, stdout: "version" };
+  };
+  assert.equal(TOOL_VERSION_TIMEOUT_MS, 15_000);
+  assert.equal(probeOk("yt-dlp", ["--version"], undefined, spawn), true);
+  assert.equal(probeOk("ffmpeg", ["-version"], undefined, spawn), true);
+  assert.deepEqual(timeouts, [15_000, 5000]);
 });
 test("fetches the current checksum manifest first", async () => {
   const urls = [];

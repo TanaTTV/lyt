@@ -12,6 +12,7 @@ import {
   loadUpdateCache,
   parseSemver,
   saveUpdateCache,
+  fetchLatestVersion,
 } from "../src/updateCheck.js";
 
 test("compareSemver orders dotted versions", () => {
@@ -147,4 +148,66 @@ test("saveUpdateCache writes readable JSON", () => {
   const raw = readFileSync(cacheFile, "utf8");
   assert.match(raw, /0\.7\.4/);
   rmSync(dir, { recursive: true, force: true });
+});
+
+test("version parsing rejects partial or malformed versions and orders prereleases", () => {
+  for (const version of ["1.2.3garbage", "01.2.3", "1.2", "1.2.3-beta.01", "1.2.3\n"]) {
+    assert.equal(parseSemver(version), null, version);
+  }
+  assert.equal(compareSemver("0.8.1-beta.2", "0.8.1-beta.10"), -1);
+  assert.equal(compareSemver("0.8.1-beta.10", "0.8.1"), -1);
+  assert.equal(compareSemver("0.8.1+build.1", "0.8.1+build.2"), 0);
+});
+
+test("installing a new lyt version invalidates an otherwise fresh cache", async () => {
+  const now = Date.parse("2026-10-02T12:00:00Z");
+  const result = await checkForUpdate({
+    currentVersion: "0.8.1", now,
+    loadCache: () => ({ current: "0.8.0", latest: "0.8.0", checkedAt: new Date(now - 1000).toISOString() }),
+    fetchLatest: async () => "0.8.2", saveCache: () => {},
+  });
+  assert.equal(result.source, "registry");
+  assert.equal(result.latestVersion, "0.8.2");
+});
+
+test("offline failures back off, then retry; an explicit refresh bypasses backoff", async () => {
+  let cache;
+  let fetches = 0;
+  const now = Date.parse("2026-10-02T12:00:00Z");
+  const options = {
+    currentVersion: "0.8.1", now,
+    loadCache: () => cache, saveCache: (value) => { cache = value; },
+    fetchLatest: async () => { fetches++; throw new Error("offline"); },
+  };
+  assert.equal(await checkForUpdate(options), null);
+  assert.equal(await checkForUpdate({ ...options, now: now + 1000 }), null);
+  assert.equal(fetches, 1);
+  await checkForUpdate({ ...options, now: now + 1000, force: true });
+  assert.equal(fetches, 2);
+  await checkForUpdate({ ...options, now: now + 6 * 60 * 1000 });
+  assert.equal(fetches, 3);
+});
+
+test("cache errors and invalid registry versions never create a false update notice", async () => {
+  const result = await checkForUpdate({
+    loadCache: () => { throw new Error("unreadable"); },
+    fetchLatest: async () => "0.8.2", saveCache: () => { throw new Error("unwritable"); },
+  });
+  assert.equal(result.latestVersion, "0.8.2");
+  assert.equal(await checkForUpdate({
+    loadCache: () => ({ latest: "bad" }), fetchLatest: async () => "99.0.0garbage", saveCache: () => {},
+  }), null);
+  assert.match(formatUpdateNotice(buildUpdateResult("0.8.0", "0.8.1", { source: "stale-cache" })), /cached/);
+});
+
+test("registry requests validate responses and abort within their deadline", async () => {
+  await assert.rejects(fetchLatestVersion({
+    timeoutMs: 10,
+    fetchImpl: (_url, { signal }) => new Promise((_resolve, reject) => {
+      signal.addEventListener("abort", () => reject(new Error("aborted")));
+    }),
+  }), /aborted/);
+  await assert.rejects(fetchLatestVersion({
+    fetchImpl: async () => ({ ok: true, json: async () => ({ version: "1.2.3bad" }) }),
+  }), /valid version/);
 });

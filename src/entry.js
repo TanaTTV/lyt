@@ -1,20 +1,12 @@
 // Public entry: sole router for bins (lyt / yt3 / yt4).
 // Subcommands live under src/commands; downloads go through cli.js.
 
-import process from "node:process";
-import { run } from "./cli.js";
-import { runAgentCommand } from "./commands/agent.js";
-import { runCapabilitiesCommand } from "./commands/capabilities.js";
-import { runConfigCommand } from "./commands/config.js";
-import { runHistoryCommand } from "./commands/history.js";
-import { runInfoCommand } from "./commands/info.js";
-import { runDoctor } from "./doctor.js";
 import { handleCliError } from "./errors.js";
 import { extractVideoId } from "./urls.js";
 import { VALUE_OPTIONS } from "./ytDlp.js";
 
-export { parseHistoryArgs } from "./commands/history.js";
-export { parseInfoArgs } from "./commands/info.js";
+export { parseHistoryArgs } from "./commandArgs.js";
+export { parseInfoArgs } from "./commandArgs.js";
 
 export function runEntry(argv, defaults = {}) {
   return mainEntry(argv, defaults).catch((error) => {
@@ -23,26 +15,30 @@ export function runEntry(argv, defaults = {}) {
 }
 
 export async function mainEntry(argv, defaults = {}) {
+  if (argv.length === 1 && ["--help", "-h", "--version", "-v"].includes(argv[0])) {
+    return (await import("./commands/meta.js")).runMetaCommand(argv[0]);
+  }
   switch (argv[0]) {
     case "history":
-      return runHistoryCommand(argv.slice(1));
+      return (await import("./commands/history.js")).runHistoryCommand(argv.slice(1));
     case "doctor":
-      return runDoctor({
+      return (await import("./doctor.js")).runDoctor({
         fix: argv.includes("--fix"),
         update: argv.includes("--update") || argv.includes("-U"),
+        checkUpdates: argv.includes("--check-updates"),
         json: argv.includes("--json"),
       });
     case "info":
     case "inspect":
-      return runInfoCommand(argv.slice(1));
+      return (await import("./commands/info.js")).runInfoCommand(argv.slice(1));
     case "capabilities":
-      return runCapabilitiesCommand(argv.slice(1));
+      return (await import("./commands/capabilities.js")).runCapabilitiesCommand(argv.slice(1));
     case "config":
-      return runConfigCommand(argv.slice(1));
+      return (await import("./commands/config.js")).runConfigCommand(argv.slice(1));
     case "agent":
-      return runAgentCommand(argv.slice(1));
+      return (await import("./commands/agent.js")).runAgentCommand(argv.slice(1));
     default:
-      return run(prepareDownloadArgv(argv), defaults);
+      return (await import("./cli.js")).run(prepareDownloadArgv(argv), defaults);
   }
 }
 

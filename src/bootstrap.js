@@ -24,6 +24,8 @@ import { resolveExecutableOnPath } from "./executables.js";
 import { binDir } from "./paths.js";
 
 const FETCH_TIMEOUT_MS = 60_000;
+// Standalone yt-dlp can need extra time to unpack during a Windows cold start.
+export const TOOL_VERSION_TIMEOUT_MS = 15_000;
 const LOCK_WAIT_MS = 30_000;
 const LOCK_POLL_MS = 250;
 const LOCK_STALE_MS = 10 * 60_000;
@@ -102,19 +104,24 @@ export function checksumForAsset(manifest, asset) {
     ?.split(/\s+/)[0] ?? null;
 }
 
-export async function ensureYtDlp({ noDownload = false } = {}) {
+export async function ensureYtDlp({ noDownload = false, probeResults } = {}) {
   const pathYtDlp = resolveExecutableOnPath("yt-dlp");
-  if (pathYtDlp && probeOk(pathYtDlp)) return pathYtDlp;
+  if (pathYtDlp && probeOk(pathYtDlp, ["--version"], probeResults)) return pathYtDlp;
 
   if (process.platform === "win32") {
-    const win = resolveWindowsFallback("yt-dlp");
+    const win = resolveWindowsFallback("yt-dlp", ["--version"], probeResults);
     if (win) return win;
   }
 
   const cached = ytDlpCachedBin();
-  if (existsSync(cached) && probeOk(cached)) return cached;
+  if (existsSync(cached) && probeOk(cached, ["--version"], probeResults)) return cached;
 
   if (noDownload) {
+    if (pathYtDlp || existsSync(cached)) {
+      const error = new Error("yt-dlp was found but did not pass its startup check.\nCheck executable access and run lyt doctor --json before authorizing repair.");
+      error.exitCode = 127;
+      throw error;
+    }
     const error = new Error(
       "yt-dlp was not found on PATH.\n" +
         "Install it from the official yt-dlp project, or remove --no-download / " +
@@ -128,7 +135,7 @@ export async function ensureYtDlp({ noDownload = false } = {}) {
 
   try {
     const dest = await withInstallLock("yt-dlp", async () => {
-      if (existsSync(cached) && probeOk(cached)) return cached;
+      if (existsSync(cached) && probeOk(cached, ["--version"], probeResults)) return cached;
       return downloadYtDlp();
     });
     process.stderr.write(`yt-dlp installed at ${dest}\n`);
@@ -242,21 +249,21 @@ async function resolveReleaseChecksum(release, asset) {
   return checksumForAsset(manifest, asset.name)?.toLowerCase() ?? null;
 }
 
-export async function ensureFfmpeg({ noDownload = false } = {}) {
+export async function ensureFfmpeg({ noDownload = false, probeResults } = {}) {
   const probeArgs = ["-version"];
   const pathFfmpeg = resolveExecutableOnPath("ffmpeg");
-  if (pathFfmpeg && probeOk(pathFfmpeg, probeArgs)) return pathFfmpeg;
+  if (pathFfmpeg && probeOk(pathFfmpeg, probeArgs, probeResults)) return pathFfmpeg;
 
   if (process.platform === "win32") {
     const staticPath = join("C:\\", "ffmpeg", "bin", "ffmpeg.exe");
-    if (existsSync(staticPath) && probeOk(staticPath, probeArgs)) return staticPath;
+    if (existsSync(staticPath) && probeOk(staticPath, probeArgs, probeResults)) return staticPath;
 
-    const winget = resolveWindowsFallback("ffmpeg", probeArgs);
+    const winget = resolveWindowsFallback("ffmpeg", probeArgs, probeResults);
     if (winget) return winget;
   }
 
   const cached = ffmpegCachedBin();
-  if (existsSync(cached) && probeOk(cached, probeArgs)) return cached;
+  if (existsSync(cached) && probeOk(cached, probeArgs, probeResults)) return cached;
 
   if (process.platform !== "win32") {
     const hint = process.platform === "darwin"
@@ -281,7 +288,7 @@ export async function ensureFfmpeg({ noDownload = false } = {}) {
 
   try {
     const dest = await withInstallLock("ffmpeg", async () => {
-      if (existsSync(cached) && probeOk(cached, probeArgs)) return cached;
+      if (existsSync(cached) && probeOk(cached, probeArgs, probeResults)) return cached;
       return downloadFfmpegWindows();
     });
     process.stderr.write(`ffmpeg installed at ${dest}\n`);
@@ -464,20 +471,22 @@ function powershellLiteral(value) {
 // Tool discovery helpers
 // ---------------------------------------------------------------------------
 
-function probeOk(command, args = ["--version"]) {
+export function probeOk(command, args = ["--version"], probeResults, spawnFn = spawnSync) {
   try {
-    const result = spawnSync(command, args, {
+    const result = spawnFn(command, args, {
       encoding: "utf8",
-      timeout: 5000,
+      timeout: args[0] === "--version" ? TOOL_VERSION_TIMEOUT_MS : 5000,
       windowsHide: true,
     });
-    return !result.error && result.status === 0;
+    const ok = !result.error && result.status === 0;
+    if (ok) probeResults?.set(command, result);
+    return ok;
   } catch {
     return false;
   }
 }
 
-function resolveWindowsFallback(command, probeArgs = ["--version"]) {
+function resolveWindowsFallback(command, probeArgs = ["--version"], probeResults) {
   const localAppData = process.env.LOCALAPPDATA;
   if (!localAppData) return null;
 
@@ -495,7 +504,7 @@ function resolveWindowsFallback(command, probeArgs = ["--version"]) {
 
     for (const dir of dirs) {
       const found = findExecutable(join(packagesDir, dir), exe, 3);
-      if (found && probeOk(found, probeArgs)) return found;
+      if (found && probeOk(found, probeArgs, probeResults)) return found;
     }
   } catch {
     // Treat permission and transient filesystem errors as not-found.

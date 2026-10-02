@@ -5,11 +5,12 @@ import { spawn } from "node:child_process";
 import process from "node:process";
 import { extractOutputPath } from "./result.js";
 
-export function runCommand(command, args, { onLine, quiet = false, cwd = process.cwd() } = {}) {
+export function runCommand(command, args, { onLine, quiet = false, cwd = process.cwd(), spawnFn = spawn } = {}) {
   return new Promise((resolve, reject) => {
-    const child = spawn(command, args, { stdio: ["ignore", "pipe", "pipe"] });
+    const child = spawnFn(command, args, { stdio: ["ignore", "pipe", "pipe"], windowsHide: true });
     const recent = [];
     const files = [];
+    let sizeLimited = false;
     const buffers = { stdout: "", stderr: "" };
 
     const feed = (stream, chunk) => {
@@ -24,6 +25,7 @@ export function runCommand(command, args, { onLine, quiet = false, cwd = process
     };
 
     const handleLine = (stream, line) => {
+      if (/larger than max-filesize/i.test(line)) sizeLimited = true;
       const outputPath = extractOutputPath(line, cwd);
 
       if (outputPath) {
@@ -52,7 +54,7 @@ export function runCommand(command, args, { onLine, quiet = false, cwd = process
       for (const stream of ["stdout", "stderr"]) {
         if (buffers[stream]) handleLine(stream, buffers[stream].replace(/\r$/, ""));
       }
-      settle(resolve, reject, command, code, recent, { files });
+      settle(resolve, reject, command, code, recent, { files, sizeLimited });
     });
   });
 }

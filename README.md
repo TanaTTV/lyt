@@ -169,6 +169,22 @@ lyt info --no-download --json "URL" # lyt.info.v1: title, duration, uploader, fo
 lyt capabilities --json        # lyt.capabilities.v1: commands, flags, schemas
 ```
 
+For faster agent workflows, discover capabilities once per session and use
+`doctor` during setup or after a dependency failure. Inspect only when metadata
+helps resolve the URL or choose a format; an authorized download with explicit
+URL and format can run directly. Batch related URLs:
+
+```sh
+lyt info --no-download --json --jobs 3 "URL_1" "URL_2" "URL_3"
+lyt --audio --json --jobs 3 "URL_1" "URL_2" "URL_3"
+```
+
+Inspection defaults to three workers, accepts `--jobs 1-16`, and retains input
+order and per-URL errors. `--jobs 1` makes inspection sequential. Metadata
+requests have a 60-second deadline and a 16 MiB combined-output limit per URL.
+Matching artifact history returns existing paths before tool setup; missing
+files and changed output variants still use normal preparation.
+
 Metadata inspection contacts the media host. Use `--no-download` to prevent
 managed tool provisioning during inspection; otherwise a missing yt-dlp binary
 can be downloaded automatically. Reuse setup authorization already given, or
@@ -306,7 +322,8 @@ lyt config unset profile
 lyt doctor
 lyt doctor --json
 lyt doctor --fix
-lyt doctor --update
+lyt doctor --update       # explicitly update yt-dlp
+lyt doctor --check-updates # refresh lyt release information without installing
 
 # Optional: disable “update available” notices
 lyt config set update-check false
@@ -314,7 +331,18 @@ lyt config set update-check false
 ```
 
 Human downloads, `lyt doctor`, and `lyt --version` can notice when a newer lyt
-is on npm (cached about once a day). JSON/agent runs never print the hint.
+is on npm. Successful checks are cached for six hours; a changed installed lyt
+version refreshes the cache. Offline failures back off for five minutes, and
+cached notices clearly identify stale information. Use `lyt doctor --check-updates`
+(or add `--json`) to bypass the cache and failure backoff. The existing
+`update-check` setting and environment opt-outs still apply.
+
+Checks use npm's published `latest` version, never an unpublished GitHub branch.
+Human download checks run alongside the job; JSON downloads and inspections do
+not check npm or print upgrade notices. `doctor --json` can report release status
+inside its normal JSON document. lyt does not install its own updates; follow
+the printed npm command when ready. `doctor --update` explicitly updates yt-dlp,
+which is separate from updating lyt or ffmpeg.
 
 A malformed config is moved aside with a `.corrupt-<timestamp>` suffix instead
 of being ignored silently. Config writes use a complete temporary file before

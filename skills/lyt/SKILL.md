@@ -63,7 +63,8 @@ authorize global installation or managed tool setup. Check capabilities with:
 lyt doctor --json
 ```
 
-Inspect before downloading. These commands download no media or managed tools
+Inspect when metadata is needed to choose a format or resolve an uncertain URL.
+These commands download no media or managed tools
 (metadata inspection still contacts the media host):
 
 ```sh
@@ -79,6 +80,28 @@ Without `--no-download`, `lyt info` can provision a missing yt-dlp binary. If
 inspection reports a missing tool, use existing setup authorization or ask once
 before provisioning. Do not treat a dependency or network failure as a copyright
 refusal; report the actual error. A dry run proves planning, not a saved file.
+
+For fast agent workflows:
+
+- Reuse capabilities discovery within a session unless the CLI version changes.
+  Run `doctor` during setup or after a dependency failure.
+- If the URL, desired format, and download authorization are already explicit,
+  download directly instead of repeating inspection.
+- Batch related URLs. Inspection defaults to three workers, accepts `--jobs 1-16`,
+  and preserves input order and individual errors. Use `--jobs 1` for sequential
+  requests:
+
+  ```sh
+  lyt info --no-download --json --jobs 3 "URL_1" "URL_2"
+  lyt --audio --json --jobs 3 "URL_1" "URL_2"
+  ```
+
+- Native audio avoids MP3 conversion when MP3 is not required.
+- Matching artifact history returns existing paths before preparing tools.
+- `lyt doctor --check-updates --json` refreshes release information without
+  upgrading lyt. Normal release checks cache for six hours and offline failures
+  back off for five minutes. Cached release information is not live confirmation.
+  Download/inspection JSON calls do not perform release checks or emit notices.
 
 Always quote URLs. Prefer `--dry-run --json` before a large or uncertain job.
 For bounded agent calls, `--json` emits one JSON document using schema `lyt.result.v1` on stdout; setup and progress diagnostics go to stderr.

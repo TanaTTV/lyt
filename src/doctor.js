@@ -23,10 +23,12 @@ import {
 export async function runDoctor({
   fix = false,
   update = false,
+  checkUpdates = false,
   json = false,
   log = console.log,
 } = {}) {
   const checks = [];
+  const probeResults = new Map();
   const nodeMajor = Number(process.versions.node.split(".")[0]);
   const nodeOk = nodeMajor >= 20;
 
@@ -38,27 +40,28 @@ export async function runDoctor({
     hint: nodeOk ? null : "lyt needs Node.js 20 or newer",
   });
 
-  checks.push(await lytVersionCheck());
+  // Network update discovery can run while local capabilities are checked.
+  const updatePromise = lytVersionCheck({ force: checkUpdates });
 
-  const ytDlp = await locate(() => ensureYtDlp({ noDownload: !fix }));
+  const ytDlp = await locate(() => ensureYtDlp({ noDownload: !fix, probeResults }));
   checks.push({
     name: "yt-dlp",
     required: true,
     ok: Boolean(ytDlp.path),
     detail: ytDlp.path
-      ? `yt-dlp ${version(ytDlp.path)} (${describe(ytDlp.path)})`
+      ? `yt-dlp ${version(ytDlp.path, "--version", probeResults)} (${describe(ytDlp.path)})`
       : "yt-dlp not found",
     hint: ytDlp.path ? null : trimmed(ytDlp.error),
     path: ytDlp.path,
   });
 
-  const ffmpeg = await locate(() => ensureFfmpeg({ noDownload: !fix }));
+  const ffmpeg = await locate(() => ensureFfmpeg({ noDownload: !fix, probeResults }));
   checks.push({
     name: "ffmpeg",
     required: false,
     ok: Boolean(ffmpeg.path),
     detail: ffmpeg.path
-      ? `ffmpeg ${version(ffmpeg.path, "-version")} (${describe(ffmpeg.path)})`
+      ? `ffmpeg ${version(ffmpeg.path, "-version", probeResults)} (${describe(ffmpeg.path)})`
       : "ffmpeg unavailable",
     hint: ffmpeg.path
       ? null
@@ -82,6 +85,8 @@ export async function runDoctor({
     const updateCheck = updateYtDlp(ytDlp.path);
     checks.push(updateCheck);
   }
+
+  checks.splice(1, 0, await updatePromise);
 
   const paths = diagnosticPaths();
   const commandOk = doctorCommandSucceeded(checks, { update });
@@ -235,8 +240,10 @@ function printCheck(log, check) {
   if (check.hint) log(`       ${check.hint}`);
 }
 
-async function lytVersionCheck() {
-  const enabled = isUpdateCheckEnabled(loadConfig());
+export async function lytVersionCheck({
+  force = false, config = loadConfig(), check = checkForUpdate,
+} = {}) {
+  const enabled = isUpdateCheckEnabled(config);
   if (!enabled) {
     return {
       name: "lyt",
@@ -247,7 +254,7 @@ async function lytVersionCheck() {
     };
   }
 
-  const update = await checkForUpdate({ force: true });
+  const update = await check({ force });
   if (!update) {
     return {
       name: "lyt",
@@ -255,6 +262,16 @@ async function lytVersionCheck() {
       ok: true,
       detail: `lyt ${VERSION}`,
       hint: "Could not reach npm to check for a newer lyt release.",
+    };
+  }
+
+  if (update.source === "stale-cache") {
+    return {
+      name: "lyt", required: false, ok: true,
+      detail: `lyt ${VERSION} (cached latest ${update.latestVersion}; current registry status unknown)`,
+      hint: update.updateAvailable
+        ? `${update.installCommand} — cached notice; run lyt doctor --check-updates to refresh.`
+        : "Could not refresh npm update information. Run lyt doctor --check-updates when online.",
     };
   }
 
@@ -272,7 +289,7 @@ async function lytVersionCheck() {
     name: "lyt",
     required: false,
     ok: true,
-    detail: `lyt ${VERSION} (up to date)`,
+    detail: `lyt ${VERSION} (${update.source === "cache" ? "cached npm latest" : "npm latest"} ${update.latestVersion}; ${update.checkedAt ?? "check time unknown"})`,
     hint: null,
   };
 }
@@ -285,9 +302,9 @@ async function locate(ensure) {
   }
 }
 
-function version(command, flag = "--version") {
+function version(command, flag = "--version", probeResults) {
   try {
-    const result = spawnSync(command, [flag], {
+    const result = probeResults?.get(command) ?? spawnSync(command, [flag], {
       encoding: "utf8",
       timeout: 5000,
       windowsHide: true,

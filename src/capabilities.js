@@ -47,7 +47,7 @@ export const OPTIONS = [
   { flag: "--max-height", takesValue: true, summary: "Cap video resolution." },
   { flag: "--max-filesize", takesValue: true, summary: "Skip media larger than this size." },
   { flag: "--output-dir", takesValue: true, summary: "Destination directory." },
-  { flag: "--jobs", takesValue: true, summary: "Parallel downloads across URLs." },
+  { flag: "--jobs", takesValue: true, summary: "Parallel downloads across URLs; info supports 1-16 workers." },
   { flag: "--fragments", takesValue: true, summary: "Concurrent fragments per download." },
   { flag: "--list-formats", takesValue: false, summary: "List available qualities without downloading." },
   { flag: "--clip", takesValue: true, summary: "Download one section; repeatable." },

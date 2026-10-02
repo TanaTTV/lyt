@@ -58,6 +58,31 @@ Also verify:
 Never use private URLs, cookies, tokens, or copyrighted test media without
 permission. Keep the reusable permitted smoke asset small.
 
+For a packed live smoke on Windows (requires already provisioned yt-dlp and
+ffmpeg), isolate install/history state and exercise native audio, MP3 conversion,
+and the one-byte size guard:
+
+```powershell
+$env:LYT_SMOKE_LIVE = "1"
+$env:LYT_SMOKE_TOOLS_PATH = Join-Path $env:LOCALAPPDATA "lyt/bin"
+npm run smoke:pack
+```
+
+The optional live smoke uses the same small permitted Wikimedia Commons asset
+as Linux CI and never provisions missing tools. Run the normal packed smoke
+without `LYT_SMOKE_LIVE` for offline installation and skill checks.
+
+Also check release discovery without installing any update:
+
+```sh
+lyt doctor --check-updates --json
+```
+
+Before publication this must report npm's currently published version, not the
+candidate's version merely because it exists on GitHub. After publication, verify
+the new npm version from an older installed CLI and check that the notice contains
+the correct upgrade command. Offline cached status must be labeled as cached.
+
 ## 4. Verify public surfaces
 
 - README commands match the packaged CLI.
