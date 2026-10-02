@@ -22,6 +22,7 @@ import { spawnSync } from "node:child_process";
 import process from "node:process";
 import { resolveExecutableOnPath } from "./executables.js";
 import { binDir } from "./paths.js";
+import { muted, ok, warn } from "./ui.js";
 
 const FETCH_TIMEOUT_MS = 60_000;
 // Standalone yt-dlp can need extra time to unpack during a Windows cold start.
@@ -72,7 +73,7 @@ async function downloadYtDlp() {
     throw new Error(`No checksum entry found for ${asset} in the SHA-256 manifest`);
   }
 
-  process.stderr.write("  Downloading yt-dlp from GitHub…\n");
+  process.stderr.write(`${muted("  Downloading yt-dlp from GitHub…")}\n`);
   const response = await fetchChecked(`${YT_DLP_RELEASE_BASE}/${asset}`);
   const data = await readBounded(response, MAX_YT_DLP_BYTES, "yt-dlp");
   verifySha256(data, expectedHash, asset);
@@ -131,14 +132,14 @@ export async function ensureYtDlp({ noDownload = false, probeResults } = {}) {
     throw error;
   }
 
-  process.stderr.write("yt-dlp not found — fetching to managed directory…\n");
+  process.stderr.write(`${warn("yt-dlp not found — fetching to managed directory…")}\n`);
 
   try {
     const dest = await withInstallLock("yt-dlp", async () => {
       if (existsSync(cached) && probeOk(cached, ["--version"], probeResults)) return cached;
       return downloadYtDlp();
     });
-    process.stderr.write(`yt-dlp installed at ${dest}\n`);
+    process.stderr.write(`${ok(`yt-dlp installed at ${dest}`)}\n`);
     return dest;
   } catch (cause) {
     const error = new Error(
@@ -181,7 +182,7 @@ async function downloadFfmpegWindows() {
     throw new Error(`No trusted SHA-256 digest was published for ${asset.name}`);
   }
 
-  process.stderr.write(`  Downloading ${asset.name} (one-time setup)…\n`);
+  process.stderr.write(`${muted(`  Downloading ${asset.name} (one-time setup)…`)}\n`);
   const zipResponse = await fetchChecked(asset.browser_download_url);
   const zipData = await readBounded(
     zipResponse,
@@ -284,14 +285,14 @@ export async function ensureFfmpeg({ noDownload = false, probeResults } = {}) {
     throw error;
   }
 
-  process.stderr.write("ffmpeg not found — fetching to managed directory…\n");
+  process.stderr.write(`${warn("ffmpeg not found — fetching to managed directory…")}\n`);
 
   try {
     const dest = await withInstallLock("ffmpeg", async () => {
       if (existsSync(cached) && probeOk(cached, probeArgs, probeResults)) return cached;
       return downloadFfmpegWindows();
     });
-    process.stderr.write(`ffmpeg installed at ${dest}\n`);
+    process.stderr.write(`${ok(`ffmpeg installed at ${dest}`)}\n`);
     return dest;
   } catch (cause) {
     const error = new Error(

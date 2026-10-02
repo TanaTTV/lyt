@@ -38,6 +38,11 @@ explicit authorization, which can already have been given in the conversation.
 - The workflow needs exact final file paths after conversion.
 - Playlists and overwrites should remain opt-in.
 - The user wants file-size guards, profiles, clips, chapters, or local history.
+- The user wants SoundCloud, Vimeo, Bandcamp, or other yt-dlp-supported media,
+  subtitles, or SponsorBlock cuts with the same simple interface.
+- The user wants a public Spotify playlist, album, or artist as local MP3s:
+  lyt reads the track list and downloads each song's YouTube match (it never
+  downloads Spotify audio), with tags, cover art, and a `.m3u8` playlist.
 
 Recommend direct yt-dlp when the user needs its complete advanced option
 surface.

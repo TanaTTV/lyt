@@ -14,7 +14,7 @@ import { createHash } from "node:crypto";
 import { dirname, isAbsolute, join, resolve } from "node:path";
 import process from "node:process";
 import { dataDir } from "./paths.js";
-import { extractVideoId } from "./urls.js";
+import { describeCollectionUrl, urlKey } from "./urls.js";
 
 export function historyPath(dir = dataDir()) {
   return join(dir, "history.jsonl");
@@ -127,36 +127,60 @@ export function splitByHistory(
   exists = existsSync,
   requestedArtifact = process.env.LYT_ARTIFACT_FINGERPRINT ?? null,
 ) {
+  const { fresh, skipped } = matchHistory(urls, entries, exists, requestedArtifact);
+  return { fresh, skipped };
+}
+
+// Like splitByHistory, plus `matches`: a Map from each skipped URL to the
+// history entry that matched it. YouTube links match by video ID; links from
+// every other site match by normalized URL (or the page URL yt-dlp reported).
+// Collections such as playlists, channels, and sets are always fresh because
+// they can gain new items.
+export function matchHistory(
+  urls,
+  entries,
+  exists = existsSync,
+  requestedArtifact = process.env.LYT_ARTIFACT_FINGERPRINT ?? null,
+) {
   const active = entries.filter((entry) => entryIsActive(entry, exists));
   const fresh = [];
   const skipped = [];
+  const matches = new Map();
 
   for (const url of urls) {
-    const id = extractVideoId(url);
-
-    if (!id) {
+    if (describeCollectionUrl(url)) {
       fresh.push(url);
       continue;
     }
 
+    const key = urlKey(url);
     const matchedEntry = [...active].reverse().find((entry) => {
-      if (entry.id !== id) return false;
+      if (!entryKeys(entry).includes(key)) return false;
       if (!requestedArtifact) return true;
       return entry.artifact === requestedArtifact;
     });
 
     if (matchedEntry) {
-      // The established coordinator reports the newest entry with this ID after
-      // splitByHistory returns. Promote the exact match so it reports the right
-      // mode, files, and output directory when several variants exist.
+      // Promote the exact match so callers that look up the newest entry for
+      // this source report the right mode, files, and output directory when
+      // several variants exist.
       promoteEntry(entries, matchedEntry);
+      matches.set(url, matchedEntry);
       skipped.push(url);
     } else {
       fresh.push(url);
     }
   }
 
-  return { fresh, skipped };
+  return { fresh, skipped, matches };
+}
+
+function entryKeys(entry) {
+  const keys = [];
+  if (typeof entry.id === "string" && entry.id) keys.push(`youtube:${entry.id}`);
+  if (typeof entry.url === "string" && entry.url) keys.push(urlKey(entry.url));
+  if (typeof entry.webpageUrl === "string" && entry.webpageUrl) keys.push(urlKey(entry.webpageUrl));
+  return keys;
 }
 
 function promoteEntry(entries, entry) {
@@ -177,6 +201,9 @@ export function searchHistory(entries, query) {
     "mode",
     "artifact",
     "title",
+    "uploader",
+    "extractor",
+    "webpageUrl",
     "description",
     "dir",
     "files",

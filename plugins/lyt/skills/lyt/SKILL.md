@@ -115,6 +115,24 @@ lyt --clip 1:10-2:45 --mp3 --json "URL"
 lyt --list-formats --json "URL"
 ```
 
+Beyond YouTube, lyt accepts SoundCloud, Vimeo, Bandcamp, and any site yt-dlp
+supports. Spotify playlist, album, track, and artist links become MP3s matched
+on YouTube by title and length, tagged, with cover art and a `.m3u8` file; each
+result carries `source` and the matched video in `match` so you can report
+suspicious matches. `lyt info --json "SPOTIFY_URL"` lists the songs without
+downloading. Spotify audio itself is never downloaded.
+
+```sh
+lyt --json "https://open.spotify.com/playlist/ID"
+lyt --json --subs --sub-langs en "URL"     # subtitle failure → result.warning
+lyt --json -a links.txt                    # many URLs from a file
+```
+
+Links that are only a collection (YouTube playlist or channel, SoundCloud set
+or profile, Bandcamp album) fail with exit code 2 unless `--playlist` is given.
+Check `warnings` in the JSON envelope (for example a Spotify playlist cut off at
+100 songs) and pass them on.
+
 Files go to `./downloads` under the current working directory unless `-o` is
 supplied. Use the requested directory or the documented default and report the
 exact path. Ask about the directory only when the choice materially affects the
@@ -125,7 +143,10 @@ Keep these behaviors opt-in:
 - `--playlist`
 - `--force-overwrite`
 - `--redownload`
-- browser cookies or authentication material
+- `--sync` (renames and moves files in a Spotify playlist folder)
+- `--sponsorblock` (cuts parts of the media)
+- browser cookies or authentication material (`--cookies-from-browser`,
+  `--cookies`)
 - external downloaders
 - managed tool installation
 

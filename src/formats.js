@@ -1,84 +1,40 @@
-import { spawn } from "node:child_process";
-import { runJsonTool } from "./jsonProcess.js";
-import { ytDlpJsRuntimeArgs } from "./jsRuntime.js";
+import process from "node:process";
+import { fetchMediaJson, parseInfo } from "./info.js";
 import { labelHeight } from "./quality.js";
+import { heading, muted } from "./ui.js";
 import { formatCommand } from "./ytDlp.js";
 
-// Parses `yt-dlp -J` (JSON dump) output into the set of qualities actually
-// available for a URL. Pure, so it is unit-tested with sample payloads.
+// The qualities actually available for a URL: the title plus the video
+// heights and audio bitrates from a `yt-dlp -J` payload. Pure, so it is
+// unit-tested with sample payloads.
 export function parseFormats(jsonText) {
-  const info = typeof jsonText === "string" ? JSON.parse(jsonText) : jsonText;
-  if (!info || typeof info !== "object" || Array.isArray(info)) {
-    throw new Error("Tool output did not contain media metadata.");
-  }
-  // A playlist dump nests entries; fall back to the first real video.
-  const video = Array.isArray(info.entries) ? info.entries.find(Boolean) ?? info : info;
-
-  const formats = Array.isArray(video.formats) ? video.formats : [];
-  const heights = new Set();
-  const audioBitrates = new Set();
-
-  for (const format of formats) {
-    const hasVideo = format.vcodec && format.vcodec !== "none";
-    const hasAudio = format.acodec && format.acodec !== "none";
-
-    if (hasVideo && Number.isFinite(format.height)) {
-      heights.add(format.height);
-    }
-
-    // Audio-only streams tell us the available audio bitrates.
-    if (hasAudio && !hasVideo && Number.isFinite(format.abr) && format.abr > 0) {
-      audioBitrates.add(Math.round(format.abr));
-    }
-  }
-
-  return {
-    title: typeof video.title === "string" ? video.title : "",
-    heights: [...heights].sort((a, b) => b - a),
-    audioBitrates: [...audioBitrates].sort((a, b) => b - a),
-  };
+  const { title, heights, audioBitrates } = parseInfo(jsonText);
+  return { title, heights, audioBitrates };
 }
 
 // Runs `yt-dlp -J` for a URL and returns the parsed quality set. The spawn is
 // injectable so callers can test the wiring without a real yt-dlp.
-export async function listFormats(
-  url,
-  {
-    command = "yt-dlp",
-    spawnFn = spawn,
-    runtimeArgs = ytDlpJsRuntimeArgs(),
-    ...toolOptions
-  } = {},
-) {
-  try {
-    const payload = await runJsonTool(command, [
-      "-J", "--no-warnings", ...runtimeArgs, "--no-playlist", "--", url,
-    ], { spawnFn, ...toolOptions });
-    return parseFormats(payload);
-  } catch (cause) {
-    const error = new Error(`yt-dlp could not read formats for ${url}\n${cause.message}`, { cause });
-    error.exitCode = cause.exitCode ?? 1;
-    if (cause.code) error.code = cause.code;
-    throw error;
-  }
+export async function listFormats(url, options = {}) {
+  return parseFormats(await fetchMediaJson(url, options, "formats"));
 }
 
 export function printFormats(url, formats) {
-  console.log(formats.title ? `${formats.title}` : url);
+  const stream = process.stdout;
+  console.log(heading(formats.title ? `${formats.title}` : url, stream));
 
   if (formats.heights.length > 0) {
     const labels = formats.heights.map((height) => labelHeight(height));
-    console.log(`  video: ${labels.join(", ")}`);
+    console.log(`  ${muted("video:", stream)} ${labels.join(", ")}`);
     const best = formats.heights[0];
-    console.log(`  download best with: ${formatCommand("lyt", ["--video", "-q", `${best}p`, "--", url])}`);
+    console.log(`  ${muted("download best with:", stream)} ${formatCommand("lyt", ["--video", "-q", `${best}p`, "--", url])}`);
   }
 
   if (formats.audioBitrates.length > 0) {
-    console.log(`  audio: ${formats.audioBitrates.map((rate) => `${rate}k`).join(", ")}`);
+    console.log(`  ${muted("audio:", stream)} ${formats.audioBitrates.map((rate) => `${rate}k`).join(", ")}`);
   }
 
   if (formats.heights.length === 0 && formats.audioBitrates.length === 0) {
-    console.log("  no downloadable formats reported");
+    console.log(`  ${muted("no downloadable formats reported", stream)}`);
   }
 
   console.log("");

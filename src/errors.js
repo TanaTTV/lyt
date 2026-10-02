@@ -2,6 +2,7 @@
 
 import process from "node:process";
 import { errorDetails, resultEnvelope } from "./result.js";
+import { err } from "./ui.js";
 import { VERSION } from "./version.js";
 
 /** User/usage error (invalid flags, missing args). Exit code 2. */
@@ -24,7 +25,10 @@ export function handleCliError(error, { json = false } = {}) {
       version: VERSION,
     })));
   } else if (!json) {
-    console.error(error instanceof Error ? error.message : String(error));
+    const message = error instanceof Error ? error.message : String(error);
+    const first = message.split("\n")[0];
+    const rest = message.slice(first.length);
+    console.error(`${err(first)}${rest}`);
   } else if (json && error?.jsonPrinted) {
     // Result already printed; keep exit code only.
   }

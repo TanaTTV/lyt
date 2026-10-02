@@ -63,7 +63,13 @@ export function parseInfo(jsonText) {
 // Runs `yt-dlp -J` for a URL and returns the shaped media description without
 // downloading media. The spawn is injectable so callers can test the wiring
 // without a real yt-dlp.
-export async function fetchInfo(
+export async function fetchInfo(url, options = {}) {
+  return parseInfo(await fetchMediaJson(url, options, "media info"));
+}
+
+// Runs `yt-dlp -J` for one URL with bounded time and output. Shared by
+// `lyt info` and `--list-formats`; `what` names the request in errors.
+export async function fetchMediaJson(
   url,
   {
     command = "yt-dlp",
@@ -71,14 +77,14 @@ export async function fetchInfo(
     runtimeArgs = ytDlpJsRuntimeArgs(),
     ...toolOptions
   } = {},
+  what = "media info",
 ) {
   try {
-    const payload = await runJsonTool(command, [
+    return await runJsonTool(command, [
       "-J", "--no-warnings", ...runtimeArgs, "--no-playlist", "--", url,
     ], { spawnFn, ...toolOptions });
-    return parseInfo(payload);
   } catch (cause) {
-    const error = new Error(`yt-dlp could not read media info for ${url}\n${cause.message}`, { cause });
+    const error = new Error(`yt-dlp could not read ${what} for ${url}\n${cause.message}`, { cause });
     error.exitCode = cause.exitCode ?? 1;
     if (cause.code) error.code = cause.code;
     throw error;

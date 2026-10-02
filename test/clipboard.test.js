@@ -86,7 +86,7 @@ test("mergeClipboardUrls auto-paste is silent when clipboard is empty", () => {
 test("mergeClipboardUrls explicit paste errors when clipboard has no URLs", () => {
   assert.throws(
     () => mergeClipboardUrls({ urls: [], clipboardText: "", paste: true }),
-    /No YouTube URLs found on the clipboard/,
+    /No media URLs found on the clipboard/,
   );
 });
 
@@ -99,4 +99,14 @@ test("mergeClipboardUrls picks up and dedupes clipboard links", () => {
   });
   assert.equal(result.urls.length, 1);
   assert.equal(result.fromClipboard.length, 1);
+});
+
+test("mergeClipboardUrls explicit paste picks up Spotify links", () => {
+  const spotify = "https://open.spotify.com/playlist/37i9dQZF1DXcBWIGoYBM5M?si=abc";
+  const result = mergeClipboardUrls({
+    urls: [],
+    clipboardText: `listen: ${spotify}.`,
+    paste: true,
+  });
+  assert.deepEqual(result.urls, [spotify]);
 });

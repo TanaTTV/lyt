@@ -19,13 +19,16 @@ import {
   checkForUpdate,
   isUpdateCheckEnabled,
 } from "./updateCheck.js";
+import { err, heading, muted, ok } from "./ui.js";
 
 export async function runDoctor({
   fix = false,
   update = false,
   checkUpdates = false,
+  network = false,
   json = false,
   log = console.log,
+  fetchImpl = globalThis.fetch,
 } = {}) {
   const checks = [];
   const probeResults = new Map();
@@ -86,6 +89,10 @@ export async function runDoctor({
     checks.push(updateCheck);
   }
 
+  if (network) {
+    checks.push(...(await checkNetwork({ fetchImpl })));
+  }
+
   checks.splice(1, 0, await updatePromise);
 
   const paths = diagnosticPaths();
@@ -119,6 +126,48 @@ export async function runDoctor({
   }
 
   return payload;
+}
+
+// Sites lyt talks to directly or most often. Optional checks: a blocked site
+// only affects links from that site.
+export const NETWORK_TARGETS = [
+  { name: "network-youtube", label: "YouTube", url: "https://www.youtube.com/" },
+  { name: "network-spotify", label: "Spotify (track lists)", url: "https://open.spotify.com/" },
+  { name: "network-soundcloud", label: "SoundCloud", url: "https://soundcloud.com/" },
+  { name: "network-github", label: "GitHub (yt-dlp updates)", url: "https://github.com/" },
+];
+
+// `lyt doctor --network`: can this machine reach the sites lyt uses?
+export async function checkNetwork({ fetchImpl = globalThis.fetch, timeoutMs = 6000, targets = NETWORK_TARGETS } = {}) {
+  return Promise.all(targets.map(async (target) => {
+    const started = Date.now();
+    try {
+      const response = await fetchImpl(target.url, {
+        method: "HEAD",
+        redirect: "follow",
+        headers: { "user-agent": "Mozilla/5.0 (lyt doctor)" },
+        signal: AbortSignal.timeout(timeoutMs),
+      });
+      // Any HTTP answer, even an error page, means the site is reachable.
+      const ms = Date.now() - started;
+      return {
+        name: target.name,
+        required: false,
+        ok: true,
+        detail: `${target.label} reachable (HTTP ${response.status}, ${ms} ms)`,
+        hint: null,
+      };
+    } catch (error) {
+      return {
+        name: target.name,
+        required: false,
+        ok: false,
+        detail: `${target.label} not reachable`,
+        hint: trimmed(error?.cause?.code ?? error?.name ?? error?.message ?? "network error") +
+          ". Check your connection, proxy, or firewall.",
+      };
+    }
+  }));
 }
 
 export function doctorCommandSucceeded(checks, { update = false } = {}) {
@@ -193,33 +242,34 @@ function diagnosticPaths() {
 }
 
 function printHumanReport(payload, { fix, log }) {
-  log("lyt doctor");
+  const stream = process.stdout;
+  log(heading("lyt doctor", stream));
   log("");
-  log("Core");
+  log(heading("Core", stream));
 
   for (const check of payload.checks.filter((item) => item.required)) {
-    printCheck(log, check);
+    printCheck(log, check, stream);
   }
 
   log("");
-  log("Optional capabilities");
+  log(heading("Optional capabilities", stream));
   for (const check of payload.checks.filter((item) => !item.required)) {
-    printCheck(log, check);
+    printCheck(log, check, stream);
   }
 
   log("");
-  log(`  data dir   ${payload.paths.dataDir}`);
-  log(`  tools dir  ${payload.paths.toolsDir}${payload.paths.toolsDirExists ? "" : " (not created yet)"}`);
-  log(`  history    ${payload.paths.history}${payload.paths.historyEntries == null
+  log(`  ${muted("data dir", stream)}   ${payload.paths.dataDir}`);
+  log(`  ${muted("tools dir", stream)}  ${payload.paths.toolsDir}${payload.paths.toolsDirExists ? "" : " (not created yet)"}`);
+  log(`  ${muted("history", stream)}    ${payload.paths.history}${payload.paths.historyEntries == null
     ? ` (unavailable: ${payload.paths.historyError})`
     : ` (${payload.paths.historyEntries} entries)`}`);
-  log(`  config     ${payload.paths.config}${payload.paths.configExists ? "" : " (defaults)"}`);
+  log(`  ${muted("config", stream)}     ${payload.paths.config}${payload.paths.configExists ? "" : " (defaults)"}`);
   log("");
 
   if (payload.ok) {
     const unavailable = payload.checks.filter((check) => !check.required && !check.ok).length;
     log(unavailable === 0
-      ? "Everything looks good."
+      ? ok("Everything looks good.", stream)
       : `lyt core is ready. ${unavailable} optional capability${unavailable === 1 ? " is" : "ies are"} unavailable.`);
   } else {
     const problems = payload.checks.filter((check) => check.required && !check.ok).length;
@@ -227,17 +277,21 @@ function printHumanReport(payload, { fix, log }) {
       check.name === "yt-dlp-update" && !check.ok,
     );
     if (problems > 0) {
-      log(`${problems} required problem${problems === 1 ? "" : "s"} found.`);
+      log(err(`${problems} required problem${problems === 1 ? "" : "s"} found.`, stream));
       if (!fix) log("Run `lyt doctor --fix` to install what lyt can safely manage.");
     }
     if (updateFailed) log("The requested yt-dlp update was not completed.");
   }
 }
 
-function printCheck(log, check) {
-  const marker = check.ok ? "[ok]" : check.required ? "[!!]" : "[--]";
+function printCheck(log, check, stream = process.stdout) {
+  const marker = check.ok
+    ? ok("[ok]", stream)
+    : check.required
+      ? err("[!!]", stream)
+      : muted("[--]", stream);
   log(`  ${marker} ${check.detail}`);
-  if (check.hint) log(`       ${check.hint}`);
+  if (check.hint) log(`       ${muted(check.hint, stream)}`);
 }
 
 export async function lytVersionCheck({

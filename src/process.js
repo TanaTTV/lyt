@@ -1,15 +1,26 @@
 // Spawn helpers for yt-dlp and similar tools. Captures final output paths
-// from lyt markers while streaming progress lines to optional handlers.
+// and per-item metadata from lyt markers while streaming progress lines to
+// optional handlers.
 
 import { spawn } from "node:child_process";
 import process from "node:process";
-import { extractOutputPath } from "./result.js";
+import { extractOutputMeta, extractOutputPath } from "./result.js";
 
-export function runCommand(command, args, { onLine, quiet = false, cwd = process.cwd(), spawnFn = spawn } = {}) {
+// yt-dlp exits with 101 when --max-downloads stops it on purpose.
+export const MAX_DOWNLOADS_REACHED = 101;
+
+export function runCommand(command, args, {
+  onLine,
+  quiet = false,
+  cwd = process.cwd(),
+  spawnFn = spawn,
+  okCodes = [0],
+} = {}) {
   return new Promise((resolve, reject) => {
     const child = spawnFn(command, args, { stdio: ["ignore", "pipe", "pipe"], windowsHide: true });
     const recent = [];
     const files = [];
+    const items = [];
     let sizeLimited = false;
     const buffers = { stdout: "", stderr: "" };
 
@@ -33,6 +44,12 @@ export function runCommand(command, args, { onLine, quiet = false, cwd = process
         return;
       }
 
+      const meta = extractOutputMeta(line);
+      if (meta) {
+        items.push(meta);
+        return;
+      }
+
       onLine?.(line);
 
       if (!quiet && !onLine) {
@@ -50,23 +67,22 @@ export function runCommand(command, args, { onLine, quiet = false, cwd = process
     child.stdout.setEncoding("utf8").on("data", (chunk) => feed("stdout", chunk));
     child.stderr.setEncoding("utf8").on("data", (chunk) => feed("stderr", chunk));
     child.on("error", reject);
-    child.on("close", (code) => {
+    child.on("close", (code, signal) => {
       for (const stream of ["stdout", "stderr"]) {
         if (buffers[stream]) handleLine(stream, buffers[stream].replace(/\r$/, ""));
       }
-      settle(resolve, reject, command, code, recent, { files, sizeLimited });
+
+      if (okCodes.includes(code)) {
+        resolve({ files, items, sizeLimited });
+        return;
+      }
+
+      const detail = recent.length > 0 ? `\n${recent.join("\n")}` : "";
+      const reason = code === null ? `was stopped (${signal ?? "signal"})` : `exited with code ${code}`;
+      const error = new Error(`${command} ${reason}${detail}`);
+      error.exitCode = code ?? 1;
+      error.signal = signal ?? null;
+      reject(error);
     });
   });
-}
-
-function settle(resolve, reject, command, code, recent = [], outcome = { files: [] }) {
-  if (code === 0) {
-    resolve(outcome);
-    return;
-  }
-
-  const detail = recent.length > 0 ? `\n${recent.join("\n")}` : "";
-  const error = new Error(`${command} exited with code ${code}${detail}`);
-  error.exitCode = code;
-  reject(error);
 }

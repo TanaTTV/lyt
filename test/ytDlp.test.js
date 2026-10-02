@@ -249,7 +249,10 @@ test("empty url argument is rejected", () => {
 
 test("quality accepts 0 and bare digits, rejects garbage", () => {
   assert.equal(normalizeOptions({ quality: "0" }).quality, "0");
-  assert.equal(normalizeOptions({ quality: "192" }).quality, "192");
+  // 0-10 is a VBR level; larger bare numbers are bitrates.
+  assert.equal(normalizeOptions({ quality: "5" }).quality, "5");
+  assert.equal(normalizeOptions({ quality: "192" }).quality, "192K");
+  assert.equal(normalizeOptions({ quality: "0320" }).quality, "320K");
   assert.equal(normalizeOptions({ quality: "192k" }).quality, "192K");
   assert.throws(() => normalizeOptions({ quality: "192kbps" }), /quality must/);
   assert.throws(() => normalizeOptions({ quality: "abc" }), /quality must/);

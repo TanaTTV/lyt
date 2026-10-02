@@ -1,6 +1,7 @@
 import { join } from "node:path";
 import { ytDlpJsRuntimeArgs } from "./jsRuntime.js";
 import { resolveHeight } from "./quality.js";
+import { describeCollectionUrl } from "./urls.js";
 
 const DEFAULT_OUTPUT_TEMPLATE = "%(title).180B [%(id)s].%(ext)s";
 
@@ -24,6 +25,14 @@ export const VALUE_OPTIONS = new Set([
   "--downloader",
   "--downloader-args",
   "--max-filesize",
+  "--sub-langs",
+  "--cookies-from-browser",
+  "--cookies",
+  "-r",
+  "--limit-rate",
+  "--retries",
+  "-a",
+  "--batch-file",
 ]);
 
 export function parseArgs(argv) {
@@ -228,6 +237,75 @@ export function parseArgs(argv) {
       continue;
     }
 
+    if (arg === "--history") {
+      options.history = true;
+      continue;
+    }
+
+    if (arg === "--subs") {
+      options.subs = true;
+      continue;
+    }
+
+    if (arg === "--no-subs") {
+      options.subs = false;
+      options.embedSubs = false;
+      continue;
+    }
+
+    if (arg === "--sub-langs") {
+      options.subs = true;
+      options.subLangs = readValue(argv, ++index, arg);
+      continue;
+    }
+
+    if (arg === "--embed-subs") {
+      options.subs = true;
+      options.embedSubs = true;
+      continue;
+    }
+
+    if (arg === "--sponsorblock") {
+      options.sponsorblock = true;
+      continue;
+    }
+
+    if (arg === "--no-sponsorblock") {
+      options.sponsorblock = false;
+      continue;
+    }
+
+    if (arg === "--cookies-from-browser") {
+      options.cookiesFromBrowser = readValue(argv, ++index, arg);
+      continue;
+    }
+
+    if (arg === "--cookies") {
+      options.cookies = readValue(argv, ++index, arg);
+      continue;
+    }
+
+    if (arg === "--limit-rate" || arg === "-r") {
+      options.limitRate = readValue(argv, ++index, arg);
+      continue;
+    }
+
+    if (arg === "--retries") {
+      options.retries = readValue(argv, ++index, arg);
+      continue;
+    }
+
+    if (arg === "-a" || arg === "--batch-file") {
+      // "-" reads URLs from standard input.
+      (options.batchFiles ??= []).push(readValue(argv, ++index, arg, { allowDash: true }));
+      continue;
+    }
+
+    if (arg === "--sync") {
+      options.sync = true;
+      continue;
+    }
+
     if (arg.startsWith("-")) {
       const error = new Error(`Unknown option: ${arg}`);
       error.exitCode = 2;
@@ -295,7 +373,30 @@ export function normalizeOptions(options = {}) {
     downloader: options.downloader ?? null,
     downloaderArgs: options.downloaderArgs ?? null,
     maxFilesize: normalizeSize(options.maxFilesize),
+    subs: options.subs ?? false,
+    subLangs: normalizeSubLangs(options.subLangs),
+    // Subtitles can only be embedded in a video container.
+    embedSubs: video ? (options.embedSubs ?? false) : false,
+    sponsorblock: options.sponsorblock ?? false,
+    cookiesFromBrowser: options.cookiesFromBrowser ?? null,
+    cookies: options.cookies ?? null,
+    limitRate: normalizeRate(options.limitRate),
+    retries: options.retries == null ? null : normalizeRetries(options.retries),
+    sync: options.sync ?? false,
   };
+}
+
+// A YouTube playlist, channel, or SoundCloud set saved with --playlist and the
+// default template goes into its own folder, numbered in playlist order.
+export const PLAYLIST_OUTPUT_TEMPLATE =
+  "%(playlist_title).120B/%(playlist_index)03d - %(title).150B [%(id)s].%(ext)s";
+
+export function usesPlaylistFolder(url, options) {
+  return Boolean(
+    options.playlist &&
+      options.template === DEFAULT_OUTPUT_TEMPLATE &&
+      (describeCollectionUrl(url) || /[?&]list=/.test(String(url))),
+  );
 }
 
 export function buildYtDlpArgs(
@@ -313,7 +414,10 @@ export function buildYtDlpArgs(
     "-f",
     selectFormat(options),
     "-o",
-    join(options.outputDir, options.template),
+    join(
+      options.outputDir,
+      usesPlaylistFolder(url, options) ? PLAYLIST_OUTPUT_TEMPLATE : options.template,
+    ),
   ];
 
   if (options.video) {
@@ -359,12 +463,70 @@ export function buildYtDlpArgs(
     args.push("-x", "--audio-format", "mp3", "--audio-quality", options.quality);
   }
 
-  if (options.embedMetadata) {
+  if (options.metadata) {
+    // Tag the file with known details (e.g. from Spotify) instead of the
+    // uploader's video title. "@" keeps one-word values from being read as
+    // yt-dlp field names.
+    for (const [field, value] of Object.entries(options.metadata)) {
+      if (value == null || value === "") continue;
+      args.push("--parse-metadata", `@${metadataValue(value)}:^@(?P<meta_${field}>.+)$`);
+    }
+  }
+
+  if (options.embedMetadata || options.metadata) {
     args.push("--embed-metadata");
   }
 
   if (options.embedThumbnail) {
     args.push("--embed-thumbnail");
+
+    if (!options.video) {
+      // Video thumbnails are 16:9; crop to a centered square so they look
+      // like normal cover art in music players.
+      args.push(
+        "--convert-thumbnails",
+        "jpg",
+        "--postprocessor-args",
+        "ThumbnailsConvertor+ffmpeg_o:-c:v mjpeg -vf crop=\"'if(gt(ih,iw),iw,ih)':'if(gt(iw,ih),ih,iw)'\"",
+      );
+    }
+  }
+
+  if (options.subs) {
+    args.push(
+      "--write-subs",
+      "--write-auto-subs",
+      "--sub-langs",
+      options.subLangs,
+      "--convert-subs",
+      "srt",
+    );
+    if (options.embedSubs) args.push("--embed-subs");
+  }
+
+  if (options.sponsorblock) {
+    args.push("--sponsorblock-remove", SPONSORBLOCK_CATEGORIES);
+  }
+
+  if (options.cookiesFromBrowser) {
+    args.push("--cookies-from-browser", options.cookiesFromBrowser);
+  }
+
+  if (options.cookies) {
+    args.push("--cookies", options.cookies);
+  }
+
+  if (options.limitRate) {
+    args.push("--limit-rate", options.limitRate);
+  }
+
+  if (options.retries != null) {
+    args.push("--retries", String(options.retries), "--fragment-retries", String(options.retries));
+  }
+
+  if (options.matchFilter) {
+    // Take the first search result that passes the filter, then stop.
+    args.push("--match-filter", options.matchFilter, "--max-downloads", "1");
   }
 
   for (const section of options.clips ?? []) {
@@ -464,7 +626,7 @@ export function formatCommand(command, args) {
 
 export function usage() {
   return `Usage:
-  lyt [options] <youtube-url> [more-urls...]
+  lyt [options] <url> [more-urls...]
 
 Aliases (optional):
   yt3 <url>   same as lyt with audio defaults
@@ -484,6 +646,20 @@ Zero typing — download straight from the clipboard:
   lyt --paste              always read the clipboard (scripts and non-TTY too)
   lyt --watch              keep watching the clipboard; grab links as you copy
 
+Spotify playlist → songs (each track is matched on YouTube, saved as MP3):
+  lyt "https://open.spotify.com/playlist/..."   (albums, tracks, and artists
+                            work too; re-run to fetch only newly added songs)
+  lyt --sync "https://open.spotify.com/playlist/..."   renumber to the current
+                            order and move removed songs to a "removed" folder
+  Songs are tagged and get cover art; a .m3u8 playlist file is written. For
+  playlists over 100 songs, set Spotify API keys (free developer app):
+    lyt config set spotify-client-id <id>
+    lyt config set spotify-client-secret <secret>
+
+Other sites: SoundCloud, Vimeo, Bandcamp, and anything yt-dlp supports.
+  Playlists, channels, sets, and profiles need --playlist (saved into a
+  numbered folder).
+
 Grab just a slice of a long video:
   lyt --clip 1:10-2:45 "URL"        (repeat --clip for multiple slices)
 
@@ -498,7 +674,9 @@ Subcommands:
   lyt doctor                Check the environment (--fix installs missing
                             tools, --update self-updates yt-dlp; also reports
                             when a newer lyt release is on npm; --check-updates
-                            refreshes cached release information)
+                            refreshes cached release information; --network
+                            checks that YouTube, Spotify, SoundCloud, and
+                            GitHub are reachable)
   lyt agent install [name]  Install the lyt skill for codex, claude, or all
                             (optional: --home <dir>)
 
@@ -507,7 +685,8 @@ Options:
   --native                  Save native audio stream when possible (default)
   --video                   Download video (best video+audio, muxed to mp4)
   --audio                   Download audio only (default)
-  -q, --quality <value>     Audio: MP3 bitrate (128K/192K/320K/0). Video: a
+  -q, --quality <value>     Audio: MP3 bitrate (128K/192K/320K) or VBR level
+                            0-10 (0 = best). Video: a
                             resolution like 1080p, 720p, 4k, 8k, or best
   --max-height <value>      Cap video resolution (alias of -q in video mode)
   -L, --list-formats        List the qualities available for each URL and exit
@@ -516,12 +695,21 @@ Options:
   --split-chapters          Split into one file per chapter, named by chapter
   --normalize               Loudness-normalize audio (EBU R128; implies --mp3)
   --no-normalize            Disable normalization inherited from config/profile
-  -p, --paste               Add YouTube URL(s) from the clipboard (always;
+  --subs                    Save subtitles (manual, else automatic) as .srt
+  --sub-langs <langs>       Subtitle languages, e.g. en or "en.*,de" (default: en)
+  --embed-subs              Embed subtitles in the video file (video mode)
+  --no-subs                 Disable subtitles inherited from config
+  --sponsorblock            Cut sponsor, self-promo, and interaction segments
+  --no-sponsorblock         Disable SponsorBlock inherited from config
+  -p, --paste               Add media URL(s) from the clipboard (always;
                             interactive terminals also auto-read when no URL)
   --watch, --queue          Watch the clipboard and download every copied link
+  -a, --batch-file <file>   Read URLs from a file, one per line (- for stdin)
   --profile <name>          Preset bundle: music, podcast, or voice
+  --sync                    Spotify: renumber saved songs, move removed ones aside
   --redownload              Download even if the video is already in history
   --no-history              Skip recording this run in the download history
+  --history                 Record history even if config turned it off
   -f, --fragments <n>       Concurrent fragments per download (default: 8)
   -j, --jobs <n>            Parallel downloads for multiple URLs (default: 1)
   -o, --output-dir <dir>    Output directory (default: downloads)
@@ -529,8 +717,14 @@ Options:
   --downloader <name>       External downloader, e.g. aria2c (faster on throttled hosts)
   --downloader-args <args>  Args for the external downloader, e.g. "-x16 -s16 -k1M"
   --max-filesize <size>     Skip media larger than a yt-dlp size such as 2G
+  -r, --limit-rate <rate>   Cap download speed, e.g. 500K or 2M
+  --retries <n>             Retries for downloads and fragments (0-100)
+  --cookies-from-browser <browser>
+                            Use your browser's cookies (e.g. chrome, firefox)
+                            for media your account can access
+  --cookies <file>          Use a Netscape-format cookies file
   --no-part                 Write directly to the output file (skip .part)
-  --playlist                Allow playlist downloads
+  --playlist                Allow playlists, channels, sets, and profiles
   --no-playlist             Download only the single video URL (default)
   --embed-metadata          Embed metadata; may add time
   --embed-thumbnail         Embed thumbnail; may add time
@@ -574,7 +768,13 @@ function readValue(argv, index, optionName, { allowDash = false } = {}) {
 function normalizeQuality(value) {
   const quality = String(value).trim();
 
-  if (/^\d+$/.test(quality) || /^\d+[kK]$/.test(quality)) {
+  // yt-dlp reads bare 0-10 as a VBR level (0 = best). Larger bare numbers
+  // only make sense as a bitrate, so "320" means "320K".
+  if (/^\d+$/.test(quality)) {
+    return Number(quality) > 10 ? `${Number(quality)}K` : String(Number(quality));
+  }
+
+  if (/^\d+[kK]$/.test(quality)) {
     return quality.toUpperCase();
   }
 
@@ -596,6 +796,52 @@ function normalizeSize(value) {
   );
   error.exitCode = 2;
   throw error;
+}
+
+export const SPONSORBLOCK_CATEGORIES = "sponsor,selfpromo,interaction";
+
+function normalizeSubLangs(value) {
+  // Plain "en": "en.*" also pulls machine translations, which YouTube
+  // often rate-limits.
+  if (value == null) return "en";
+  const langs = String(value).trim();
+
+  if (/^[\w.*,@+-]+$/.test(langs)) return langs;
+
+  const error = new Error(`Invalid --sub-langs: ${value}. Use codes like en, es, or "en.*,de".`);
+  error.exitCode = 2;
+  throw error;
+}
+
+function normalizeRate(value) {
+  if (value == null) return null;
+  const rate = String(value).trim().replace(/\/s$/i, "");
+
+  if (/^\d+(?:\.\d+)?[kKmMgG]?$/.test(rate)) return rate;
+
+  const error = new Error(`Invalid --limit-rate: ${value}. Use a speed such as 500K or 2M.`);
+  error.exitCode = 2;
+  throw error;
+}
+
+function normalizeRetries(value) {
+  const text = String(value).trim();
+
+  if (text === "infinite") return text;
+  if (/^\d+$/.test(text) && Number(text) <= 100) return Number(text);
+
+  const error = new Error(`Invalid --retries: ${value}. Use a number from 0 to 100.`);
+  error.exitCode = 2;
+  throw error;
+}
+
+// Literal text for a --parse-metadata source: % and : have meaning there.
+function metadataValue(value) {
+  return String(value)
+    .replace(/[\r\n]+/g, " ")
+    .replaceAll("\\", "")
+    .replaceAll("%", "%%")
+    .replaceAll(":", "\\:");
 }
 
 function normalizePositiveInteger(value, name) {

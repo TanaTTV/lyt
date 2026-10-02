@@ -199,7 +199,7 @@ lyt --mp3 -q 192K --max-filesize 2G --json "URL"
 ```json
 {
   "schema": "lyt.result.v1",
-  "version": "0.8.1",
+  "version": "0.8.2-rc.1",
   "command": "download",
   "ok": true,
   "results": [
@@ -248,7 +248,12 @@ the updated instructions. For marketplace installations, see the
 
 ## Safe by default
 
-- Playlist URLs download one item unless `--playlist` is present.
+- Playlist URLs download one item unless `--playlist` is present. Links that
+  are only a collection (a YouTube playlist or channel, a SoundCloud set or
+  profile, a Bandcamp album) are refused without `--playlist` instead of
+  silently downloading everything.
+- Browser cookies are used only when you pass `--cookies-from-browser` or
+  `--cookies`.
 - Existing final files are preserved unless `--force-overwrite` is present.
 - Partial downloads resume when possible.
 - History dedupe distinguishes audio, MP3, video quality, clips, and output variants.
@@ -271,10 +276,62 @@ lyt --no-history "URL"
 ### Clipboard downloads
 
 ```sh
-lyt             # interactive terminal: use a YouTube link already on the clipboard
+lyt             # interactive terminal: use a media link already on the clipboard
 lyt --paste     # always read the clipboard (scripts / non-TTY too)
 lyt --watch     # watch for newly copied links until Ctrl+C
 ```
+
+Clipboard paste and watch mode pick up YouTube, Spotify, SoundCloud, Vimeo,
+and Bandcamp links. Stopping watch mode mid-download keeps the partial file so
+the next run resumes it.
+
+### SoundCloud, Vimeo, Bandcamp, and other sites
+
+```sh
+lyt "https://soundcloud.com/artist/track"
+lyt --playlist "https://soundcloud.com/artist/sets/album"   # → downloads/<set>/001 - ...
+lyt --video "https://vimeo.com/123456"
+```
+
+Anything yt-dlp supports works. History recognizes repeat downloads from every
+site, not just YouTube. With `--playlist`, collections save into their own
+folder, numbered in playlist order.
+
+### Many links at once
+
+```sh
+lyt -a links.txt            # one URL per line; blank lines and # comments ignored
+cat links.txt | lyt -a -    # read from standard input
+lyt -j 4 -a links.txt       # four downloads at a time
+```
+
+Runs with several items end with a summary such as `Done: 12 saved · 3 skipped`.
+
+### Subtitles and sponsor segments
+
+```sh
+lyt --video --subs "URL"                      # English .srt next to the video
+lyt --video --embed-subs --sub-langs en,de "URL"
+lyt --sponsorblock "URL"                      # cut sponsor/self-promo segments
+```
+
+If subtitles cannot be downloaded (for example a rate limit), the media is
+still saved and the result carries a warning.
+
+### Slow or flaky connections
+
+```sh
+lyt --limit-rate 2M --retries 20 "URL"
+```
+
+### Media your account can access
+
+```sh
+lyt --cookies-from-browser firefox "URL"
+```
+
+Uses your own browser session for age-restricted or members-only media you are
+allowed to watch. lyt never reads cookies unless you pass this flag.
 
 ### Grab part of a video
 
@@ -303,6 +360,47 @@ lyt --profile podcast "URL"   # compact normalized MP3 + metadata
 lyt --profile voice "URL"     # small normalized speech file
 ```
 
+### Spotify playlists, albums, tracks, and artists
+
+```sh
+lyt "https://open.spotify.com/playlist/PLAYLIST_ID"
+lyt "https://open.spotify.com/album/ALBUM_ID"
+lyt "https://open.spotify.com/artist/ARTIST_ID"      # the artist's top tracks
+lyt --sync "https://open.spotify.com/playlist/PLAYLIST_ID"
+lyt info "https://open.spotify.com/playlist/PLAYLIST_ID"   # list the songs only
+```
+
+Spotify audio is DRM-protected, so lyt never downloads from Spotify. It reads
+the public track list and finds each song on YouTube:
+
+- **Matching:** lyt checks the top five results for `Artist - Title` and takes
+  the first whose length is within a few seconds of the Spotify track, which
+  skips music videos with intros and extended mixes. If none fit, it takes the
+  top result. `--json` reports the matched video for each song (`match`).
+- **Files:** MP3s are saved as `downloads/<playlist>/NN - Artist - Title.mp3` in
+  Spotify order, tagged with the Spotify artist, title, album, and track
+  number, with the album cover embedded. A `<playlist>.m3u8` file lists the
+  songs in order for music players.
+- **Re-runs:** songs already on disk are skipped (reported as `skipped` /
+  `exists` in `--json`), even if the playlist order changed. `--sync`
+  renumbers saved songs to the current order and moves songs that left the
+  playlist into a `removed` folder.
+- **Speed:** three songs download at a time unless you set `-j`.
+- **Large playlists:** Spotify's public page lists only the first 100 songs of
+  a playlist. For the full list, create a free app at
+  <https://developer.spotify.com/dashboard> and save its keys:
+
+  ```sh
+  lyt config set spotify-client-id YOUR_CLIENT_ID
+  lyt config set spotify-client-secret YOUR_CLIENT_SECRET
+  ```
+
+  (or set `LYT_SPOTIFY_CLIENT_ID` / `LYT_SPOTIFY_CLIENT_SECRET`). The secret is
+  never printed by `lyt config`. If Spotify's API refuses a playlist, lyt falls
+  back to the public list and says so.
+
+Only public links work.
+
 ## History, configuration, and diagnostics
 
 ```sh
@@ -315,8 +413,18 @@ lyt history --clear
 # Save defaults
 lyt config set output-dir "D:/Music"
 lyt config set profile music
+lyt config set video true          # plain `lyt` downloads video (yt3 stays audio)
+lyt config set max-height 1080p
+lyt config set subs true
 lyt config list
 lyt config unset profile
+
+# Keys: output-dir, quality, template, fragments, jobs, profile, mp3,
+# embed-metadata, embed-thumbnail, normalize, downloader, downloader-args,
+# video, max-height, max-filesize, playlist, history, subs, sub-langs,
+# embed-subs, sponsorblock, limit-rate, retries, cookies-from-browser,
+# update-check, spotify-client-id, spotify-client-secret.
+# Invalid values are rejected when you set them.
 
 # Check or repair tools
 lyt doctor
@@ -324,6 +432,7 @@ lyt doctor --json
 lyt doctor --fix
 lyt doctor --update       # explicitly update yt-dlp
 lyt doctor --check-updates # refresh lyt release information without installing
+lyt doctor --network      # can this machine reach YouTube, Spotify, SoundCloud, GitHub?
 
 # Optional: disable “update available” notices
 lyt config set update-check false
@@ -348,8 +457,9 @@ A malformed config is moved aside with a `.corrupt-<timestamp>` suffix instead
 of being ignored silently. Config writes use a complete temporary file before
 replacement.
 
-Command flags override profiles, profiles override saved configuration, and
-saved configuration overrides built-in defaults.
+Command flags override profiles, profiles override the `yt3` / `yt4` aliases,
+the aliases override saved configuration, and saved configuration overrides
+built-in defaults.
 
 <details>
 <summary><strong>More installation options</strong></summary>
@@ -410,7 +520,7 @@ lyt inspect <url> [more-urls...] [--json]   # alias of info
 lyt capabilities [--json]
 lyt history [query] [--limit <n>] [--clear] [--json]
 lyt config <set|get|unset|list|path> [key] [value]
-lyt doctor [--fix] [--update] [--json]
+lyt doctor [--fix] [--update] [--check-updates] [--network] [--json]
 lyt agent install [codex|claude|all] [--home <dir>]
 ```
 
@@ -446,7 +556,15 @@ Everything else — flags, subcommands, config, history, and JSON — is the sam
 | `--normalize`, `--no-normalize` | Enable or disable inherited normalization. |
 | `--paste`, `--watch`, `--queue` | Read once from or continuously watch the clipboard. |
 | `--profile <name>` | Use `music`, `podcast`, or `voice`. |
-| `--playlist`, `--no-playlist` | Allow a playlist or force a single item. |
+| `--playlist`, `--no-playlist` | Allow playlists, channels, sets, and profiles, or force a single item. |
+| `-a, --batch-file <file>` | Read URLs from a file, one per line (`-` for stdin). |
+| `--subs`, `--sub-langs <langs>`, `--embed-subs`, `--no-subs` | Save or embed subtitles. |
+| `--sponsorblock`, `--no-sponsorblock` | Cut sponsor, self-promo, and interaction segments. |
+| `--cookies-from-browser <browser>`, `--cookies <file>` | Use your own login for media you can access. |
+| `-r, --limit-rate <rate>` | Cap download speed. |
+| `--retries <n>` | Retries for downloads and fragments. |
+| `--sync` | Spotify: renumber saved songs and move removed ones aside. |
+| `--history` | Record history even if config turned it off. |
 | `--force-overwrite` | Replace existing files. |
 | `--redownload` | Bypass history dedupe. |
 | `--no-history` | Do not read or write history for this run. |

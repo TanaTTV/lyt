@@ -15,6 +15,7 @@ import {
 import { dirname, join } from "node:path";
 import process from "node:process";
 import { dataDir } from "./paths.js";
+import { warn } from "./ui.js";
 import { VERSION } from "./version.js";
 
 export const PACKAGE_NAME = "@tanattv/lyt";
@@ -229,7 +230,7 @@ export async function maybeNotifyUpdate({
   try {
     const update = await check({ force });
     const notice = formatUpdateNotice(update);
-    if (notice) log(notice);
+    if (notice) log(warn(notice));
     return update;
   } catch {
     return null;
