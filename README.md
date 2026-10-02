@@ -199,7 +199,7 @@ lyt --mp3 -q 192K --max-filesize 2G --json "URL"
 ```json
 {
   "schema": "lyt.result.v1",
-  "version": "0.8.2-rc.1",
+  "version": "0.8.2",
   "command": "download",
   "ok": true,
   "results": [

@@ -5,7 +5,7 @@ versioning for the public CLI and machine-readable result contract.
 
 ## [Unreleased]
 
-## [0.8.2-rc.1] - 2026-10-02
+## [0.8.2] - 2026-10-02
 
 ### Added
 
