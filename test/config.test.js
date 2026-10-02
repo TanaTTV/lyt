@@ -11,6 +11,7 @@ import {
   profileNames,
   resolveProfile,
   saveConfig,
+  validateConfigValue,
 } from "../src/config.js";
 import { normalizeOptions } from "../src/ytDlp.js";
 
@@ -131,4 +132,14 @@ test("assertConfigKey accepts known keys and rejects unknown ones", () => {
     assert.match(error.message, /Unknown config key/);
     assert.equal(error.exitCode, 2);
   }
+});
+
+test("config set rejects values that would break every download", () => {
+  assert.throws(() => validateConfigValue("jobs", "abc"), /positive integer/);
+  assert.throws(() => validateConfigValue("fragments", "0"), /positive integer/);
+  assert.throws(() => validateConfigValue("mp3", "maybe"), /true or false/);
+  assert.throws(() => validateConfigValue("profile", "nope"), /Unknown profile/);
+  assert.doesNotThrow(() => validateConfigValue("jobs", "4"));
+  assert.doesNotThrow(() => validateConfigValue("profile", "music"));
+  assert.doesNotThrow(() => validateConfigValue("output-dir", "~/Music"));
 });

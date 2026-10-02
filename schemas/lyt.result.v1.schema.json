@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/tanattv/lyt/blob/main/schemas/lyt.result.v1.schema.json",
+  "$id": "https://github.com/TanaTTV/lyt/blob/main/schemas/lyt.result.v1.schema.json",
   "title": "lyt result v1",
   "type": "object",
   "required": ["schema", "version", "command", "ok", "results"],
@@ -21,7 +21,13 @@
           "mode": { "enum": ["audio", "video"] },
           "files": { "type": "array", "items": { "type": "string" } },
           "outputDir": { "type": "string" },
-          "reason": { "enum": ["history", "max-filesize", "no-output"] },
+          "reason": { "enum": ["history", "exists", "max-filesize", "no-output"] },
+          "title": { "type": "string" },
+          "extractor": { "type": "string" },
+          "webpageUrl": { "type": "string" },
+          "source": { "type": "object" },
+          "match": { "type": "object" },
+          "warning": { "type": "string" },
           "command": { "type": "string" },
           "executable": { "type": "string" },
           "args": { "type": "array", "items": { "type": "string" } },
@@ -30,6 +36,7 @@
         "additionalProperties": true
       }
     },
+    "warnings": { "type": "array", "items": { "type": "string" } },
     "error": { "$ref": "#/$defs/error" }
   },
   "$defs": {

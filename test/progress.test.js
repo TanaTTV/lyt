@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { createProgressRenderer, parseProgressLine } from "../src/progress.js";
+import { createProgressRenderer, formatBar, parseProgressLine } from "../src/progress.js";
+import { ANSI, stripAnsi } from "../src/ui.js";
 
 test("parses a yt-dlp download progress line", () => {
   const info = parseProgressLine("[download]  42.3% of 4.20MiB at 1.50MiB/s ETA 00:02");
@@ -29,6 +30,31 @@ test("ignores non-progress lines", () => {
   assert.equal(parseProgressLine("WARNING: something"), null);
 });
 
+test("parses a destination line so the bar can show the filename", () => {
+  const info = parseProgressLine("[download] Destination: downloads/Song [id].webm");
+
+  assert.equal(info.destination, "downloads/Song [id].webm");
+});
+
+test("formatBar uses ASCII by default and unicode blocks when asked", () => {
+  const ascii = formatBar({ label: "abc", percent: 50, detail: "1MiB/s" });
+  assert.match(ascii, /#+\-+/);
+  assert.match(ascii, / 50%/);
+  assert.equal(ascii.includes("█"), false);
+
+  const blocks = formatBar({ label: "abc", percent: 50, detail: "1MiB/s" }, { unicode: true });
+  assert.match(blocks, /█+░+/);
+});
+
+test("formatBar colors the fill and status words when color is on", () => {
+  const done = formatBar({ label: "abc", percent: 100, detail: "done" }, { color: true });
+  assert.equal(done.includes(ANSI.green), true);
+  assert.equal(stripAnsi(done).includes("done"), true);
+
+  const failed = formatBar({ label: "abc", percent: 10, detail: "failed" }, { color: true });
+  assert.equal(failed.includes(ANSI.red), true);
+});
+
 test("non-TTY renderer emits plain per-item lines and never ANSI escapes", () => {
   const written = [];
   const out = { isTTY: false, write: (chunk) => written.push(chunk) };
@@ -52,4 +78,41 @@ test("renderer ignores updates for out-of-range or finished items", () => {
   assert.doesNotThrow(() => renderer.update(5, { percent: 10 }));
   renderer.done(0, true);
   assert.doesNotThrow(() => renderer.update(0, { percent: 50 }));
+});
+
+test("TTY single-item renderer rewrites one line in place", () => {
+  const written = [];
+  const out = { isTTY: true, write: (chunk) => written.push(chunk) };
+  const renderer = createProgressRenderer(["abc123"], {
+    out,
+    color: false,
+    unicode: false,
+  });
+
+  renderer.update(0, { destination: "downloads/Song [abc123].webm" });
+  renderer.update(0, { percent: 40, speed: "1MiB/s", eta: "00:03" });
+  renderer.done(0, true);
+
+  const output = written.join("");
+  assert.equal(output.includes("\x1B["), true);
+  assert.match(output, /\r/);
+  assert.match(stripAnsi(output), /Song \[abc123\]\.webm/);
+  assert.match(stripAnsi(output), /done/);
+});
+
+test("TTY renderer notes print above an in-place bar", () => {
+  const written = [];
+  const out = { isTTY: true, write: (chunk) => written.push(chunk) };
+  const renderer = createProgressRenderer(["only"], {
+    out,
+    color: false,
+    unicode: false,
+  });
+
+  renderer.note("[youtube] Downloading webpage");
+  renderer.update(0, { percent: 10, speed: "2MiB/s" });
+
+  const output = written.join("");
+  assert.match(output, /\[youtube\] Downloading webpage\n/);
+  assert.match(output, /\[#+-+\]/);
 });

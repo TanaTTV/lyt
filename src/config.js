@@ -16,6 +16,7 @@ import {
 import { dirname, isAbsolute, join } from "node:path";
 import process from "node:process";
 import { dataDir } from "./paths.js";
+import { normalizeOptions } from "./ytDlp.js";
 
 export const PROFILES = {
   // Keep every bit of quality and make the file pretty in players.
@@ -55,22 +56,50 @@ const BOOL = (value) => {
   throw error;
 };
 
+const POSITIVE_INT = (value) => {
+  const text = String(value).trim();
+  if (/^\d+$/.test(text) && Number(text) >= 1) return text;
+
+  const error = new Error(`Expected a positive integer, got: ${value}`);
+  error.exitCode = 2;
+  throw error;
+};
+
 const CONFIG_KEYS = new Map([
   ["output-dir", { option: "outputDir" }],
   ["quality", { option: "quality" }],
   ["template", { option: "template" }],
-  ["fragments", { option: "fragments" }],
-  ["jobs", { option: "jobs" }],
-  ["profile", { option: "profile" }],
+  ["fragments", { option: "fragments", parse: POSITIVE_INT }],
+  ["jobs", { option: "jobs", parse: POSITIVE_INT }],
+  ["profile", { option: "profile", validate: resolveProfile }],
   ["mp3", { option: "mp3", parse: BOOL }],
   ["embed-metadata", { option: "embedMetadata", parse: BOOL }],
   ["embed-thumbnail", { option: "embedThumbnail", parse: BOOL }],
   ["normalize", { option: "normalize", parse: BOOL }],
   ["downloader", { option: "downloader" }],
   ["downloader-args", { option: "downloaderArgs" }],
-  // Meta preference: not mapped into download options.
+  ["video", { option: "video", parse: BOOL }],
+  ["max-height", { option: "maxHeight", check: true }],
+  ["max-filesize", { option: "maxFilesize", check: true }],
+  ["playlist", { option: "playlist", parse: BOOL }],
+  ["history", { option: "history", parse: BOOL }],
+  ["subs", { option: "subs", parse: BOOL }],
+  ["sub-langs", { option: "subLangs", check: true }],
+  ["embed-subs", { option: "embedSubs", parse: BOOL }],
+  ["sponsorblock", { option: "sponsorblock", parse: BOOL }],
+  ["limit-rate", { option: "limitRate", check: true }],
+  ["retries", { option: "retries", check: true }],
+  ["cookies-from-browser", { option: "cookiesFromBrowser" }],
+  // Meta preferences: not mapped into download options.
   ["update-check", { parse: BOOL }],
+  ["spotify-client-id", {}],
+  ["spotify-client-secret", { secret: true }],
 ]);
+
+// Shows a stored value, hiding secrets.
+export function displayConfigValue(key, value) {
+  return CONFIG_KEYS.get(key)?.secret && value ? "******** (set)" : String(value);
+}
 
 export function configKeys() {
   return [...CONFIG_KEYS.keys()];
@@ -147,6 +176,18 @@ export function assertConfigKey(key) {
     error.exitCode = 2;
     throw error;
   }
+}
+
+// Rejects values that would make every later download fail, at `config set`
+// time instead of on the next run.
+export function validateConfigValue(key, value) {
+  assertConfigKey(key);
+  const spec = CONFIG_KEYS.get(key);
+  spec.parse?.(value);
+  spec.validate?.(value);
+  // Values with download-option rules go through the same validation the
+  // download command uses.
+  if (spec.check) normalizeOptions({ video: key === "max-height", [spec.option]: value });
 }
 
 export function configToOptions(config) {

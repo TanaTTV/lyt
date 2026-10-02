@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { resolve } from "node:path";
 import {
+  extractOutputMeta,
   extractOutputPath,
   outputCaptureArgs,
   resultEnvelope,
@@ -12,7 +13,25 @@ test("builds an after-move print marker for exact final paths", () => {
   assert.deepEqual(outputCaptureArgs(), [
     "--print",
     "after_move:__LYT_FILE__:%(filepath)s",
+    "--print",
+    "after_move:__LYT_META__:%(.{id,title,extractor_key,webpage_url,duration,uploader})j",
   ]);
+});
+
+test("parses the per-item metadata marker and ignores other lines", () => {
+  assert.equal(extractOutputMeta("[download] 50%"), null);
+  assert.equal(extractOutputMeta("__LYT_META__:not json"), null);
+  assert.deepEqual(
+    extractOutputMeta('__LYT_META__:{"id":"293","title":"Flickermood","extractor_key":"Soundcloud","webpage_url":"https://soundcloud.com/forss/flickermood","duration":213.5}'),
+    {
+      id: "293",
+      title: "Flickermood",
+      extractor: "Soundcloud",
+      webpageUrl: "https://soundcloud.com/forss/flickermood",
+      durationSeconds: 213.5,
+      uploader: null,
+    },
+  );
 });
 
 test("extracts and resolves final output paths while ignoring other lines", () => {

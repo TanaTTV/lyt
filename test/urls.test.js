@@ -74,3 +74,10 @@ test("dedupeUrlList keeps first-seen order by video id", () => {
     ],
   );
 });
+
+test("recognizes YouTube embed links", () => {
+  const url = "https://www.youtube.com/embed/dQw4w9WgXcQ?start=10";
+  assert.equal(extractVideoId(url), "dQw4w9WgXcQ");
+  assert.deepEqual(extractYouTubeUrls(`see ${url}`), [url]);
+  assert.equal(extractVideoId("https://open.spotify.com/embed/track/70cHKK8bHAfJrOGVnfRG9J"), null);
+});

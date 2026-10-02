@@ -5,7 +5,7 @@
 import { spawnSync } from "node:child_process";
 import process from "node:process";
 import { resolveExecutableOnPath } from "./executables.js";
-import { dedupeUrlList, extractYouTubeUrls } from "./urls.js";
+import { dedupeUrlList, extractMediaUrls } from "./urls.js";
 
 // Candidate readers per platform, tried in order until one works.
 export function clipboardCommands(platform = process.platform) {
@@ -73,7 +73,7 @@ export function shouldReadClipboardForUrls({
 }
 
 /**
- * Merge YouTube URLs found in clipboard text into the argv URL list.
+ * Merge media URLs (YouTube, Spotify, SoundCloud, Vimeo, Bandcamp) found in clipboard text into the argv URL list.
  * Explicit --paste errors when nothing usable is found; auto-paste does not.
  */
 export function mergeClipboardUrls({
@@ -82,10 +82,10 @@ export function mergeClipboardUrls({
   paste = false,
   watch = false,
 } = {}) {
-  const fromClipboard = extractYouTubeUrls(clipboardText);
+  const fromClipboard = extractMediaUrls(clipboardText);
 
   if (paste && fromClipboard.length === 0 && urls.length === 0 && !watch) {
-    const error = new Error("No YouTube URLs found on the clipboard.");
+    const error = new Error("No media URLs found on the clipboard (YouTube, Spotify, SoundCloud, Vimeo, or Bandcamp).");
     error.exitCode = 2;
     throw error;
   }

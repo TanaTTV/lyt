@@ -26,6 +26,7 @@ export async function mainEntry(argv, defaults = {}) {
         fix: argv.includes("--fix"),
         update: argv.includes("--update") || argv.includes("-U"),
         checkUpdates: argv.includes("--check-updates"),
+        network: argv.includes("--network"),
         json: argv.includes("--json"),
       });
     case "info":

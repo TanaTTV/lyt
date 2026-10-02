@@ -3,8 +3,10 @@
 import {
   assertConfigKey,
   configPath,
+  displayConfigValue,
   loadConfig,
   saveConfig,
+  validateConfigValue,
 } from "../config.js";
 import { usageError } from "../errors.js";
 
@@ -18,10 +20,10 @@ export function runConfigCommand(argv) {
         throw usageError("Usage: lyt config set <key> <value>");
       }
 
-      assertConfigKey(key);
+      validateConfigValue(key, rest.join(" "));
       config[key] = rest.join(" ");
       saveConfig(config);
-      console.log(`${key} = ${config[key]}`);
+      console.log(`${key} = ${displayConfigValue(key, config[key])}`);
       return;
     }
 
@@ -31,7 +33,7 @@ export function runConfigCommand(argv) {
       }
 
       assertConfigKey(key);
-      console.log(config[key] !== undefined ? `${key} = ${config[key]}` : `${key} is not set`);
+      console.log(config[key] !== undefined ? `${key} = ${displayConfigValue(key, config[key])}` : `${key} is not set`);
       return;
     }
 
@@ -55,7 +57,7 @@ export function runConfigCommand(argv) {
         console.log("No config values set. Try: lyt config set quality 320K");
       } else {
         for (const k of keys.sort()) {
-          console.log(`${k} = ${config[k]}`);
+          console.log(`${k} = ${displayConfigValue(k, config[k])}`);
         }
       }
 

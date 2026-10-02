@@ -53,7 +53,8 @@ for (const page of pages) {
 const home = await readFile(join(dist, "index.html"), "utf8");
 assert.match(home, /<script type="application\/ld\+json">/);
 assert.match(home, /"SoftwareApplication"/);
-assert.match(home, /"softwareVersion":"\d+\.\d+\.\d+"/);
+// Semver, including prereleases such as 0.8.2-rc.1.
+assert.match(home, /"softwareVersion":"\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?"/);
 assert.ok(home.includes("C:\\Users\\you\\Downloads\\Example.mp4"), "terminal Windows path must keep backslashes");
 assert.ok(!home.includes("C:UsersyouDownloads"), "terminal Windows path must not collapse");
 assert.ok(home.includes('"files": ["C:\\\\Downloads\\\\Example.mp3"]'), "displayed JSON example must escape Windows paths");
