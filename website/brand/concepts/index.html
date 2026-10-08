@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>lyt logo concepts</title>
+<style>
+  @font-face { font-family: "Inter"; font-weight: 400 800; src: url("../../public/fonts/inter-latin.woff2") format("woff2"); }
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 48px; background: #07070a; color: #f6f6f8; font-family: Inter, system-ui, sans-serif; }
+  h1 { margin: 0 0 6px; font-size: 30px; letter-spacing: -.03em; }
+  .sub { margin: 0 0 32px; color: #8d8d9a; }
+  .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+  .card { padding: 26px; border-radius: 22px; background: #101016; border: 1px solid rgba(255,255,255,.08); }
+  .card.now { opacity: .85; }
+  .num { font: 600 12px/1 ui-monospace, Consolas, monospace; letter-spacing: .08em; color: #ff5468; text-transform: uppercase; }
+  .name { margin: 8px 0 18px; font-size: 21px; font-weight: 750; letter-spacing: -.02em; }
+  .row { display: flex; align-items: flex-end; gap: 18px; }
+  .big { width: 128px; height: 128px; }
+  .sizes { display: flex; align-items: flex-end; gap: 12px; }
+  .sizes img:nth-child(1) { width: 48px; } .sizes img:nth-child(2) { width: 32px; } .sizes img:nth-child(3) { width: 16px; }
+  .lockup { display: flex; align-items: center; gap: 12px; margin-top: 22px; padding: 14px 16px; border-radius: 14px; background: #07070a; border: 1px solid rgba(255,255,255,.06); }
+  .lockup img { width: 36px; height: 36px; }
+  .lockup b { font-size: 26px; font-weight: 800; letter-spacing: -.045em; }
+  .lockup.light { background: #f6f6f8; color: #07070a; }
+  .lockup .wm { height: 46px; width: auto; }
+  p { margin: 16px 0 0; color: #c9c9d2; font-size: 14px; line-height: 1.55; }
+</style>
+</head>
+<body>
+  <h1>lyt — logo concepts</h1>
+  <p class="sub">Same brand red, five ideas. Each shown at app-icon size, at favicon sizes (48 / 32 / 16 px), and as a header lockup.</p>
+  <div class="grid">
+    <div class="card now">
+      <div class="num">Previous</div><div class="name">Feather bolt (previous)</div>
+      <div class="row"><img class="big" src="0-previous.png" alt=""><div class="sizes"><img src="0-previous.png" alt=""><img src="0-previous.png" alt=""><img src="0-previous.png" alt=""></div></div>
+      <div class="lockup"><img src="0-previous.png" alt=""><b>lyt</b></div>
+      <p>Feather + lightning notch + arrow in one outline. Rich story, but three ideas compete and it smears at 16 px.</p>
+    </div>
+    <div class="card">
+      <div class="num">Concept 1</div><div class="name">The Drop</div>
+      <div class="row"><img class="big" src="1-drop.svg" alt=""><div class="sizes"><img src="1-drop.svg" alt=""><img src="1-drop.svg" alt=""><img src="1-drop.svg" alt=""></div></div>
+      <div class="lockup"><img src="1-drop.svg" alt=""><b>lyt</b></div>
+      <p>A play button turned to point down, landing on a line. Media in, file out. The bar is "the file landed": the exact path lyt hands back.</p>
+    </div>
+    <div class="card">
+      <div class="num">Concept 2</div><div class="name">Light Feather</div>
+      <div class="row"><img class="big" src="2-feather.svg" alt=""><div class="sizes"><img src="2-feather.svg" alt=""><img src="2-feather.svg" alt=""><img src="2-feather.svg" alt=""></div></div>
+      <div class="lockup"><img src="2-feather.svg" alt=""><b>lyt</b></div>
+      <p>The current idea, refined: a solid feather ("lyt" = light) whose quill becomes the download arrow. Keeps the heritage, drops the clutter.</p>
+    </div>
+    <div class="card">
+      <div class="num">Concept 3</div><div class="name">Prompt Drop</div>
+      <div class="row"><img class="big" src="3-prompt.svg" alt=""><div class="sizes"><img src="3-prompt.svg" alt=""><img src="3-prompt.svg" alt=""><img src="3-prompt.svg" alt=""></div></div>
+      <div class="lockup"><img src="3-prompt.svg" alt=""><b>lyt</b></div>
+      <p>A terminal prompt <code>&gt;</code> next to a download. Ask in the terminal, get the file. Says "CLI for agents" before you read a word.</p>
+    </div>
+    <div class="card">
+      <div class="num">Concept 4 · chosen</div><div class="name">The Fork</div>
+      <div class="row"><img class="big" src="4-fork.svg" alt=""><div class="sizes"><img src="4-fork.svg" alt=""><img src="4-fork.svg" alt=""><img src="4-fork.svg" alt=""></div></div>
+      <div class="lockup"><img class="wm" src="4-fork-wordmark.svg" alt="lyt wordmark"></div>
+      <p>The "y" in lyt drawn as two paths merging into one download arrow: you and your agent, one exact file. It works as a letter, an icon, and a wordmark.</p>
+    </div>
+    <div class="card">
+      <div class="num">Concept 5</div><div class="name">Result Braces</div>
+      <div class="row"><img class="big" src="5-braces.svg" alt=""><div class="sizes"><img src="5-braces.svg" alt=""><img src="5-braces.svg" alt=""><img src="5-braces.svg" alt=""></div></div>
+      <div class="lockup"><img src="5-braces.svg" alt=""><b>lyt</b></div>
+      <p>A download arrow inside JSON braces: the <code>lyt.result.v1</code> document agents read. Very on-message for developers, less so for everyone else.</p>
+    </div>
+  </div>
+</body>
+</html>

@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<!-- Source for website/public/social-card.png (1280x640): link previews and the GitHub social preview. -->
+<style>
+  @font-face { font-family: "Inter"; font-weight: 400 800; src: url("../public/fonts/inter-latin.woff2") format("woff2"); }
+  html, body { margin: 0; width: 1280px; height: 640px; overflow: hidden; }
+  body {
+    position: relative; font-family: Inter, sans-serif; color: #f6f6f8;
+    background:
+      radial-gradient(700px 420px at 92% -10%, rgba(255, 42, 74, .30), transparent 60%),
+      radial-gradient(500px 300px at -5% 110%, rgba(255, 181, 71, .10), transparent 60%),
+      #07070a;
+  }
+  body::before {
+    content: ""; position: absolute; inset: 0;
+    background-image: linear-gradient(rgba(255,255,255,.035) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.035) 1px, transparent 1px);
+    background-size: 56px 56px;
+    mask-image: radial-gradient(ellipse 80% 80% at 70% 30%, black 20%, transparent 75%);
+  }
+  .wrap { position: relative; display: grid; grid-template-columns: 1fr 300px; gap: 40px; align-items: center; height: 100%; padding: 0 88px; box-sizing: border-box; }
+  .brand { display: flex; align-items: center; gap: 18px; margin-bottom: 34px; }
+  .brand img { width: 64px; height: 64px; }
+  .brand b { font-size: 46px; font-weight: 800; letter-spacing: -.05em; }
+  h1 { margin: 0 0 22px; font-size: 76px; line-height: .98; letter-spacing: -.05em; font-weight: 800; }
+  h1 span { background: linear-gradient(120deg, #ff2a4a, #ff5a5f 45%, #ffb547); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  p { margin: 0 0 34px; font-size: 26px; line-height: 1.4; color: #c9c9d2; max-width: 720px; }
+  code { display: inline-block; font: 600 22px/1 "Cascadia Code", Consolas, monospace; padding: 16px 20px; border-radius: 14px; background: #101016; border: 1px solid rgba(255,255,255,.14); color: #f6f6f8; }
+  code span { color: #ff5468; margin-right: 12px; }
+  .mark { width: 300px; height: 300px; filter: drop-shadow(0 40px 60px rgba(255, 42, 74, .45)); }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div>
+      <div class="brand"><img src="lyt-logo.svg" alt=""><b>lyt</b></div>
+      <h1>yt-dlp for <span>AI agents.</span></h1>
+      <p>Claude Code, Codex, and any terminal agent save permitted audio and video, and get the exact file path back as JSON.</p>
+      <code><span>$</span>npm install --global @tanattv/lyt</code>
+    </div>
+    <img class="mark" src="lyt-logo.svg" alt="">
+  </div>
+</body>
+</html>

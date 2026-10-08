@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://raw.githubusercontent.com/TanaTTV/lyt/main/app/src-tauri/icons/icon.png" width="112" alt="lyt red feather-bolt logo" />
+  <img src="https://raw.githubusercontent.com/TanaTTV/lyt/main/app/src-tauri/icons/icon.png" width="112" alt="lyt logo: a red Y whose two paths merge into one download arrow" />
 </p>
 
 <h1 align="center">lyt</h1>

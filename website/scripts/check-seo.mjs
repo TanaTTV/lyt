@@ -47,12 +47,31 @@ for (const page of pages) {
   titles.add(title);
   descriptions.add(description);
 
+  assert.ok(title.length <= 70, `${file} title must be at most 70 characters (${title.length})`);
+  assert.ok(
+    description.length >= 110 && description.length <= 170,
+    `${file} description must be 110-170 characters (${description.length})`,
+  );
+  const ldJson = html.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/);
+  assert.ok(ldJson, `${file} must contain a ld+json block`);
+  assert.ok(ldJson[1].includes('"WebPage"'), `${file} ld+json must include WebPage`);
+  if (page.slug) assert.ok(html.includes("BreadcrumbList"), `${file} must include BreadcrumbList`);
+  assert.ok(html.includes('class="nav-toggle"'), `${file} must have a mobile nav toggle`);
+  assert.ok(html.includes('id="nav-links"'), `${file} must have a nav-links container`);
+  assert.ok(html.includes('rel="apple-touch-icon"'), `${file} must declare an apple-touch-icon`);
+  assert.match(
+    html,
+    /<meta property="og:image" content="[^"]*social-card.png">/,
+    `${file} og:image must point at social-card.png`,
+  );
+
   await validateInternalLinks(html, file);
 }
 
 const home = await readFile(join(dist, "index.html"), "utf8");
 assert.match(home, /<script type="application\/ld\+json">/);
 assert.match(home, /"SoftwareApplication"/);
+assert.ok(home.includes('"FAQPage"'), "home must include FAQPage structured data");
 // Semver, including prereleases such as 0.8.2-rc.1.
 assert.match(home, /"softwareVersion":"\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?"/);
 assert.ok(home.includes("C:\\Users\\you\\Downloads\\Example.mp4"), "terminal Windows path must keep backslashes");

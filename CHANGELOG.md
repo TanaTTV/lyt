@@ -5,6 +5,15 @@ versioning for the public CLI and machine-readable result contract.
 
 ## [Unreleased]
 
+### Changed
+
+- New logo: the "y" in lyt drawn as two paths merging into one download
+  arrow (you and your agent, one exact file). Used across the website, README,
+  plugin, and application icons.
+- Redesigned website positioned around AI agents: searchable command
+  reference, use cases, task guides, FAQ structured data, self-hosted font,
+  new social card, and an expanded `llms.txt` with request-to-command examples.
+
 ## [0.8.2] - 2026-10-02
 
 ### Added
