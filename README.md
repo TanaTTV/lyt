@@ -5,8 +5,9 @@
 <h1 align="center">lyt</h1>
 
 <p align="center">
-  <strong>Download media without fighting the terminal.</strong><br />
-  A fast, local-first CLI built for people, scripts, and AI agents.
+  <strong>yt-dlp for AI agents.</strong><br />
+  A free, local-first CLI and skill that lets Claude Code, Codex, and any terminal agent<br />
+  save permitted audio and video, and get the exact file path back as JSON.
 </p>
 
 <p align="center">
