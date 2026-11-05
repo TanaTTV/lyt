@@ -4,6 +4,7 @@
 
 import { spawn } from "node:child_process";
 import process from "node:process";
+import { errorLine } from "./failures.js";
 import { extractOutputMeta, extractOutputPath } from "./result.js";
 
 // yt-dlp exits with 101 when --max-downloads stops it on purpose.
@@ -19,6 +20,7 @@ export function runCommand(command, args, {
   return new Promise((resolve, reject) => {
     const child = spawnFn(command, args, { stdio: ["ignore", "pipe", "pipe"], windowsHide: true });
     const recent = [];
+    const errorLines = [];
     const files = [];
     const items = [];
     let sizeLimited = false;
@@ -61,6 +63,7 @@ export function runCommand(command, args, {
       if (line.trim() && !line.startsWith("[download]")) {
         recent.push(line);
         if (recent.length > 8) recent.shift();
+        if (/^ERROR:/i.test(line.trim())) errorLines.push(line.trim());
       }
     };
 
@@ -77,12 +80,24 @@ export function runCommand(command, args, {
         return;
       }
 
-      const detail = recent.length > 0 ? `\n${recent.join("\n")}` : "";
+      const diagnostic = [...new Set([...recent, ...errorLines])].join("\n");
       const reason = code === null ? `was stopped (${signal ?? "signal"})` : `exited with code ${code}`;
-      const error = new Error(`${command} ${reason}${detail}`);
+      // Lead with the tool's own ERROR line; keep the recent lines below it
+      // for people, and the full tail in `diagnostic` for agents.
+      const cause = errorLine(diagnostic);
+      const detail = recent.length > 0 ? `\n${recent.join("\n")}` : "";
+      const error = new Error(cause
+        ? `${cause.replace(/^ERROR:\s*/i, "")}\n(${toolName(command)} ${reason})${detail}`
+        : `${command} ${reason}${detail}`);
       error.exitCode = code ?? 1;
       error.signal = signal ?? null;
+      error.diagnostic = diagnostic;
+      if (code === null && signal) error.kind = "cancelled";
       reject(error);
     });
   });
+}
+
+function toolName(command) {
+  return String(command).split(/[\\/]/).pop().replace(/\.exe$/i, "") || "tool";
 }

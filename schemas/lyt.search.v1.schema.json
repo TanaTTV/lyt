@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/TanaTTV/lyt/blob/main/schemas/lyt.search.v1.schema.json",
+  "title": "lyt search v1",
+  "type": "object",
+  "required": ["schema", "version", "command", "ok", "query", "limit", "results"],
+  "properties": {
+    "schema": { "const": "lyt.search.v1" },
+    "version": { "type": "string" },
+    "command": { "const": "search" },
+    "ok": { "type": "boolean" },
+    "query": { "type": "string", "minLength": 1, "maxLength": 500 },
+    "limit": { "type": "integer", "minimum": 1, "maximum": 25 },
+    "results": {
+      "type": "array", "maxItems": 25,
+      "items": {
+        "type": "object",
+        "required": ["index", "id", "extractor", "title", "uploader", "durationSeconds", "url", "thumbnail", "liveStatus", "isLive", "isUpcoming"],
+        "properties": {
+          "index": { "type": "integer", "minimum": 1 },
+          "id": { "type": "string", "pattern": "^[A-Za-z0-9_-]{11}$" },
+          "extractor": { "const": "Youtube" },
+          "title": { "type": "string" },
+          "uploader": { "type": ["string", "null"] },
+          "durationSeconds": { "type": ["number", "null"], "minimum": 0 },
+          "url": { "type": "string", "pattern": "^https://www\\.youtube\\.com/watch\\?v=[A-Za-z0-9_-]{11}$" },
+          "thumbnail": { "type": ["string", "null"] },
+          "liveStatus": { "type": ["string", "null"] },
+          "isLive": { "type": "boolean" },
+          "isUpcoming": { "type": "boolean" }
+        },
+        "additionalProperties": false
+      }
+    },
+    "error": { "$ref": "lyt.result.v1.schema.json#/$defs/error" }
+  },
+  "additionalProperties": false
+}

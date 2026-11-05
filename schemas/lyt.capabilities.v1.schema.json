@@ -17,28 +17,139 @@
     "options"
   ],
   "properties": {
-    "schema": { "const": "lyt.capabilities.v1" },
-    "version": { "type": "string" },
-    "command": { "const": "capabilities" },
-    "ok": { "type": "boolean" },
-    "node": { "type": "string" },
-    "commands": { "type": "array", "items": { "type": "string" } },
-    "modes": { "type": "array", "items": { "type": "string" } },
-    "profiles": { "type": "array", "items": { "type": "string" } },
-    "schemas": { "type": "array", "items": { "type": "string" } },
+    "schema": {
+      "const": "lyt.capabilities.v1"
+    },
+    "version": {
+      "type": "string"
+    },
+    "command": {
+      "const": "capabilities"
+    },
+    "ok": {
+      "type": "boolean"
+    },
+    "node": {
+      "type": "string"
+    },
+    "commands": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "modes": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "profiles": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "schemas": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
     "exitCodes": {
       "type": "object",
-      "additionalProperties": { "type": "string" }
+      "additionalProperties": {
+        "type": "string"
+      }
     },
     "options": {
       "type": "array",
       "items": {
         "type": "object",
-        "required": ["flag", "takesValue", "summary"],
+        "required": [
+          "flag",
+          "takesValue",
+          "summary"
+        ],
         "properties": {
-          "flag": { "type": "string" },
-          "takesValue": { "type": "boolean" },
-          "summary": { "type": "string" }
+          "flag": {
+            "type": "string"
+          },
+          "takesValue": {
+            "type": "boolean"
+          },
+          "summary": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "commandOptions": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": [
+            "flag",
+            "takesValue",
+            "summary"
+          ],
+          "properties": {
+            "flag": {
+              "type": "string"
+            },
+            "takesValue": {
+              "type": "boolean"
+            },
+            "summary": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        }
+      }
+    },
+    "errorKinds": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "kind",
+          "retryable",
+          "suggestion"
+        ],
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "usage",
+              "tool_missing",
+              "tool_unavailable",
+              "setup_failed",
+              "network",
+              "rate_limited",
+              "authentication_required",
+              "access_denied",
+              "media_unavailable",
+              "unsupported_url",
+              "format_unavailable",
+              "filesystem",
+              "verification_failed",
+              "size_limit",
+              "no_output",
+              "cancelled",
+              "tool_output_invalid",
+              "unknown"
+            ]
+          },
+          "retryable": {
+            "type": "boolean"
+          },
+          "suggestion": {
+            "type": "string"
+          }
         },
         "additionalProperties": false
       }

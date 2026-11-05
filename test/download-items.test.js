@@ -9,6 +9,7 @@ import { buildTasks, downloadUrls, needsFfmpeg } from "../src/download.js";
 import { matchHistory } from "../src/history.js";
 import { MAX_DOWNLOADS_REACHED, runCommand } from "../src/process.js";
 import { normalizeOptions } from "../src/ytDlp.js";
+const passInspect = async (files) => files.map((path) => ({ path, verification: { status: "file-only" } }));
 
 const TOOLS = { ytDlpCommand: "fixture", ffmpegPath: "ffmpeg-fixture" };
 
@@ -41,6 +42,7 @@ test("a search with no result of the right length falls back to the top result",
     const covers = [];
     const options = normalizeOptions({ outputDir: dir, mp3: true, history: false, json: true });
     const { results, failures, resultFor } = await downloadUrls([songTarget()], options, TOOLS, {
+      inspect: passInspect,
       execute: async (command, args, runOptions) => {
         calls.push({ url: args.at(-1), okCodes: runOptions.okCodes });
         return calls.length === 1
@@ -77,6 +79,7 @@ test("cover art problems are warnings, not failures", async () => {
   try {
     const options = normalizeOptions({ outputDir: dir, mp3: true, history: false, json: true });
     const { failures, results } = await downloadUrls([songTarget({ cover: "https://covers.example/x.jpg" })], options, TOOLS, {
+      inspect: passInspect,
       execute: async () => ({ files: [join(dir, "song.mp3")], items: [] }),
       embed: async () => {
         throw new Error("network down");
@@ -98,6 +101,7 @@ test("subtitle files saved next to the media are reported", async () => {
     writeFileSync(join(dir, "Other [zzz].en.srt"), "");
     const options = normalizeOptions({ outputDir: dir, video: true, subs: true, history: false, json: true });
     const { results } = await downloadUrls(["https://youtu.be/abc12345678"], options, TOOLS, {
+      inspect: passInspect,
       execute: async () => ({ files: [media], items: [] }),
     });
     assert.deepEqual(results[0].files, [media, join(dir, "Talk [abc12345678].en.srt")]);
@@ -113,6 +117,7 @@ test("results keep input order with mixed URLs and expanded targets", async () =
     const items = ["https://youtu.be/aaaaaaaaaaa", songTarget({ matchFilter: null, fallbackUrl: null }), "https://soundcloud.com/a/b"];
     let finished = 0;
     const { results } = await downloadUrls(items, options, TOOLS, {
+      inspect: passInspect,
       execute: async (command, args) => {
         const url = args.at(-1);
         // The first item finishes last.
@@ -213,6 +218,7 @@ test("a subtitle failure saves the media without subtitles and warns", async () 
     const options = normalizeOptions({ outputDir: dir, mp3: true, subs: true, history: false, json: true });
     const seen = [];
     const { results, failures } = await downloadUrls(["https://youtu.be/abc12345678"], options, TOOLS, {
+      inspect: passInspect,
       execute: async (command, args) => {
         seen.push(args.includes("--write-subs"));
         if (args.includes("--write-subs")) {
@@ -234,6 +240,7 @@ test("non-subtitle failures are not retried", async () => {
   const options = normalizeOptions({ outputDir: tmpdir(), subs: true, history: false, json: true });
   let calls = 0;
   const { failures } = await downloadUrls(["https://youtu.be/abc12345678"], options, TOOLS, {
+      inspect: passInspect,
     execute: async () => {
       calls += 1;
       throw new Error("ERROR: Video unavailable");

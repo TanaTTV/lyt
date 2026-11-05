@@ -65,6 +65,14 @@ const POSITIVE_INT = (value) => {
   throw error;
 };
 
+const CHANNEL = (value) => {
+  const text = String(value).trim().toLowerCase();
+  if (["stable", "nightly"].includes(text)) return text;
+  const error = new Error(`Expected stable or nightly, got: ${value}`);
+  error.exitCode = 2;
+  throw error;
+};
+
 const CONFIG_KEYS = new Map([
   ["output-dir", { option: "outputDir" }],
   ["quality", { option: "quality" }],
@@ -92,6 +100,8 @@ const CONFIG_KEYS = new Map([
   ["cookies-from-browser", { option: "cookiesFromBrowser" }],
   // Meta preferences: not mapped into download options.
   ["update-check", { parse: BOOL }],
+  ["yt-dlp-auto-update", { parse: BOOL }],
+  ["yt-dlp-channel", { parse: CHANNEL }],
   ["spotify-client-id", {}],
   ["spotify-client-secret", { secret: true }],
 ]);

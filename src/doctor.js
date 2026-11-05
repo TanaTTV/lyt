@@ -7,7 +7,7 @@
 import { spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import process from "node:process";
-import { ensureFfmpeg, ensureYtDlp } from "./bootstrap.js";
+import { ensureFfmpeg, ensureYtDlp, isManagedYtDlp, refreshManagedYtDlp, ytDlpPolicy } from "./bootstrap.js";
 import { clipboardCommands } from "./clipboard.js";
 import { configPath } from "./config.js";
 import { resolveExecutableOnPath } from "./executables.js";
@@ -46,16 +46,28 @@ export async function runDoctor({
   // Network update discovery can run while local capabilities are checked.
   const updatePromise = lytVersionCheck({ force: checkUpdates });
 
+  const policy = ytDlpPolicy(loadConfig());
   const ytDlp = await locate(() => ensureYtDlp({ noDownload: !fix, probeResults }));
+  const ytDlpVersion = ytDlp.path ? version(ytDlp.path, "--version", probeResults) : null;
+  const ageDays = ytDlpVersionAgeDays(ytDlpVersion);
+  const managed = isManagedYtDlp(ytDlp.path);
+  const stale = ageDays !== null && ageDays > STALE_YT_DLP_DAYS;
   checks.push({
     name: "yt-dlp",
     required: true,
     ok: Boolean(ytDlp.path),
     detail: ytDlp.path
-      ? `yt-dlp ${version(ytDlp.path, "--version", probeResults)} (${describe(ytDlp.path)})`
+      ? `yt-dlp ${ytDlpVersion} (${describe(ytDlp.path)})${ageDays !== null ? `, ${ageDays} days old` : ""}`
       : "yt-dlp not found",
-    hint: ytDlp.path ? null : trimmed(ytDlp.error),
+    hint: ytDlp.path
+      ? (stale
+        ? (managed
+          ? (policy.autoUpdate ? "lyt refreshes its managed yt-dlp before the next download." : "Run lyt doctor --update; sites like YouTube often need a recent yt-dlp.")
+          : "This yt-dlp is old and sites like YouTube often need a recent one. Update it with the tool that installed it (for example pip, brew, or winget), or run lyt doctor --update.")
+        : null)
+      : trimmed(ytDlp.error),
     path: ytDlp.path,
+    ...(ytDlp.path ? { managed, channel: managed ? policy.channel : null, ageDays, autoUpdate: managed && policy.autoUpdate } : {}),
   });
 
   const ffmpeg = await locate(() => ensureFfmpeg({ noDownload: !fix, probeResults }));
@@ -85,7 +97,9 @@ export async function runDoctor({
   });
 
   if (update) {
-    const updateCheck = updateYtDlp(ytDlp.path);
+    const updateCheck = isManagedYtDlp(ytDlp.path) || !ytDlp.path
+      ? await updateManagedYtDlp(policy.channel, Boolean(ytDlp.path))
+      : updateYtDlp(ytDlp.path);
     checks.push(updateCheck);
   }
 
@@ -179,6 +193,40 @@ export function doctorCommandSucceeded(checks, { update = false } = {}) {
     updateChecks.length === 1 && updateChecks.every((check) => check.ok)
   );
   return requiredOk && updateOk;
+}
+
+// yt-dlp versions are release dates (YYYY.MM.DD[.N]).
+export const STALE_YT_DLP_DAYS = 45;
+
+export function ytDlpVersionAgeDays(versionText, now = Date.now()) {
+  const match = /(\d{4})\.(\d{2})\.(\d{2})/.exec(String(versionText ?? ""));
+  if (!match) return null;
+  const released = Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+  if (!Number.isFinite(released)) return null;
+  return Math.max(0, Math.floor((now - released) / 86_400_000));
+}
+
+// lyt's own copy is replaced by a checksum-verified download of the newest
+// release on the configured channel.
+async function updateManagedYtDlp(channel, existed, refresh = refreshManagedYtDlp) {
+  try {
+    const path = await refresh({ channel, reason: existed ? "requested update" : "install" });
+    return {
+      name: "yt-dlp-update",
+      required: false,
+      ok: true,
+      detail: `yt-dlp ${channel} release installed (${path})`,
+      hint: null,
+    };
+  } catch (error) {
+    return {
+      name: "yt-dlp-update",
+      required: false,
+      ok: false,
+      detail: "yt-dlp update was not completed",
+      hint: trimmed(error.message),
+    };
+  }
 }
 
 function updateYtDlp(path) {

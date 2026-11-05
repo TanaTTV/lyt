@@ -1,6 +1,7 @@
 import { spawn } from "node:child_process";
 import { runJsonTool } from "./jsonProcess.js";
 import { ytDlpJsRuntimeArgs } from "./jsRuntime.js";
+import { errorLine } from "./failures.js";
 
 // Shapes a `yt-dlp -J` (JSON dump) payload into the stable lyt.info.v1 media
 // description agents can read before committing to a download. Pure, so it is
@@ -84,9 +85,13 @@ export async function fetchMediaJson(
       "-J", "--no-warnings", ...runtimeArgs, "--no-playlist", "--", url,
     ], { spawnFn, ...toolOptions });
   } catch (cause) {
-    const error = new Error(`yt-dlp could not read ${what} for ${url}\n${cause.message}`, { cause });
+    const line = errorLine(cause.diagnostic ?? cause.message);
+    const reason = line ? line.replace(/^ERROR:\s*/i, "") : cause.message;
+    const error = new Error(`yt-dlp could not read ${what} for ${url}\n${reason}`, { cause });
     error.exitCode = cause.exitCode ?? 1;
     if (cause.code) error.code = cause.code;
+    if (cause.kind) error.kind = cause.kind;
+    error.diagnostic = cause.diagnostic ?? cause.message;
     throw error;
   }
 }

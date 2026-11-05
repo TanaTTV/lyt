@@ -48,3 +48,10 @@ test("the packaged capabilities schema describes the product surface", () => {
     assert.ok(schema.required.includes(field), `missing required field: ${field}`);
   }
 });
+
+test("the result schema lists every failure kind lyt can report", async () => {
+  const { FAILURE_KINDS } = await import("../src/failures.js");
+  const schema = readSchema("lyt.result.v1");
+  assert.deepEqual(schema.$defs.error.properties.kind.enum, Object.keys(FAILURE_KINDS));
+  assert.ok(schema.properties.results.items.properties.artifacts);
+});

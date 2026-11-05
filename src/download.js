@@ -8,7 +8,8 @@ import { readdirSync } from "node:fs";
 import { mkdir } from "node:fs/promises";
 import { basename, dirname, extname, join, resolve } from "node:path";
 import process from "node:process";
-import { ensureYtDlp, ensureFfmpeg } from "./bootstrap.js";
+import { ensureYtDlp, ensureFfmpeg, refreshManagedYtDlp } from "./bootstrap.js";
+import { findFfprobe, inspectArtifacts } from "./artifacts.js";
 import { readClipboard } from "./clipboard.js";
 import { COVER_EXTENSIONS, embedCover } from "./cover.js";
 import {
@@ -18,6 +19,7 @@ import {
   matchHistory,
   recordDownload,
 } from "./history.js";
+import { failureKind, taggedError } from "./failures.js";
 import { createProgressRenderer, parseProgressLine } from "./progress.js";
 import { MAX_DOWNLOADS_REACHED, runCommand } from "./process.js";
 import { errorDetails, outputCaptureArgs } from "./result.js";
@@ -51,10 +53,19 @@ export function needsFfmpeg(options, items = []) {
   );
 }
 
-export async function prepareTools(options, noDownload, items = []) {
-  const ytDlpCommand = await ensureYtDlp({ noDownload });
+// Failures that a newer yt-dlp often fixes: the site changed, or it started
+// refusing an outdated client.
+export const RETRY_AFTER_UPDATE = new Set(["tool_outdated", "bot_check", "access_denied", "format_unavailable"]);
+
+export async function prepareTools(options, noDownload, items = [], policy = { autoUpdate: false, channel: "stable" }) {
+  const ytDlpCommand = await ensureYtDlp({ noDownload, ...policy });
   const ffmpegPath = needsFfmpeg(options, items) ? await ensureFfmpeg({ noDownload }) : null;
-  return { ytDlpCommand, ffmpegPath };
+  let refreshing = null;
+  // One refresh per run, shared by all workers. Returns the managed path.
+  const refreshYtDlp = policy.autoUpdate && !noDownload
+    ? () => (refreshing ??= refreshManagedYtDlp({ channel: policy.channel, reason: "a download failed in a way a newer yt-dlp often fixes" }))
+    : null;
+  return { ytDlpCommand, ffmpegPath, refreshYtDlp };
 }
 
 // Downloads a batch of items. Returns the failures instead of throwing so
@@ -64,12 +75,18 @@ export async function downloadUrls(items, options, tools, {
   execute = runCommand,
   embed = embedCover,
   lookupCover = fetchTrackCover,
+  inspect = inspectArtifacts,
+  ffprobePath,
+  readHistory = loadHistory,
+  writeHistory = recordDownload,
 } = {}) {
   const artifact = buildArtifactFingerprint(options);
   const indexed = items.map((item, index) => ({ item, index, url: itemUrl(item) }));
   const results = [];
   const resultFor = new Map();
-  const historyEntries = options.history ? loadHistory() : [];
+  const failures = [];
+  const historyEntries = options.history ? readHistory() : [];
+  const verify = (files, probePath) => inspect(files, { ffprobePath: probePath, mode: modeOf(options) });
   let targets = indexed;
 
   const addResult = (entry, result) => {
@@ -89,8 +106,29 @@ export async function downloadUrls(items, options, tools, {
     );
     const skippedSet = new Set(skipped);
 
+    const skipProbe = ffprobePath === undefined ? findFfprobe(null) : ffprobePath;
     for (const entry of plain.filter((candidate) => skippedSet.has(candidate.url))) {
       const previous = matches.get(entry.url);
+      const previousFiles = existingHistoryFiles(previous);
+      let artifacts;
+      try {
+        artifacts = await verify(previousFiles, skipProbe);
+      } catch (error) {
+        // The history entry points at files that no longer verify: report it
+        // instead of claiming a usable skip.
+        failures.push({ url: entry.url, error });
+        addResult(entry, {
+          url: entry.url,
+          videoId: extractVideoId(entry.url),
+          status: "failed",
+          mode: previous?.mode ?? modeOf(options),
+          files: previousFiles,
+          ...(error.artifacts ? { artifacts: error.artifacts } : {}),
+          outputDir: resolve(previous?.dir ?? options.outputDir),
+          error: errorDetails(error),
+        });
+        continue;
+      }
       addResult(entry, {
         url: entry.url,
         videoId: extractVideoId(entry.url),
@@ -98,7 +136,8 @@ export async function downloadUrls(items, options, tools, {
         reason: "history",
         mode: previous?.mode ?? modeOf(options),
         ...(previous?.title ? { title: previous.title } : {}),
-        files: existingHistoryFiles(previous),
+        files: previousFiles,
+        artifacts,
         outputDir: resolve(previous?.dir ?? options.outputDir),
       });
       if (!options.json) {
@@ -110,11 +149,13 @@ export async function downloadUrls(items, options, tools, {
   }
 
   if (targets.length === 0) {
-    return { failures: [], results: ordered(results), resultFor };
+    return { failures, results: ordered(results), resultFor };
   }
 
   // History-only requests do not require tool discovery or installation.
-  const { ytDlpCommand, ffmpegPath } = typeof tools === "function" ? await tools() : tools;
+  const resolvedTools = typeof tools === "function" ? await tools() : tools;
+  let { ytDlpCommand } = resolvedTools;
+  const { ffmpegPath, refreshYtDlp } = resolvedTools;
 
   // Build each command exactly once and reuse it for both printing and
   // running so the printed command always matches what executes.
@@ -131,7 +172,7 @@ export async function downloadUrls(items, options, tools, {
 
   const jobs = Math.min(options.jobs, tasks.length);
   const queue = [...tasks];
-  const failures = [];
+  const probePath = ffprobePath === undefined ? findFfprobe(ffmpegPath) : ffprobePath;
 
   // TTY progress bars for one or many jobs. JSON and --print-command keep
   // streaming raw yt-dlp (or stay quiet) so agents and scripts stay stable.
@@ -167,13 +208,33 @@ export async function downloadUrls(items, options, tools, {
             }
           }
         : undefined;
-      const run = (args, matchFilter) => execute(ytDlpCommand, args, {
+      const once = (args, matchFilter) => execute(ytDlpCommand, args, {
         onLine: lineHandler,
         quiet: options.json,
         ...(matchFilter ? { okCodes: [0, MAX_DOWNLOADS_REACHED] } : {}),
       });
+      // If the failure looks like an outdated yt-dlp, refresh lyt's managed
+      // copy once per run and retry this item once with it.
+      const run = async (args, matchFilter) => {
+        try {
+          return await once(args, matchFilter);
+        } catch (error) {
+          if (!refreshYtDlp || !RETRY_AFTER_UPDATE.has(failureKind(error))) throw error;
+          let fresh;
+          try {
+            fresh = await refreshYtDlp();
+          } catch {
+            throw error;
+          }
+          if (!options.json) console.error(warn(`${shortLabel(task.item)}: retrying with an updated yt-dlp…`));
+          ytDlpCommand = fresh;
+          return once(args, matchFilter);
+        }
+      };
 
       let subtitleWarning = null;
+      let reportedFiles = [];
+      let completedArtifacts;
 
       try {
         let outcome;
@@ -182,7 +243,7 @@ export async function downloadUrls(items, options, tools, {
         } catch (error) {
           // Subtitles are extras: when they fail (often a rate limit), save
           // the media without them instead of failing the whole item.
-          if (!task.noSubsArgs || !/subtitles/i.test(error.message)) throw error;
+          if (!task.noSubsArgs || !/subtitles/i.test(`${error.message}\n${error.diagnostic ?? ""}`)) throw error;
           subtitleWarning = `Subtitles could not be downloaded: ${lastLine(error.message)}`;
           if (!options.json) console.error(warn(`${shortLabel(task.item)}: ${subtitleWarning}`));
           outcome = await run(task.noSubsArgs, task.item.matchFilter);
@@ -196,10 +257,11 @@ export async function downloadUrls(items, options, tools, {
         if (outcome.files.length === 0) {
           renderer?.done(task.index, false);
           const guarded = Boolean(options.maxFilesize && outcome.sizeLimited);
-          const error = new Error(
+          const error = taggedError(
             guarded
               ? `No file downloaded; media exceeded --max-filesize ${options.maxFilesize}.`
               : "yt-dlp completed without reporting a final output file.",
+            guarded ? "size_limit" : "no_output",
           );
           error.exitCode = 1;
           failures.push({ url: task.url, error });
@@ -212,8 +274,7 @@ export async function downloadUrls(items, options, tools, {
           continue;
         }
 
-        renderer?.done(task.index, true);
-
+        reportedFiles = outcome.files;
         const meta = outcome.items?.[0] ?? null;
         const files = options.subs ? withSidecars(outcome.files) : outcome.files;
 
@@ -221,9 +282,16 @@ export async function downloadUrls(items, options, tools, {
           await addCover(task.item, outcome.files, ffmpegPath, { embed, lookupCover, json: options.json });
         }
 
+        // Check the final media files exist (and, with ffprobe, contain the
+        // expected stream) before reporting success or writing history.
+        const artifacts = await verify(outcome.files, probePath);
+        completedArtifacts = artifacts;
+        renderer?.done(task.index, true);
+
         const result = base(task, {
           status: "downloaded",
           files,
+          artifacts,
           ...(subtitleWarning ? { warning: subtitleWarning } : {}),
           ...(meta?.title ? { title: meta.title } : {}),
           ...(meta?.extractor ? { extractor: meta.extractor } : {}),
@@ -240,16 +308,9 @@ export async function downloadUrls(items, options, tools, {
             : {}),
         });
         if (!result.videoId && meta?.extractor === "Youtube") result.videoId = meta.id;
-        addResult(task.entry, result);
-
-        if (!options.json) {
-          for (const file of files) {
-            console.log(`${ok("Saved:", process.stdout)} ${file}`);
-          }
-        }
 
         if (options.history) {
-          recordDownload(
+          writeHistory(
             {
               ts: new Date().toISOString(),
               id: result.videoId ?? null,
@@ -266,12 +327,22 @@ export async function downloadUrls(items, options, tools, {
             { artifact: artifact.fingerprint },
           );
         }
+
+        addResult(task.entry, result);
+        if (!options.json) {
+          for (const file of files) {
+            console.log(`${ok("Saved:", process.stdout)} ${file}`);
+          }
+        }
       } catch (error) {
         renderer?.done(task.index, false);
         failures.push({ url: task.url, error });
         addResult(task.entry, base(task, {
           status: "failed",
-          files: [],
+          files: reportedFiles,
+          ...(error.artifacts || completedArtifacts
+            ? { artifacts: error.artifacts ?? completedArtifacts }
+            : {}),
           error: errorDetails(error),
         }));
       }

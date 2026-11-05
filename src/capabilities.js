@@ -5,12 +5,14 @@
 
 import process from "node:process";
 import { profileNames } from "./config.js";
+import { FAILURE_KINDS } from "./failures.js";
 import { VERSION } from "./version.js";
 
 export const COMMANDS = [
   "download",
   "info",
   "inspect",
+  "search",
   "capabilities",
   "doctor",
   "history",
@@ -26,12 +28,14 @@ export const SCHEMAS = [
   "lyt.history.v1",
   "lyt.info.v1",
   "lyt.capabilities.v1",
+  "lyt.search.v1",
 ];
 
 export const EXIT_CODES = {
   0: "success",
   1: "runtime or download failure",
   2: "usage or validation error",
+  127: "required tool unavailable or setup failed",
 };
 
 // Machine-readable description of the download flags an agent can pass.
@@ -85,6 +89,15 @@ export const OPTIONS = [
   { flag: "--json", takesValue: false, summary: "Emit one versioned JSON document on stdout." },
 ];
 
+// Options for subcommands other than download.
+export const COMMAND_OPTIONS = {
+  search: [
+    { flag: "--limit", takesValue: true, summary: "Return 1-25 candidates (default 5)." },
+    { flag: "--json", takesValue: false, summary: "Emit lyt.search.v1." },
+    { flag: "--no-download", takesValue: false, summary: "Prevent managed tool provisioning." },
+  ],
+};
+
 export function buildCapabilities() {
   return {
     schema: "lyt.capabilities.v1",
@@ -98,5 +111,8 @@ export function buildCapabilities() {
     schemas: SCHEMAS,
     exitCodes: EXIT_CODES,
     options: OPTIONS,
+    commandOptions: COMMAND_OPTIONS,
+    errorKinds: Object.entries(FAILURE_KINDS)
+      .map(([kind, [retryable, suggestion]]) => ({ kind, retryable, suggestion })),
   };
 }

@@ -2,7 +2,7 @@
 // Public JSON contract: lyt.info.v1
 
 import process from "node:process";
-import { ensureYtDlp } from "../bootstrap.js";
+import { ensureYtDlp, ytDlpPolicy } from "../bootstrap.js";
 import { usageError } from "../errors.js";
 import { loadConfig } from "../config.js";
 import { fetchInfo } from "../info.js";
@@ -38,6 +38,7 @@ export async function runInfoCommand(argv, {
     ? null
     : await ensureTool({
         noDownload: noDownload || process.env.LYT_NO_DOWNLOAD === "1",
+        ...ytDlpPolicy(loadConfig()),
       });
   const results = new Array(urls.length);
   let next = 0;

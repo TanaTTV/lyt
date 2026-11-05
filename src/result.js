@@ -1,4 +1,5 @@
 import { resolve } from "node:path";
+import { diagnosticTail, failureKind, FAILURE_KINDS } from "./failures.js";
 
 export const RESULT_SCHEMA = "lyt.result.v1";
 export const OUTPUT_MARKER = "__LYT_FILE__:";
@@ -70,8 +71,15 @@ export function resultEnvelope({ command, ok, results = [], error = null, warnin
 }
 
 export function errorDetails(error) {
+  const kind = failureKind(error);
+  const [retryable, suggestion] = FAILURE_KINDS[kind];
+  const diagnostic = error?.diagnostic ? diagnosticTail(error.diagnostic) : "";
   return {
     message: error instanceof Error ? error.message : String(error),
     code: Number.isInteger(error?.exitCode) ? error.exitCode : 1,
+    kind,
+    retryable,
+    suggestion,
+    ...(diagnostic ? { diagnostic } : {}),
   };
 }

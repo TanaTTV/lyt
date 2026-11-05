@@ -19,6 +19,8 @@ export async function mainEntry(argv, defaults = {}) {
     return (await import("./commands/meta.js")).runMetaCommand(argv[0]);
   }
   switch (argv[0]) {
+    case "search":
+      return (await import("./commands/search.js")).runSearchCommand(argv.slice(1));
     case "history":
       return (await import("./commands/history.js")).runHistoryCommand(argv.slice(1));
     case "doctor":

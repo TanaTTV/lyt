@@ -47,3 +47,19 @@ test("a requested yt-dlp update failure makes the doctor command fail", () => {
 
   assert.equal(doctorCommandSucceeded(checks, { update: true }), false);
 });
+
+test("yt-dlp version dates turn into an age in days", async () => {
+  const { ytDlpVersionAgeDays } = await import("../src/doctor.js");
+  const now = Date.UTC(2026, 10, 5);
+  assert.equal(ytDlpVersionAgeDays("2026.10.26", now), 10);
+  assert.equal(ytDlpVersionAgeDays("2026.10.26.233100", now), 10);
+  assert.equal(ytDlpVersionAgeDays("unknown", now), null);
+  assert.equal(ytDlpVersionAgeDays(null, now), null);
+});
+
+test("yt-dlp freshness policy reads config strings and defaults to auto-update on stable", async () => {
+  const { ytDlpPolicy } = await import("../src/bootstrap.js");
+  assert.deepEqual(ytDlpPolicy({}), { autoUpdate: true, channel: "stable" });
+  assert.deepEqual(ytDlpPolicy({ "yt-dlp-auto-update": "false", "yt-dlp-channel": "nightly" }), { autoUpdate: false, channel: "nightly" });
+  assert.deepEqual(ytDlpPolicy({ "yt-dlp-channel": "weird" }).channel, "stable");
+});

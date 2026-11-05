@@ -1,5 +1,6 @@
 // Metadata requests must finish or fail within a bounded time and output size.
 import { spawn } from "node:child_process";
+import { taggedError } from "./failures.js";
 
 export function runJsonTool(command, args, {
   spawnFn = spawn,
@@ -22,16 +23,16 @@ export function runJsonTool(command, args, {
       if (error) reject(error);
       else resolve(payload);
     };
-    const stop = (message) => {
-      finish(new Error(message));
+    const stop = (message, kind) => {
+      finish(taggedError(message, kind));
       try { child.kill("SIGKILL"); } catch { /* The process may already have exited. */ }
     };
-    timer = setTimeout(() => stop(`Tool request timed out after ${timeoutMs}ms.`), timeoutMs);
+    timer = setTimeout(() => stop(`Tool request timed out after ${timeoutMs}ms.`, "network"), timeoutMs);
     const capture = (stream, chunk) => {
       if (settled) return;
       bytes += Buffer.byteLength(chunk, "utf8");
       if (bytes > maxBytes) {
-        stop("Tool output exceeded the permitted size.");
+        stop("Tool output exceeded the permitted size.", "tool_output_invalid");
         return;
       }
       if (stream === "stdout") stdout += chunk;
@@ -45,11 +46,12 @@ export function runJsonTool(command, args, {
       if (code !== 0) {
         const error = new Error(stderr.trim() || `Tool exited with code ${code}.`);
         error.exitCode = code ?? 1;
+        error.diagnostic = stderr.trim();
         finish(error);
         return;
       }
       try { finish(null, JSON.parse(stdout)); }
-      catch { finish(new Error("Could not parse tool JSON output.")); }
+      catch { finish(taggedError("Could not parse tool JSON output.", "tool_output_invalid")); }
     });
   });
 }

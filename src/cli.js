@@ -12,7 +12,7 @@ import {
 } from "./ytDlp.js";
 import { promptForJob } from "./interactive.js";
 import { listFormats, printFormats } from "./formats.js";
-import { ensureYtDlp } from "./bootstrap.js";
+import { ensureYtDlp, ytDlpPolicy } from "./bootstrap.js";
 import {
   mergeClipboardUrls,
   readClipboard,
@@ -67,6 +67,7 @@ export async function main(argv, defaults = {}) {
   // explicit flags. The aliases pick the mode even when config sets one.
   const userConfig = loadConfig();
   const updateCheckEnabled = isUpdateCheckEnabled(userConfig);
+  const policy = ytDlpPolicy(userConfig);
 
   if (parsed.help) return runMetaCommand("--help", userConfig);
   if (parsed.version) return runMetaCommand("--version", userConfig);
@@ -125,7 +126,7 @@ export async function main(argv, defaults = {}) {
   if (wantsInteractive) {
     const fetchFormats = async (url) =>
       listFormats(url, {
-        command: await ensureYtDlp({ noDownload }),
+        command: await ensureYtDlp({ noDownload, ...policy }),
       });
 
     const job = await promptForJob({ defaults: parsed.options, fetchFormats });
@@ -216,7 +217,7 @@ export async function main(argv, defaults = {}) {
   }
 
   if (options.listFormats) {
-    const command = await ensureYtDlp({ noDownload });
+    const command = await ensureYtDlp({ noDownload, ...policy });
     const results = [];
 
     for (const url of items.map((item) => (typeof item === "string" ? item : item.url))) {
@@ -282,7 +283,7 @@ export async function main(argv, defaults = {}) {
     if (options.json) {
       throw usageError("--json cannot be combined with --watch; use bounded URL batches.");
     }
-    const tools = await prepareTools(options, noDownload);
+    const tools = await prepareTools(options, noDownload, [], policy);
     return runWatchMode(urls, options, tools, {
       // Copied Spotify links become songs. Tags and cover art need ffmpeg;
       // without it the songs are still saved, just untagged.
@@ -301,7 +302,7 @@ export async function main(argv, defaults = {}) {
   const { failures, results, resultFor } = await downloadUrls(
     items,
     options,
-    () => prepareTools(options, noDownload, items),
+    () => prepareTools(options, noDownload, items, policy),
   );
 
   if (collections.length > 0) {

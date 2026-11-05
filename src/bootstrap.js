@@ -6,6 +6,8 @@ import {
   chmodSync,
   existsSync,
   readdirSync,
+  statSync,
+  utimesSync,
 } from "node:fs";
 import {
   mkdir,
@@ -44,6 +46,20 @@ function managedDir() {
 
 const YT_DLP_RELEASE_BASE =
   "https://github.com/yt-dlp/yt-dlp/releases/latest/download";
+// yt-dlp's official nightly builds usually carry site fixes days before a
+// stable release. Opt-in with `lyt config set yt-dlp-channel nightly`.
+const YT_DLP_NIGHTLY_BASE =
+  "https://github.com/yt-dlp/yt-dlp-nightly-builds/releases/latest/download";
+export const YT_DLP_CHANNELS = ["stable", "nightly"];
+
+// A managed yt-dlp older than this is refreshed before the next download.
+// Sites like YouTube change often; a weeks-old yt-dlp is the most common
+// reason downloads start failing.
+export const MANAGED_YT_DLP_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
+
+export function ytDlpReleaseBase(channel = "stable") {
+  return channel === "nightly" ? YT_DLP_NIGHTLY_BASE : YT_DLP_RELEASE_BASE;
+}
 export const YT_DLP_CHECKSUM_ASSETS = ["SHA2-256SUMS", "SHA256SUMS"];
 
 export function ytDlpReleaseAsset(platform = process.platform, arch = process.arch) {
@@ -60,21 +76,22 @@ export function ytDlpReleaseAsset(platform = process.platform, arch = process.ar
   return "yt-dlp";
 }
 
-function ytDlpCachedBin() {
+export function ytDlpCachedBin() {
   return join(managedDir(), process.platform === "win32" ? "yt-dlp.exe" : "yt-dlp");
 }
 
-async function downloadYtDlp() {
+async function downloadYtDlp({ channel = "stable" } = {}) {
   const asset = ytDlpReleaseAsset();
-  const sums = await fetchYtDlpChecksums();
+  const base = ytDlpReleaseBase(channel);
+  const sums = await fetchYtDlpChecksums(fetch, base);
   const expectedHash = checksumForAsset(sums, asset);
 
   if (!expectedHash) {
     throw new Error(`No checksum entry found for ${asset} in the SHA-256 manifest`);
   }
 
-  process.stderr.write(`${muted("  Downloading yt-dlp from GitHub…")}\n`);
-  const response = await fetchChecked(`${YT_DLP_RELEASE_BASE}/${asset}`);
+  process.stderr.write(`${muted(`  Downloading yt-dlp${channel === "nightly" ? " (nightly)" : ""} from GitHub…`)}\n`);
+  const response = await fetchChecked(`${base}/${asset}`);
   const data = await readBounded(response, MAX_YT_DLP_BYTES, "yt-dlp");
   verifySha256(data, expectedHash, asset);
 
@@ -83,11 +100,11 @@ async function downloadYtDlp() {
   return dest;
 }
 
-export async function fetchYtDlpChecksums(fetchFn = fetch) {
+export async function fetchYtDlpChecksums(fetchFn = fetch, base = YT_DLP_RELEASE_BASE) {
   const failures = [];
 
   for (const filename of YT_DLP_CHECKSUM_ASSETS) {
-    const response = await fetchFn(`${YT_DLP_RELEASE_BASE}/${filename}`, {
+    const response = await fetchFn(`${base}/${filename}`, {
       signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
     });
     if (response.ok) return response.text();
@@ -105,7 +122,47 @@ export function checksumForAsset(manifest, asset) {
     ?.split(/\s+/)[0] ?? null;
 }
 
-export async function ensureYtDlp({ noDownload = false, probeResults } = {}) {
+// Age of the lyt-managed yt-dlp in milliseconds, or null when absent.
+export function managedYtDlpAgeMs(now = Date.now(), file = ytDlpCachedBin()) {
+  try {
+    return Math.max(0, now - statSync(file).mtimeMs);
+  } catch {
+    return null;
+  }
+}
+
+// yt-dlp freshness policy from user config. Auto-update is on by default and
+// only ever replaces lyt's own managed copy.
+export function ytDlpPolicy(config = {}) {
+  const rawChannel = String(config["yt-dlp-channel"] ?? "").trim().toLowerCase();
+  const channel = YT_DLP_CHANNELS.includes(rawChannel) ? rawChannel : "stable";
+  const rawAuto = String(config["yt-dlp-auto-update"] ?? "").trim().toLowerCase();
+  const autoUpdate = !["false", "0", "no", "off"].includes(rawAuto) && process.env.LYT_NO_YT_DLP_UPDATE !== "1";
+  return { autoUpdate, channel };
+}
+
+export function isManagedYtDlp(command, cached = ytDlpCachedBin()) {
+  return Boolean(command) && String(command) === cached;
+}
+
+// Replaces the lyt-managed yt-dlp with the newest verified release of the
+// chosen channel. Never touches a yt-dlp installed by the user or a package
+// manager. Returns the managed path.
+export async function refreshManagedYtDlp({ channel = "stable", reason = "update", download = downloadYtDlp } = {}) {
+  process.stderr.write(`${muted(`  Refreshing lyt's yt-dlp (${reason})…`)}\n`);
+  const dest = await withInstallLock("yt-dlp", () => download({ channel }));
+  // Refresh the mtime so a release that has not changed still counts as checked.
+  try { const now = new Date(); utimesSync(dest, now, now); } catch { /* best effort */ }
+  return dest;
+}
+
+export async function ensureYtDlp({
+  noDownload = false,
+  probeResults,
+  autoUpdate = false,
+  channel = "stable",
+  maxAgeMs = MANAGED_YT_DLP_MAX_AGE_MS,
+} = {}) {
   const pathYtDlp = resolveExecutableOnPath("yt-dlp");
   if (pathYtDlp && probeOk(pathYtDlp, ["--version"], probeResults)) return pathYtDlp;
 
@@ -115,7 +172,18 @@ export async function ensureYtDlp({ noDownload = false, probeResults } = {}) {
   }
 
   const cached = ytDlpCachedBin();
-  if (existsSync(cached) && probeOk(cached, ["--version"], probeResults)) return cached;
+  if (existsSync(cached) && probeOk(cached, ["--version"], probeResults)) {
+    const age = managedYtDlpAgeMs();
+    if (autoUpdate && !noDownload && age !== null && age > maxAgeMs) {
+      try {
+        return await refreshManagedYtDlp({ channel, reason: `older than ${Math.round(maxAgeMs / 86_400_000)} days` });
+      } catch (error) {
+        // A failed refresh must not block a download that may still work.
+        process.stderr.write(`${warn(`Could not refresh yt-dlp (${error.message}); using the existing copy.`)}\n`);
+      }
+    }
+    return cached;
+  }
 
   if (noDownload) {
     if (pathYtDlp || existsSync(cached)) {
@@ -137,7 +205,7 @@ export async function ensureYtDlp({ noDownload = false, probeResults } = {}) {
   try {
     const dest = await withInstallLock("yt-dlp", async () => {
       if (existsSync(cached) && probeOk(cached, ["--version"], probeResults)) return cached;
-      return downloadYtDlp();
+      return downloadYtDlp({ channel });
     });
     process.stderr.write(`${ok(`yt-dlp installed at ${dest}`)}\n`);
     return dest;
