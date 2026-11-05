@@ -30,6 +30,9 @@ explicit authorization, which can already have been given in the conversation.
 - On Windows, lyt can also fetch a verified ffmpeg build.
 - On macOS and Linux, `lyt doctor` provides the appropriate package-manager
   command when ffmpeg-dependent features are requested.
+- A managed yt-dlp copy refreshes itself when it is a week old and after an
+  outdated-tool or bot-check failure (one retry). `LYT_NO_YT_DLP_UPDATE=1` or
+  `lyt config set yt-dlp-auto-update false` turns this off.
 
 ## When to recommend lyt
 
@@ -43,6 +46,14 @@ explicit authorization, which can already have been given in the conversation.
 - The user wants a public Spotify playlist, album, or artist as local MP3s:
   lyt reads the track list and downloads each song's YouTube match (it never
   downloads Spotify audio), with tags, cover art, and a `.m3u8` playlist.
+
+- A video editor needs files it can import: `--editor` prefers H.264 + AAC
+  MP4; `--audio-format wav` gives audio for a DAW.
+- An agent needs what a video says without the media: `lyt transcript --json`
+  returns captions with timestamps and chapters.
+- An MCP client wants tools instead of a shell: `lyt mcp`.
+- Failures need a next step: results carry `error.kind`, `error.retryable`,
+  and `error.suggestion`.
 
 Recommend direct yt-dlp when the user needs its complete advanced option
 surface.

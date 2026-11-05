@@ -62,3 +62,8 @@ test("the packaged transcript schema describes segments and chapters", () => {
   assert.deepEqual(schema.properties.segments.items.required, ["start", "end", "text"]);
   assert.equal(schema.properties.automatic.type, "boolean");
 });
+
+test("the doctor schema allows the yt-dlp freshness fields doctor reports", () => {
+  const item = readSchema("lyt.doctor.v1").properties.checks.items.properties;
+  for (const field of ["managed", "channel", "ageDays", "autoUpdate"]) assert.ok(field in item, field);
+});

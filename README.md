@@ -157,6 +157,28 @@ Task guides: [Codex audio](https://tanattv.github.io/lyt/codex-audio/),
 [Claude Code video](https://tanattv.github.io/lyt/claude-video/), and
 [agent clips](https://tanattv.github.io/lyt/agent-clips/).
 
+### MCP server
+
+`lyt mcp` runs lyt as a [Model Context Protocol](https://modelcontextprotocol.io)
+server over stdio, for clients that prefer tools to a shell. It exposes
+`lyt_search`, `lyt_info`, `lyt_transcript`, `lyt_download`, and `lyt_doctor`;
+each runs the CLI with `--json`, so results use the same schemas.
+
+```json
+{ "mcpServers": { "lyt": { "command": "lyt", "args": ["mcp"] } } }
+```
+
+### When something fails
+
+Every failed result carries `error.kind` (such as `bot_check`, `rate_limited`,
+`tool_outdated`, `format_unavailable`, `members_only`), `error.retryable`, a
+one-line `error.suggestion`, and a short `error.diagnostic` tail of the tool
+output. `lyt capabilities --json` lists every kind. When lyt manages its own
+yt-dlp, it refreshes the copy once it is a week old and retries once with a
+fresh copy after an outdated-tool or bot-check failure. Turn that off with
+`lyt config set yt-dlp-auto-update false` or `LYT_NO_YT_DLP_UPDATE=1`;
+`lyt config set yt-dlp-channel nightly` follows yt-dlp's nightly builds.
+
 ### Inspect before you download
 
 Agents can look before they leap. `lyt info` returns media metadata and
@@ -200,7 +222,7 @@ lyt --mp3 -q 192K --max-filesize 2G --json "URL"
 ```json
 {
   "schema": "lyt.result.v1",
-  "version": "0.8.2",
+  "version": "0.9.0",
   "command": "download",
   "ok": true,
   "results": [
@@ -344,9 +366,36 @@ lyt --video --clip 12:00- -q 1080p "URL"
 Ranges accept seconds, `mm:ss`, or `hh:mm:ss`. Repeat `--clip` to save
 multiple sections.
 
+### Video and audio for editing
+
+```sh
+lyt --editor "URL"                                   # H.264 + AAC MP4 editors import as-is
+lyt --editor --clip 1:10-1:40 --name broll "URL"     # a named, editor-ready slice
+lyt --profile edit "URL"                             # the same as --editor
+lyt --audio-format wav "URL"                         # also m4a, opus, flac, mp3
+lyt --video --container mkv "URL"                    # mkv or mov instead of mp4
+lyt --thumbnail --info-json "URL"                    # .jpg thumbnail and .info.json alongside
+```
+
+YouTube's top qualities are often VP9 or AV1, which Premiere, Final Cut, and
+some versions of Resolve and CapCut cannot import without converting.
+`--editor` prefers H.264 instead, which on YouTube usually means 1080p.
+
+### Transcripts
+
+```sh
+lyt transcript "URL"                  # captions as plain text
+lyt transcript --timestamps "URL"     # [m:ss] before each line, for picking --clip times
+lyt transcript --lang es --json "URL" # lyt.transcript.v1 with segments and chapters
+```
+
+Only the caption file is downloaded. Manual subtitles are used when present,
+otherwise automatic captions; the JSON says which (`automatic`).
+
 ### Chapters and normalized audio
 
 ```sh
+lyt --chapter "Q&A" "URL"             # only chapters whose title contains the text
 lyt --mp3 --split-chapters "URL"
 lyt --normalize "URL"
 ```
@@ -359,6 +408,18 @@ lyt --normalize "URL"
 lyt --profile music "URL"     # high-quality MP3 + metadata + cover art
 lyt --profile podcast "URL"   # compact normalized MP3 + metadata
 lyt --profile voice "URL"     # small normalized speech file
+lyt --profile edit "URL"      # H.264 + AAC MP4 for video editors
+```
+
+### Big playlists and channels
+
+```sh
+lyt --playlist --max-items 10 "URL"                     # the first 10 entries
+lyt --playlist --items 1-5,8 "URL"                      # chosen positions
+lyt --playlist --after today-30days "URL"               # uploaded in the last 30 days
+lyt --playlist --min-duration 60 --max-duration 20:00 "URL"
+lyt --playlist --polite "URL"                           # pause between requests
+lyt --wait "URL"                                        # wait for a premiere to start
 ```
 
 ### Spotify playlists, albums, tracks, and artists
@@ -410,6 +471,8 @@ lyt history
 lyt history podcast --limit 50
 lyt history --limit 50 --json
 lyt history --clear
+lyt last                  # paths of the newest download
+lyt last --reveal         # show it in its folder (--open opens it)
 
 # Save defaults
 lyt config set output-dir "D:/Music"
@@ -424,16 +487,20 @@ lyt config unset profile
 # embed-metadata, embed-thumbnail, normalize, downloader, downloader-args,
 # video, max-height, max-filesize, playlist, history, subs, sub-langs,
 # embed-subs, sponsorblock, limit-rate, retries, cookies-from-browser,
-# update-check, spotify-client-id, spotify-client-secret.
+# audio-format, container, editor, thumbnail, polite, update-check,
+# yt-dlp-auto-update, yt-dlp-channel, spotify-client-id, spotify-client-secret.
 # Invalid values are rejected when you set them.
 
 # Check or repair tools
 lyt doctor
 lyt doctor --json
 lyt doctor --fix
-lyt doctor --update       # explicitly update yt-dlp
+lyt doctor --update       # explicitly update yt-dlp (lyt update does the same)
 lyt doctor --check-updates # refresh lyt release information without installing
 lyt doctor --network      # can this machine reach YouTube, Spotify, SoundCloud, GitHub?
+
+# Tab completion
+lyt completion bash >> ~/.bashrc   # also zsh, fish
 
 # Optional: disable “update available” notices
 lyt config set update-check false
@@ -518,6 +585,12 @@ lyt [options] <url> [more-urls...]
 
 lyt info <url> [more-urls...] [--json]
 lyt inspect <url> [more-urls...] [--json]   # alias of info
+lyt search "query" [--limit 1-25] [--json]
+lyt transcript <url> [--lang en] [--timestamps] [--json]
+lyt last [query] [--open|--reveal] [--json]
+lyt update
+lyt mcp
+lyt completion <bash|zsh|fish>
 lyt capabilities [--json]
 lyt history [query] [--limit <n>] [--clear] [--json]
 lyt config <set|get|unset|list|path> [key] [value]
@@ -545,6 +618,17 @@ Everything else — flags, subcommands, config, history, and JSON — is the sam
 | --- | --- |
 | `--audio`, `--video` | Select audio or video mode. |
 | `--mp3`, `--native` | Convert to MP3 or preserve native audio. |
+| `--audio-format <fmt>` | Audio output: `native`, `mp3`, `m4a`, `opus`, `wav`, or `flac`. |
+| `--editor`, `--h264` | Video for editing: prefer H.264 + AAC in MP4. |
+| `--container <fmt>` | Video container: `mp4`, `mkv`, or `mov`. |
+| `-n, --name <name>` | Output file name without extension (one URL). |
+| `--chapter <text>` | Keep only chapters whose title contains the text; repeatable. |
+| `--thumbnail`, `--info-json` | Save the thumbnail or `.info.json` next to the media. |
+| `--items <list>`, `--max-items <n>` | Choose playlist positions or stop after n entries. |
+| `--after <date>`, `--before <date>` | Filter by upload date. |
+| `--min-duration <t>`, `--max-duration <t>` | Filter by length. |
+| `--wait` | Wait for a premiere or scheduled stream. |
+| `--polite` | Pause between requests on large jobs. |
 | `-q, --quality <value>` | Set MP3 bitrate or video resolution. |
 | `--max-height <value>` | Cap video resolution. |
 | `--max-filesize <size>` | Skip media larger than the supplied size. |
@@ -556,7 +640,7 @@ Everything else — flags, subcommands, config, history, and JSON — is the sam
 | `--split-chapters` | Create one file per chapter. |
 | `--normalize`, `--no-normalize` | Enable or disable inherited normalization. |
 | `--paste`, `--watch`, `--queue` | Read once from or continuously watch the clipboard. |
-| `--profile <name>` | Use `music`, `podcast`, or `voice`. |
+| `--profile <name>` | Use `music`, `podcast`, `voice`, or `edit`. |
 | `--playlist`, `--no-playlist` | Allow playlists, channels, sets, and profiles, or force a single item. |
 | `-a, --batch-file <file>` | Read URLs from a file, one per line (`-` for stdin). |
 | `--subs`, `--sub-langs <langs>`, `--embed-subs`, `--no-subs` | Save or embed subtitles. |
@@ -601,6 +685,8 @@ lyt doctor
 | A matching variant is skipped | Check `lyt history`, then use `--redownload` if another copy is intentional. |
 | An agent cannot parse output | Add `--json` and parse stdout only. |
 | A remote sandbox cannot reach the host | Run lyt locally; many hosted environments restrict media traffic. |
+| Your editor won't import the video | Download with `--editor` (H.264 + AAC MP4). |
+| "Sign in to confirm you're not a bot" | Run `lyt update`, wait, and retry; see the [help page](https://tanattv.github.io/lyt/help/). |
 
 ## Development
 

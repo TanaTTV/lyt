@@ -115,6 +115,32 @@ lyt --clip 1:10-2:45 --mp3 --json "URL"
 lyt --list-formats --json "URL"
 ```
 
+For editing work, pick the output the editor can use instead of re-encoding
+afterwards:
+
+```sh
+lyt --editor --json "URL"                       # H.264 + AAC MP4 (Premiere, Resolve, Final Cut, CapCut)
+lyt --editor --clip 1:10-1:40 --name broll --json "URL"
+lyt --chapter "chapter title" --json "URL"      # chapters whose title contains the text
+lyt --audio-format wav --json "URL"             # also m4a, opus, flac, mp3
+lyt transcript --json "URL"                     # lyt.transcript.v1: captions with times and chapters
+lyt search --json "query"                       # lyt.search.v1 candidates; no media download
+```
+
+`lyt transcript` downloads only the caption file; use it to answer questions
+about spoken content or to choose `--clip` times instead of downloading media.
+Playlist jobs accept `--max-items`, `--items`, `--after`, `--before`,
+`--min-duration`, and `--max-duration`; `--polite` spaces out requests.
+
+Failed results carry `error.kind`, `error.retryable`, and `error.suggestion`
+(the kinds are listed by `lyt capabilities --json`). Act on the kind: for
+example `media_unavailable`, `members_only`, `drm_protected`, and
+`geo_restricted` are final, and `rate_limited` means wait instead of looping.
+When lyt manages its own yt-dlp copy, it refreshes that copy (a verified
+release download) when the copy is a week old, and retries once with a fresh
+copy after an outdated-tool or bot-check failure. `LYT_NO_YT_DLP_UPDATE=1` or
+`lyt config set yt-dlp-auto-update false` turns this off.
+
 Beyond YouTube, lyt accepts SoundCloud, Vimeo, Bandcamp, and any site yt-dlp
 supports. Spotify playlist, album, track, and artist links become MP3s matched
 on YouTube by title and length, tagged, with cover art and a `.m3u8` file; each

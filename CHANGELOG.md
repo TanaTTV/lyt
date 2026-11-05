@@ -5,6 +5,55 @@ versioning for the public CLI and machine-readable result contract.
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-11-05
+
+### Added
+
+- **Editing workflow.** `--editor` (alias `--h264`, or `--profile edit`)
+  prefers H.264 + AAC in MP4 so Premiere, Resolve, Final Cut, and CapCut
+  import downloads without a transcode. `--audio-format` saves `m4a`, `opus`,
+  `wav`, `flac`, `mp3`, or `native` audio. `--container` merges video into
+  `mp4`, `mkv`, or `mov`. `-n, --name` picks the file name. `--chapter`
+  keeps only chapters whose title contains the text. `--thumbnail` and
+  `--info-json` save sidecar files.
+- **`lyt transcript <url>`** prints subtitles or automatic captions as clean
+  text (`--timestamps`, `--lang`), or `lyt.transcript.v1` JSON with segments,
+  chapters, and whether the captions were automatic. Only the caption file is
+  downloaded.
+- **`lyt search "query"`** returns YouTube candidates (`lyt.search.v1`)
+  without downloading media.
+- **`lyt mcp`** runs a Model Context Protocol server over stdio with
+  `lyt_search`, `lyt_info`, `lyt_transcript`, `lyt_download`, and
+  `lyt_doctor` tools. Tool arguments map to a fixed set of CLI flags.
+- **Recovery-aware errors.** Failed results carry `error.kind` (25 kinds,
+  including `bot_check`, `tool_outdated`, `rate_limited`, `age_restricted`,
+  `members_only`, `geo_restricted`, `drm_protected`, `live_not_started`),
+  `error.retryable`, `error.suggestion`, and a bounded `error.diagnostic`
+  tail. Human errors lead with yt-dlp's own error line instead of its
+  bug-report boilerplate. `lyt capabilities --json` lists every kind.
+- **A fresher yt-dlp.** A managed yt-dlp copy refreshes itself (verified
+  download) when it is a week old, and a download that fails as outdated,
+  bot-checked, forbidden, or missing formats retries once with a fresh copy.
+  Off with `lyt config set yt-dlp-auto-update false` or
+  `LYT_NO_YT_DLP_UPDATE=1`. `lyt config set yt-dlp-channel nightly` follows
+  yt-dlp's nightly builds. `lyt doctor` reports the yt-dlp version's age.
+- **Verified receipts.** Downloads are checked on disk (and with ffprobe when
+  available) before they count as saved; results list `artifacts` with size
+  and stream details. A failed check reports `verification_failed` and keeps
+  the files.
+- Playlist filters: `--items`, `--max-items`, `--after`, `--before`,
+  `--min-duration`, `--max-duration`. `--wait` waits for premieres and
+  scheduled streams; `--polite` spaces out requests on large jobs.
+- `lyt last` prints the newest download's paths (`--open`, `--reveal`,
+  `--json`). `lyt update` is shorthand for `lyt doctor --update`.
+  `lyt completion bash|zsh|fish` adds tab completion.
+- Config keys: `audio-format`, `container`, `editor`, `thumbnail`, `polite`,
+  `yt-dlp-auto-update`, `yt-dlp-channel`.
+- Website: a beginner guide (`/start/`), a troubleshooting page (`/help/`),
+  `/capabilities.json`, an options table generated from the CLI, and stricter
+  SEO and accessibility checks (including a check that every command on the
+  site uses real flags).
+
 ### Changed
 
 - New logo: the "y" in lyt drawn as two paths merging into one download

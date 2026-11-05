@@ -21,7 +21,11 @@
           "detail": { "type": "string" },
           "hint": { "type": ["string", "null"] },
           "path": { "type": ["string", "null"] },
-          "command": { "type": ["string", "null"] }
+          "command": { "type": ["string", "null"] },
+          "managed": { "type": "boolean", "description": "yt-dlp: true when lyt manages this copy." },
+          "channel": { "enum": ["stable", "nightly"] },
+          "ageDays": { "type": ["integer", "null"], "minimum": 0, "description": "yt-dlp: days since the installed version's release date." },
+          "autoUpdate": { "type": "boolean" }
         },
         "additionalProperties": false
       }
