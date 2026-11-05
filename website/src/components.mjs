@@ -13,6 +13,13 @@ export function renderFaq(faq, { heading = "Frequently asked questions", kicker 
       </section>`;
 }
 
+// A copyable command block. `lines` are plain text; build.mjs normalizes the
+// copy button markup site-wide.
+export function codeBlock(lines) {
+  const text = (Array.isArray(lines) ? lines : [lines]).join("\n");
+  return `<div class="code-block"><pre><code>${escapeHtml(text)}</code></pre><button class="copy" type="button" data-copy="${escapeHtml(text).replaceAll("\n", "&#10;")}"><span class="copy-label">Copy</span></button></div>`;
+}
+
 export function escapeHtml(value) {
   return String(value)
     .replaceAll("&", "&amp;")

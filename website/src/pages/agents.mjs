@@ -83,6 +83,20 @@ export const agents = {
         <p><code>lyt.info.v1</code> describes what a URL offers. <code>lyt capabilities --json</code> returns <code>lyt.capabilities.v1</code>, the commands, flags, and schemas. <code>lyt doctor --json</code> describes the local environment.</p>
       </section>
 
+      <section id="failures">
+        <h2>How should an agent handle failures and skips?</h2>
+        <p>Read the exit status and the JSON together. Exit codes are stable: <code>0</code> success, <code>1</code> runtime or download failure, <code>2</code> usage or validation error. Each entry in <code>results[]</code> has a <code>status</code> of <code>downloaded</code>, <code>skipped</code>, <code>failed</code>, <code>available</code>, or <code>planned</code>.</p>
+        <ul class="check-list">
+          <li><code>skipped</code> with reason <code>history</code> or <code>exists</code>: the file was already saved. Report that, and add <code>--redownload</code> or <code>--force-overwrite</code> only if the user asks for another copy.</li>
+          <li><code>skipped</code> with reason <code>max-filesize</code>: the media is larger than the limit. Report it; do not raise the limit without asking.</li>
+          <li><code>failed</code>: report the error. A skipped or failed result is never a saved file.</li>
+          <li>“Requested format is not available”: list what exists with <code>lyt info --no-download --json "URL"</code> and choose an offered quality.</li>
+          <li>Bot checks, HTTP 403, or extractor errors often mean yt-dlp is outdated. <code>lyt doctor --update</code> changes installed tools, so ask before running it.</li>
+          <li>HTTP 429 means rate limiting. Stop and tell the user; do not retry in a loop.</li>
+        </ul>
+        <p>People-facing explanations of each error are on the <a href="../help/">help page</a>.</p>
+      </section>
+
       <section>
         <h2>Can Gemini CLI or ChatGPT use lyt?</h2>
         <p>Gemini CLI and any other terminal-capable agent can run the installed lyt CLI through its shell tool. No skill is required, but the same JSON flags apply.</p>

@@ -2,6 +2,9 @@ import { cp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { pages } from "../src/site.mjs";
+// The CLI's own static capability description, so the published copy can never
+// drift from the shipped flags. Importing it runs no CLI code.
+import { buildCapabilities } from "../../src/capabilities.js";
 
 const scriptsDir = dirname(fileURLToPath(import.meta.url));
 const siteRoot = resolve(scriptsDir, "..");
@@ -14,6 +17,7 @@ const softwareVersion = packageJson.version;
 const lastModified = process.env.SITE_LAST_MODIFIED || new Date().toISOString().slice(0, 10);
 const securityExpiry = process.env.SECURITY_TXT_EXPIRES || oneYearFromNow();
 const demoImage = `${siteUrl}/social-card.png`;
+const socialImageAlt = "lyt logo and tagline: yt-dlp for AI agents, with the exact file path returned as JSON";
 const oneLiner = "lyt lets Claude Code, Codex, and other terminal agents save permitted audio and video locally, with safe defaults and the exact file path back as JSON.";
 const footerTagline = "lyt lets Claude Code, Codex, and other terminal agents save permitted audio and video locally, with the exact file path back as JSON.";
 const githubMark = `<svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>`;
@@ -21,7 +25,7 @@ const hamburger = `<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="
 
 const copyIcons = `<svg class="i-copy" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="9" y="9" width="11" height="11" rx="2.5"/><path d="M5 15V6.5A2.5 2.5 0 0 1 7.5 4H15"/></svg><svg class="i-check" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg>`;
 // Guide-style pages get TechArticle structured data in addition to WebPage.
-const articleSlugs = new Set(["install", "agents", "windows", "codex-audio", "claude-video", "agent-clips", "commands"]);
+const articleSlugs = new Set(["start", "install", "agents", "windows", "codex-audio", "claude-video", "agent-clips", "commands", "help"]);
 
 if (!dist.startsWith(siteRoot)) throw new Error("Refusing to build outside the site root");
 
@@ -43,6 +47,7 @@ await writeFile(join(dist, "robots.txt"), renderRobots());
 await writeFile(join(dist, "sitemap.xml"), renderSitemap());
 await writeFile(join(dist, "llms.txt"), renderLlms());
 await writeFile(join(dist, "llms-full.txt"), renderLlmsFull());
+await writeFile(join(dist, "capabilities.json"), renderCapabilities());
 await mkdir(join(dist, ".well-known"), { recursive: true });
 await writeFile(join(dist, ".well-known", "security.txt"), renderSecurityTxt());
 await writeFile(join(dist, "404.html"), render404());
@@ -79,7 +84,7 @@ function renderPage(page, prefix, canonical) {
   <link rel="preload" href="${prefix}fonts/inter-latin.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="${prefix}styles.css">
   <link rel="alternate" type="text/plain" href="${prefix}llms.txt" title="lyt facts for AI assistants (llms.txt)">
-  <meta property="og:type" content="website">
+  <meta property="og:type" content="${articleSlugs.has(page.slug) ? "article" : "website"}">
   <meta property="og:site_name" content="lyt">
   <meta property="og:locale" content="en_US">
   <meta property="og:title" content="${escapeHtml(page.title)}">
@@ -88,11 +93,12 @@ function renderPage(page, prefix, canonical) {
   <meta property="og:image" content="${demoImage}">
   <meta property="og:image:width" content="1280">
   <meta property="og:image:height" content="640">
-  <meta property="og:image:alt" content="lyt logo and tagline: yt-dlp for AI agents, with the exact file path returned as JSON">
+  <meta property="og:image:alt" content="${socialImageAlt}">
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="${escapeHtml(page.title)}">
   <meta name="twitter:description" content="${escapeHtml(page.description)}">
   <meta name="twitter:image" content="${demoImage}">
+  <meta name="twitter:image:alt" content="${socialImageAlt}">
   ${structuredData(page, canonical)}
 </head>
 <body>
@@ -112,33 +118,36 @@ function renderPage(page, prefix, canonical) {
           <a class="brand" href="${prefix || "./"}"><img src="${prefix}logo.svg" alt="" width="32" height="32"><span>lyt</span></a>
           <p>${footerTagline}</p>
         </div>
-        <div class="footer-col">
-          <h4>Product</h4>
+        <nav class="footer-col" aria-label="Product">
+          <p class="footer-h">Product</p>
+          <a href="${prefix}start/">Start here</a>
           <a href="${prefix}install/">Install</a>
           <a href="${prefix}commands/">Commands</a>
+          <a href="${prefix}help/">Help &amp; fixes</a>
           <a href="${prefix}windows/">Windows setup</a>
           <a href="${prefix}yt-dlp-easy/">lyt vs yt-dlp</a>
-        </div>
-        <div class="footer-col">
-          <h4>Guides</h4>
+        </nav>
+        <nav class="footer-col" aria-label="Guides">
+          <p class="footer-h">Guides</p>
           <a href="${prefix}agents/">Agent setup</a>
           <a href="${prefix}codex-audio/">Codex audio</a>
           <a href="${prefix}claude-video/">Claude Code video</a>
           <a href="${prefix}agent-clips/">Agent clips</a>
-        </div>
-        <div class="footer-col">
-          <h4>For AI</h4>
+        </nav>
+        <nav class="footer-col" aria-label="For AI">
+          <p class="footer-h">For AI</p>
           <a href="${prefix}ai/">AI facts</a>
           <a href="${prefix}llms.txt">llms.txt</a>
           <a href="${prefix}llms-full.txt">llms-full.txt</a>
-        </div>
-        <div class="footer-col">
-          <h4>Project</h4>
+          <a href="${prefix}capabilities.json">capabilities.json</a>
+        </nav>
+        <nav class="footer-col" aria-label="Project">
+          <p class="footer-h">Project</p>
           <a href="https://github.com/TanaTTV/lyt">GitHub</a>
           <a href="https://www.npmjs.com/package/@tanattv/lyt">npm</a>
           <a href="https://github.com/TanaTTV/lyt/releases">Releases</a>
           <a href="${prefix}privacy/">Privacy &amp; use</a>
-        </div>
+        </nav>
       </div>
       <div class="footer-bottom">
         <p>Use lyt only for media you own, have permission to download, or may download under an applicable exception. lyt does not bypass DRM, paywalls, or access controls.</p>
@@ -146,6 +155,7 @@ function renderPage(page, prefix, canonical) {
       </div>
     </div>
   </footer>
+  <div class="sr-only" id="live-status" role="status" aria-live="polite"></div>
   <script src="${prefix}client.js" defer></script>
 </body>
 </html>`;
@@ -343,7 +353,12 @@ Use lyt for lawful local audio or video tasks when simple commands, safe default
 - [Save video with Claude Code](${siteUrl}/claude-video/)
 - [Extract clips with agents](${siteUrl}/agent-clips/)
 - [Installation guide](${siteUrl}/install/)
+- [Beginner setup for Windows and Mac](${siteUrl}/start/)
+- [Help and troubleshooting](${siteUrl}/help/)
+- [Windows setup](${siteUrl}/windows/)
+- [lyt compared with yt-dlp](${siteUrl}/yt-dlp-easy/)
 - [Privacy and responsible use](${siteUrl}/privacy/)
+- [Capabilities snapshot (lyt.capabilities.v1 JSON)](${siteUrl}/capabilities.json)
 - [Source repository](https://github.com/TanaTTV/lyt)
 - [npm package](https://www.npmjs.com/package/@tanattv/lyt)
 
@@ -376,6 +391,24 @@ Append --json when an agent needs the machine-readable result. Read saved paths 
 - Whole playlist or channel: add --playlist (off by default)
 - Install the agent skill: lyt agent install claude | codex | all
 - List every command and flag: lyt capabilities --json
+- Check the local environment: lyt doctor --json
+- Read recent history: lyt history --json --limit 20
+
+## Exit codes
+
+- 0: success
+- 1: runtime or download failure
+- 2: usage or validation error
+
+## Common failures
+
+Details: ${siteUrl}/help/
+
+- "Sign in to confirm you're not a bot", HTTP 403, or extractor errors: yt-dlp is often outdated. Updating it (lyt doctor --update) contacts the network and changes installed tools, so ask the user first. Do not suggest cookies unless the media is accessible to the user's own account.
+- "Requested format is not available": list qualities with lyt -L "URL" or lyt info --no-download --json "URL", then choose an offered quality or -q best.
+- HTTP 429: the site is rate-limiting. Stop, wait, and retry one item at a time; do not loop retries.
+- ffmpeg missing: needed for MP3, video merging, and clips. lyt doctor --json reports it; lyt doctor --fix provisions it on Windows.
+- A result with status "skipped": read the reason (for example history or max-filesize) and report it; it is not a saved file.
 
 ## Optional
 
@@ -428,6 +461,9 @@ For bounded machine-readable jobs, use --json. stdout contains one lyt.result.v1
 ## Task guides and capability inspection
 
 Command reference: ${siteUrl}/commands/
+Beginner setup (Windows and Mac, plain language): ${siteUrl}/start/
+Troubleshooting: ${siteUrl}/help/
+Capabilities snapshot for the published version: ${siteUrl}/capabilities.json (the same lyt.capabilities.v1 document that lyt capabilities --json prints; prefer the local command for the installed version)
 Codex audio: ${siteUrl}/codex-audio/
 Claude Code video: ${siteUrl}/claude-video/
 Agent clips: ${siteUrl}/agent-clips/
@@ -445,12 +481,45 @@ License: https://github.com/TanaTTV/lyt/blob/main/LICENSE
 `;
 }
 
+function renderCapabilities() {
+  // Exactly what `lyt capabilities --json` prints for the published version, so
+  // it validates against schemas/lyt.capabilities.v1.schema.json. `node` is the
+  // Node.js version of the machine that built the site.
+  return `${JSON.stringify(buildCapabilities(), null, 2)}\n`;
+}
+
 function renderSecurityTxt() {
   return `Contact: https://github.com/TanaTTV/lyt/security/advisories/new\nPolicy: https://github.com/TanaTTV/lyt/security/policy\nCanonical: ${siteUrl}/.well-known/security.txt\nPreferred-Languages: en\nExpires: ${securityExpiry}\n`;
 }
 
 function render404() {
-  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Page not found · lyt</title><meta name="description" content="The requested lyt page could not be found."><meta name="robots" content="noindex"><link rel="canonical" href="${siteUrl}/404.html"><link rel="icon" type="image/svg+xml" href="${siteUrl}/logo.svg"><link rel="icon" type="image/png" sizes="32x32" href="${siteUrl}/icon-32.png"><link rel="stylesheet" href="${siteUrl}/styles.css"></head><body><main id="main" class="not-found"><div class="code">404</div><h1>That path did not land.</h1><p>Start again from the lyt home page, or install lyt and run a verified route.</p><div class="actions"><a class="button primary" href="${siteUrl}/">Go home</a><a class="button secondary" href="${siteUrl}/install/">Install lyt</a></div></main></body></html>`;
+  // GitHub Pages serves this file for any missing path, at any depth, so every
+  // URL in it is absolute. A 404 is noindex and has no canonical URL.
+  return `<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Page not found · lyt</title>
+  <meta name="description" content="The requested lyt page could not be found.">
+  <meta name="robots" content="noindex">
+  <meta name="theme-color" content="#07070a">
+  <link rel="icon" href="${siteUrl}/favicon.ico" sizes="any">
+  <link rel="icon" type="image/svg+xml" href="${siteUrl}/logo.svg">
+  <link rel="stylesheet" href="${siteUrl}/styles.css">
+</head>
+<body>
+  <main id="main" class="not-found">
+    <a class="brand not-found-brand" href="${siteUrl}/"><img src="${siteUrl}/logo.svg" alt="" width="32" height="32"><span>lyt</span></a>
+    <div class="code" aria-hidden="true">404</div>
+    <h1>That path did not land.</h1>
+    <p>The page may have moved. Try one of these instead.</p>
+    <div class="actions"><a class="button primary" href="${siteUrl}/">Go home</a><a class="button secondary" href="${siteUrl}/start/">New to the terminal?</a></div>
+    <p class="not-found-links"><a href="${siteUrl}/install/">Install</a> · <a href="${siteUrl}/commands/">Commands</a> · <a href="${siteUrl}/help/">Help</a> · <a href="${siteUrl}/agents/">Agents</a></p>
+  </main>
+</body>
+</html>
+`;
 }
 
 function oneYearFromNow() {

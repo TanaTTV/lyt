@@ -2,6 +2,14 @@
 const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 // Copy buttons -------------------------------------------------------------
+// Buttons carry a fixed aria-label, so the result is announced through the
+// page's polite live region instead of the changing visible label.
+const liveStatus = document.getElementById("live-status");
+const announce = (text) => {
+  if (!liveStatus) return;
+  liveStatus.textContent = "";
+  window.setTimeout(() => { liveStatus.textContent = text; }, 30);
+};
 for (const button of document.querySelectorAll("[data-copy]")) {
   button.addEventListener("click", async () => {
     const label = button.querySelector(".copy-label");
@@ -11,8 +19,10 @@ for (const button of document.querySelectorAll("[data-copy]")) {
       await navigator.clipboard.writeText(button.dataset.copy);
       set("Copied");
       button.classList.add("copied");
+      announce("Copied to clipboard");
     } catch {
       set("Copy failed");
+      announce("Copy failed. Select the text and copy it manually.");
     }
     window.setTimeout(() => { set(original); button.classList.remove("copied"); }, 1600);
   });
@@ -64,7 +74,7 @@ if (toggle && links) {
     if (links.classList.contains("open") && !event.target.closest(".site-header")) setOpen(false);
   });
   // Leaving the mobile layout clears the open state so desktop nav is never hidden.
-  window.matchMedia("(min-width: 821px)").addEventListener("change", (event) => {
+  window.matchMedia("(min-width: 961px)").addEventListener("change", (event) => {
     if (event.matches) setOpen(false);
   });
 }
@@ -183,7 +193,7 @@ if (search) {
     let shown = 0;
     for (const group of groups) {
       let groupShown = 0;
-      for (const recipe of group.querySelectorAll(".recipe")) {
+      for (const recipe of group.querySelectorAll(".recipe, .recipe-row")) {
         const match = !query || recipe.textContent.toLowerCase().includes(query) || group.querySelector("h2").textContent.toLowerCase().includes(query);
         recipe.classList.toggle("hidden-by-search", !match);
         if (match) groupShown += 1;
@@ -192,6 +202,7 @@ if (search) {
       shown += groupShown;
     }
     empty?.classList.toggle("show", shown === 0);
+    if (query) announce(shown === 0 ? "No commands match." : `${shown} command${shown === 1 ? "" : "s"} shown.`);
   });
 }
 

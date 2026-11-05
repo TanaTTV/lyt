@@ -1,4 +1,8 @@
-import { renderFaq } from "../components.mjs";
+import { readFileSync } from "node:fs";
+import { codeBlock, renderFaq } from "../components.mjs";
+import { commonTasks } from "./start.mjs";
+
+const { version } = JSON.parse(readFileSync(new URL("../../../package.json", import.meta.url), "utf8"));
 
 const installCommand = "npm install --global @tanattv/lyt";
 
@@ -93,10 +97,20 @@ const guides = [
   ["claude-video/", "Claude Code", "Download YouTube videos with Claude Code"],
   ["agent-clips/", "Any agent", "Extract a video clip with an AI coding agent"],
   ["commands/", "Reference", "Every lyt command, ready to copy"],
+  ["start/", "Beginners", "New to the terminal? Set up lyt step by step"],
   ["windows/", "Windows", "Easy yt-dlp setup on Windows"],
+  ["help/", "Help", "Fix bot checks, 403/429, and format errors"],
+  ["yt-dlp-easy/", "Compare", "lyt vs yt-dlp: when a simpler CLI helps"],
   ["ai/", "For AI", "lyt fact sheet for AI assistants"],
 ].map(([href, tag, title]) => `
           <a class="guide" href="${href}"><span>${tag}</span><b>${title}</b><i aria-hidden="true">→</i></a>`).join("");
+
+const taskCards = commonTasks.map((task) => `
+          <article class="task">
+            <h3>${task.title}</h3>
+            <p>${task.text}</p>
+            ${codeBlock(task.command)}
+          </article>`).join("");
 
 const faq = [
   {
@@ -147,7 +161,7 @@ export const home = {
       <section class="hero shell">
         <div class="hero-grid">
           <div class="hero-copy">
-            <a class="release-pill" href="https://github.com/TanaTTV/lyt/releases"><b>v0.8.2</b> Spotify, subtitles, SponsorBlock <span class="arrow">→</span></a>
+            <a class="release-pill" href="https://github.com/TanaTTV/lyt/releases"><b>v${version}</b> Spotify, subtitles, SponsorBlock <span class="arrow">→</span></a>
             <h1>Media downloads<br><span class="grad-text">your AI agent can trust.</span></h1>
             <p class="lede">lyt is a free yt-dlp CLI and agent skill. Ask Claude Code, Codex, or any terminal agent to save permitted audio or video. lyt handles the setup, keeps risky options off, and hands back the exact file path as JSON.</p>
             <div class="actions">
@@ -190,6 +204,24 @@ export const home = {
           <span class="site-chip"><i style="--c:#1ab7ea"></i>Vimeo</span>
           <span class="site-chip"><i style="--c:#1da0c3"></i>Bandcamp</span>
           <span class="site-chip more">and anything yt-dlp supports</span>
+        </div>
+      </section>
+
+      <section class="paths shell" aria-labelledby="paths-title">
+        <h2 id="paths-title" class="sr-only">Choose your path</h2>
+        <div class="path-grid">
+          <a class="path" href="agents/">
+            <span class="path-tag">I use an AI agent</span>
+            <b>Give Claude Code or Codex a download tool</b>
+            <span>Install the skill once. Your agent runs lyt and reports the exact file path.</span>
+            <i aria-hidden="true">→</i>
+          </a>
+          <a class="path" href="start/">
+            <span class="path-tag">New to the terminal?</span>
+            <b>Set it up step by step on Windows or Mac</b>
+            <span>Plain words, copy-and-paste commands, about ten minutes.</span>
+            <i aria-hidden="true">→</i>
+          </a>
         </div>
       </section>
 
@@ -279,6 +311,17 @@ export const home = {
             <div class="cmd"><code>lyt agent install claude</code><button class="copy" type="button" data-copy="lyt agent install claude"><span class="copy-label">Copy</span></button></div>
           </li>
         </ol>
+      </section>
+
+      <section class="section shell reveal" id="common-tasks">
+        <div class="section-head">
+          <div class="kicker">Common tasks</div>
+          <h2>Copy, paste your link, press Enter.</h2>
+          <p>The five things people ask for most. Replace <code>URL</code> with your link and keep the quotes.</p>
+        </div>
+        <div class="task-grid">${taskCards}
+        </div>
+        <p class="section-foot"><a class="text-link" href="start/">Never used a terminal? Start here →</a></p>
       </section>
 
       <section class="section shell reveal">
