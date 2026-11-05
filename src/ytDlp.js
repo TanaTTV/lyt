@@ -938,6 +938,12 @@ Subcommands:
   lyt info <url>            Media metadata and formats without downloading
                             (alias: lyt inspect; --json → lyt.info.v1)
                             --jobs 1-16 controls inspection workers (default: 3)
+  lyt transcript <url>      Subtitles or automatic captions as clean text
+                            (--timestamps, --lang es; --json → lyt.transcript.v1)
+  lyt last [query]          Paths of the newest download (--open, --reveal)
+  lyt update                Refresh yt-dlp (same as lyt doctor --update)
+  lyt mcp                   Run as an MCP server over stdio for AI clients
+  lyt completion <shell>    Tab completion for bash, zsh, or fish
   lyt capabilities          Commands, modes, flags, and result schemas
                             (--json → lyt.capabilities.v1)
   lyt history [query]       List/search past downloads (--clear wipes)

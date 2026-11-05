@@ -13,11 +13,16 @@ export const COMMANDS = [
   "info",
   "inspect",
   "search",
+  "transcript",
   "capabilities",
   "doctor",
   "history",
+  "last",
   "config",
   "agent",
+  "completion",
+  "mcp",
+  "update",
 ];
 
 export const MODES = ["audio", "video", "mp3", "native"];
@@ -29,6 +34,7 @@ export const SCHEMAS = [
   "lyt.info.v1",
   "lyt.capabilities.v1",
   "lyt.search.v1",
+  "lyt.transcript.v1",
 ];
 
 export const EXIT_CODES = {
@@ -111,6 +117,19 @@ export const COMMAND_OPTIONS = {
     { flag: "--json", takesValue: false, summary: "Emit lyt.search.v1." },
     { flag: "--no-download", takesValue: false, summary: "Prevent managed tool provisioning." },
   ],
+  transcript: [
+    { flag: "--lang", takesValue: true, summary: "Caption language code (default en)." },
+    { flag: "--timestamps", takesValue: false, summary: "Human output with [m:ss] before each line." },
+    { flag: "--json", takesValue: false, summary: "Emit lyt.transcript.v1 with segments and chapters." },
+    { flag: "--no-download", takesValue: false, summary: "Prevent managed tool provisioning." },
+  ],
+  last: [
+    { flag: "--json", takesValue: false, summary: "Emit lyt.history.v1 with the newest entry whose files exist." },
+    { flag: "--open", takesValue: false, summary: "Open the file with the default app." },
+    { flag: "--reveal", takesValue: false, summary: "Show the file in its folder." },
+  ],
+  completion: [],
+  mcp: [],
 };
 
 export function buildCapabilities() {

@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/TanaTTV/lyt/blob/main/schemas/lyt.transcript.v1.schema.json",
+  "title": "lyt transcript v1",
+  "type": "object",
+  "required": ["schema", "version", "command", "ok", "url"],
+  "properties": {
+    "schema": { "const": "lyt.transcript.v1" },
+    "version": { "type": "string" },
+    "command": { "const": "transcript" },
+    "ok": { "type": "boolean" },
+    "url": { "type": "string" },
+    "id": { "type": ["string", "null"] },
+    "title": { "type": ["string", "null"] },
+    "uploader": { "type": ["string", "null"] },
+    "durationSeconds": { "type": ["integer", "null"], "minimum": 0 },
+    "language": { "type": ["string", "null"] },
+    "automatic": { "type": "boolean", "description": "True when the text came from automatic (machine) captions." },
+    "chapters": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["start", "end", "title"],
+        "properties": {
+          "start": { "type": "number", "minimum": 0 },
+          "end": { "type": ["number", "null"], "minimum": 0 },
+          "title": { "type": "string" }
+        },
+        "additionalProperties": false
+      }
+    },
+    "segments": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["start", "end", "text"],
+        "properties": {
+          "start": { "type": "number", "minimum": 0 },
+          "end": { "type": "number", "minimum": 0 },
+          "text": { "type": "string" }
+        },
+        "additionalProperties": false
+      }
+    },
+    "text": { "type": "string" },
+    "error": { "$ref": "lyt.result.v1.schema.json#/$defs/error" }
+  },
+  "additionalProperties": false
+}

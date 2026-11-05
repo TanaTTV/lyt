@@ -23,10 +23,10 @@ test("the packaged doctor schema describes capability diagnostics", () => {
   assert.ok(schema.properties.capabilities.required.includes("nativeAudio"));
 });
 
-test("the packaged history schema describes list and clear results", () => {
+test("the packaged history schema describes list, clear, and last results", () => {
   const schema = readSchema("lyt.history.v1");
   assert.equal(schema.properties.schema.const, "lyt.history.v1");
-  assert.deepEqual(schema.properties.command.enum, ["history.list", "history.clear"]);
+  assert.deepEqual(schema.properties.command.enum, ["history.list", "history.clear", "history.last"]);
   assert.ok(schema.required.includes("path"));
 });
 
@@ -54,4 +54,11 @@ test("the result schema lists every failure kind lyt can report", async () => {
   const schema = readSchema("lyt.result.v1");
   assert.deepEqual(schema.$defs.error.properties.kind.enum, Object.keys(FAILURE_KINDS));
   assert.ok(schema.properties.results.items.properties.artifacts);
+});
+
+test("the packaged transcript schema describes segments and chapters", () => {
+  const schema = readSchema("lyt.transcript.v1");
+  assert.equal(schema.properties.command.const, "transcript");
+  assert.deepEqual(schema.properties.segments.items.required, ["start", "end", "text"]);
+  assert.equal(schema.properties.automatic.type, "boolean");
 });

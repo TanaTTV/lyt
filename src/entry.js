@@ -23,6 +23,19 @@ export async function mainEntry(argv, defaults = {}) {
       return (await import("./commands/search.js")).runSearchCommand(argv.slice(1));
     case "history":
       return (await import("./commands/history.js")).runHistoryCommand(argv.slice(1));
+    case "last":
+      return (await import("./commands/history.js")).runLastCommand(argv.slice(1));
+    case "transcript":
+      return (await import("./commands/transcript.js")).runTranscriptCommand(argv.slice(1));
+    case "completion":
+      return (await import("./completion.js")).runCompletionCommand(argv.slice(1));
+    case "mcp":
+      return (await import("./mcp.js")).runMcpServer();
+    case "update":
+      // Shorthand for refreshing yt-dlp: the step most download failures need.
+      return (await import("./doctor.js")).runDoctor({
+        fix: false, update: true, checkUpdates: true, network: false, json: argv.includes("--json"),
+      });
     case "doctor":
       return (await import("./doctor.js")).runDoctor({
         fix: argv.includes("--fix"),

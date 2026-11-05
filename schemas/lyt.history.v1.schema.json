@@ -7,7 +7,7 @@
   "properties": {
     "schema": { "const": "lyt.history.v1" },
     "version": { "type": "string" },
-    "command": { "enum": ["history.list", "history.clear"] },
+    "command": { "enum": ["history.list", "history.clear", "history.last"] },
     "ok": { "type": "boolean" },
     "path": { "type": "string" },
     "query": { "type": "string" },
@@ -31,7 +31,7 @@
   },
   "allOf": [
     {
-      "if": { "properties": { "command": { "const": "history.list" } } },
+      "if": { "properties": { "command": { "enum": ["history.list", "history.last"] } } },
       "then": { "required": ["query", "total", "entries"] }
     },
     {
