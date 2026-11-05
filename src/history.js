@@ -89,6 +89,11 @@ export function buildArtifactFingerprint(options) {
     playlist: options.playlist,
     outputDir: resolve(options.outputDir),
     template: options.template,
+    // Newer variants; undefined keeps older fingerprints unchanged.
+    audioFormat: options.audioFormat && options.audioFormat !== "mp3" ? options.audioFormat : undefined,
+    container: options.container && options.container !== "mp4" ? options.container : undefined,
+    editor: options.editor || undefined,
+    chapters: options.chapters?.length ? options.chapters : undefined,
   };
 
   const digest = createHash("sha256")

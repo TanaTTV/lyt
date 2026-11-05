@@ -20,11 +20,14 @@ import { normalizeOptions } from "./ytDlp.js";
 
 export const PROFILES = {
   // Keep every bit of quality and make the file pretty in players.
-  music: { mp3: true, quality: "0", embedMetadata: true, embedThumbnail: true },
+  music: { mp3: true, audioFormat: "mp3", quality: "0", embedMetadata: true, embedThumbnail: true },
   // Spoken word: smaller files, evened-out loudness.
-  podcast: { mp3: true, quality: "96K", normalize: true, embedMetadata: true },
+  podcast: { mp3: true, audioFormat: "mp3", quality: "96K", normalize: true, embedMetadata: true },
   // Smallest useful files for voice notes / lectures.
-  voice: { mp3: true, quality: "64K", normalize: true },
+  voice: { mp3: true, audioFormat: "mp3", quality: "64K", normalize: true },
+  // Video for editing: H.264 + AAC in MP4 that editors import without a
+  // transcode, plus English subtitles as .srt for captions and search.
+  edit: { video: true, editor: true, container: "mp4" },
 };
 
 export function profileNames() {
@@ -81,6 +84,11 @@ const CONFIG_KEYS = new Map([
   ["jobs", { option: "jobs", parse: POSITIVE_INT }],
   ["profile", { option: "profile", validate: resolveProfile }],
   ["mp3", { option: "mp3", parse: BOOL }],
+  ["audio-format", { option: "audioFormat", check: true }],
+  ["container", { option: "container", check: true }],
+  ["editor", { option: "editor", parse: BOOL }],
+  ["thumbnail", { option: "writeThumbnail", parse: BOOL }],
+  ["polite", { option: "polite", parse: BOOL }],
   ["embed-metadata", { option: "embedMetadata", parse: BOOL }],
   ["embed-thumbnail", { option: "embedThumbnail", parse: BOOL }],
   ["normalize", { option: "normalize", parse: BOOL }],
@@ -197,7 +205,7 @@ export function validateConfigValue(key, value) {
   spec.validate?.(value);
   // Values with download-option rules go through the same validation the
   // download command uses.
-  if (spec.check) normalizeOptions({ video: key === "max-height", [spec.option]: value });
+  if (spec.check) normalizeOptions({ video: key === "max-height" || key === "container", [spec.option]: value });
 }
 
 export function configToOptions(config) {

@@ -143,7 +143,12 @@ export async function main(argv, defaults = {}) {
   // to MP3 unless config, a profile, or a flag already chose a format, and
   // fetch a few songs at once unless a job count was chosen.
   const hasSpotify = parsed.urls.some(isSpotifyUrl);
-  if (hasSpotify && parsed.options.mp3 === undefined && !parsed.options.video) {
+  if (
+    hasSpotify &&
+    parsed.options.mp3 === undefined &&
+    parsed.options.audioFormat === undefined &&
+    !parsed.options.video
+  ) {
     parsed.options.mp3 = true;
   }
   if (hasSpotify && !jobsChosen && parsed.options.jobs === undefined) {
@@ -152,6 +157,15 @@ export async function main(argv, defaults = {}) {
 
   const options = normalizeOptions(parsed.options);
   const urls = parsed.urls;
+
+  // One fixed name cannot hold several downloads; yt-dlp would skip or
+  // overwrite all but the first.
+  if (options.name && (urls.length > 1 || options.playlist || options.watch || options.splitChapters || hasSpotify)) {
+    throw usageError(
+      "--name sets one file name, so use it with a single video URL " +
+        "(not with several URLs, --playlist, --watch, --split-chapters, or Spotify).",
+    );
+  }
 
   // yt-dlp's --no-playlist does not stop links that are only a playlist,
   // channel, or set, so enforce the playlist opt-in here.

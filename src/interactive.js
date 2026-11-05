@@ -39,8 +39,12 @@ export async function promptForJob({
         options.maxHeight = quality;
       }
     } else {
-      const format = await ask(rl, "Format [native/mp3]", "native", output);
-      options.mp3 = format.toLowerCase().startsWith("m");
+      const format = await ask(rl, "Format [native/mp3/m4a/wav/flac]", "native", output);
+      const choice = format.trim().toLowerCase();
+      options.audioFormat = ["mp3", "m4a", "wav", "flac", "opus"].includes(choice)
+        ? choice
+        : choice.startsWith("m") ? "mp3" : "native";
+      options.mp3 = options.audioFormat === "mp3";
 
       if (options.mp3) {
         options.quality = await ask(rl, "MP3 quality (128K/192K/320K/0)", "192K", output);

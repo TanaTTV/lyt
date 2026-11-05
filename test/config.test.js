@@ -21,7 +21,11 @@ function tempConfigFile() {
 }
 
 test("profiles exist and resolve to sensible option bundles", () => {
-  assert.deepEqual(profileNames(), ["music", "podcast", "voice"]);
+  assert.deepEqual(profileNames(), ["music", "podcast", "voice", "edit"]);
+
+  const edit = resolveProfile("edit");
+  assert.equal(edit.video, true);
+  assert.equal(edit.editor, true);
 
   const music = resolveProfile("music");
   assert.equal(music.mp3, true);

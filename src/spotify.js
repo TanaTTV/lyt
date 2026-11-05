@@ -206,7 +206,7 @@ export async function expandSpotifyUrls(
     const collection = await fetchSpotifyTracks(url, { fetchImpl, credentials, log });
     const targets = spotifyTargets(collection);
     const folderDir = join(options.outputDir, targets[0]?.folder ?? "");
-    const extensions = options.video ? VIDEO_EXTENSIONS : options.mp3 ? ["mp3"] : AUDIO_EXTENSIONS;
+    const extensions = options.video ? VIDEO_EXTENSIONS : options.audioFormat ? [options.audioFormat] : options.mp3 ? ["mp3"] : AUDIO_EXTENSIONS;
     const onDisk = indexExistingSongs(listDir(folderDir), extensions, collection.type !== "track");
     const claimed = new Set();
     let fresh = 0;

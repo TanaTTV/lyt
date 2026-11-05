@@ -33,7 +33,27 @@ export const VALUE_OPTIONS = new Set([
   "--retries",
   "-a",
   "--batch-file",
+  "--audio-format",
+  "--container",
+  "-n",
+  "--name",
+  "--chapter",
+  "--items",
+  "--max-items",
+  "--after",
+  "--before",
+  "--min-duration",
+  "--max-duration",
 ]);
+
+export const AUDIO_FORMATS = ["native", "mp3", "m4a", "opus", "wav", "flac"];
+const LOSSY_AUDIO_FORMATS = new Set(["mp3", "m4a", "opus"]);
+export const VIDEO_CONTAINERS = ["mp4", "mkv", "mov"];
+// Most editors (Premiere, Resolve, Final Cut, CapCut) import H.264 + AAC in
+// MP4 without a transcode; VP9/AV1/Opus often need one first.
+export const EDITOR_FORMAT_SORT = "vcodec:h264,res,acodec:aac";
+export const POLITE_SLEEP_ARGS = ["--sleep-requests", "1", "--sleep-interval", "3", "--max-sleep-interval", "8"];
+const MEDIA_EXTENSION = /\.(?:mp4|mkv|mov|webm|m4a|mp3|opus|ogg|wav|flac|aac)$/i;
 
 export function parseArgs(argv) {
   const options = {};
@@ -65,11 +85,89 @@ export function parseArgs(argv) {
 
     if (arg === "--mp3") {
       options.mp3 = true;
+      options.audioFormat = "mp3";
       continue;
     }
 
     if (arg === "--native") {
       options.mp3 = false;
+      options.audioFormat = "native";
+      continue;
+    }
+
+    if (arg === "--audio-format") {
+      options.audioFormat = readValue(argv, ++index, arg);
+      continue;
+    }
+
+    if (arg === "--editor" || arg === "--h264") {
+      options.video = true;
+      options.editor = true;
+      continue;
+    }
+
+    if (arg === "--container") {
+      options.container = readValue(argv, ++index, arg);
+      continue;
+    }
+
+    if (arg === "-n" || arg === "--name") {
+      options.name = readValue(argv, ++index, arg);
+      continue;
+    }
+
+    if (arg === "--thumbnail") {
+      options.writeThumbnail = true;
+      continue;
+    }
+
+    if (arg === "--info-json") {
+      options.infoJson = true;
+      continue;
+    }
+
+    if (arg === "--chapter") {
+      (options.chapters ??= []).push(readValue(argv, ++index, arg));
+      continue;
+    }
+
+    if (arg === "--items") {
+      options.items = readValue(argv, ++index, arg);
+      continue;
+    }
+
+    if (arg === "--max-items") {
+      options.maxItems = readValue(argv, ++index, arg);
+      continue;
+    }
+
+    if (arg === "--after") {
+      options.dateAfter = readValue(argv, ++index, arg);
+      continue;
+    }
+
+    if (arg === "--before") {
+      options.dateBefore = readValue(argv, ++index, arg);
+      continue;
+    }
+
+    if (arg === "--min-duration") {
+      options.minDuration = readValue(argv, ++index, arg);
+      continue;
+    }
+
+    if (arg === "--max-duration") {
+      options.maxDuration = readValue(argv, ++index, arg);
+      continue;
+    }
+
+    if (arg === "--wait") {
+      options.waitForVideo = true;
+      continue;
+    }
+
+    if (arg === "--polite") {
+      options.polite = true;
       continue;
     }
 
@@ -339,12 +437,35 @@ export function normalizeOptions(options = {}) {
   }
 
   const normalize = video ? false : (options.normalize ?? false);
+  // Video downloads keep the muxed file; audio extraction never applies.
+  // Loudness normalization needs an ffmpeg encode step, so with no explicit
+  // format it implies MP3.
+  let audioFormat = video
+    ? "native"
+    : normalizeAudioFormat(options.audioFormat ?? (options.mp3 ? "mp3" : "native"));
+  if (normalize && audioFormat === "native") audioFormat = "mp3";
+  const lossy = LOSSY_AUDIO_FORMATS.has(audioFormat) || audioFormat === "native";
+  const durationFilter = buildDurationFilter(options.minDuration, options.maxDuration);
+  const name = normalizeName(options.name);
 
   return {
     video,
-    // Video downloads keep the muxed file; audio extraction never applies.
-    // Loudness normalization needs an ffmpeg encode step, so it implies MP3.
-    mp3: video ? false : (normalize ? true : (options.mp3 ?? false)),
+    mp3: audioFormat === "mp3",
+    // null keeps the native stream; otherwise yt-dlp converts with ffmpeg.
+    audioFormat: audioFormat === "native" ? null : audioFormat,
+    editor: video ? (options.editor ?? false) : false,
+    container: video ? normalizeChoice(options.container ?? "mp4", VIDEO_CONTAINERS, "--container") : null,
+    name,
+    writeThumbnail: options.writeThumbnail ?? false,
+    infoJson: options.infoJson ?? false,
+    chapters: (options.chapters ?? []).map(normalizeChapter),
+    items: options.items == null ? null : normalizeItems(options.items),
+    maxItems: options.maxItems == null ? null : normalizePositiveInteger(options.maxItems, "--max-items"),
+    dateAfter: options.dateAfter == null ? null : normalizeDate(options.dateAfter, "--after"),
+    dateBefore: options.dateBefore == null ? null : normalizeDate(options.dateBefore, "--before"),
+    durationFilter,
+    waitForVideo: options.waitForVideo ?? false,
+    polite: options.polite ?? false,
     maxHeight,
     normalize,
     clips: (options.clips ?? []).map(parseClip),
@@ -355,7 +476,8 @@ export function normalizeOptions(options = {}) {
     history: options.history ?? true,
     listFormats: options.listFormats ?? false,
     outputDir: options.outputDir ?? "downloads",
-    quality: video ? null : normalizeQuality(options.quality ?? "192K"),
+    // Lossless formats (WAV, FLAC) have no bitrate to choose.
+    quality: video || !lossy ? null : normalizeQuality(options.quality ?? "192K"),
     fragments: normalizePositiveInteger(options.fragments ?? 8, "fragments"),
     jobs: normalizePositiveInteger(options.jobs ?? 1, "jobs"),
     playlist: options.playlist ?? false,
@@ -369,7 +491,8 @@ export function normalizeOptions(options = {}) {
     continueDownloads: options.continueDownloads ?? true,
     forceOverwrite: options.forceOverwrite ?? false,
     noDownload: options.noDownload ?? false,
-    template: options.template ?? DEFAULT_OUTPUT_TEMPLATE,
+    // --name sets the file name; yt-dlp still picks the extension.
+    template: name ? `${name}.%(ext)s` : (options.template ?? DEFAULT_OUTPUT_TEMPLATE),
     downloader: options.downloader ?? null,
     downloaderArgs: options.downloaderArgs ?? null,
     maxFilesize: normalizeSize(options.maxFilesize),
@@ -422,7 +545,13 @@ export function buildYtDlpArgs(
 
   if (options.video) {
     // Ensure a single playable file when the best video/audio come separately.
-    args.push("--merge-output-format", "mp4");
+    args.push("--merge-output-format", options.container ?? "mp4");
+  }
+
+  if (options.editor) {
+    // Prefer H.264 + AAC over resolution: an editor-ready 1080p beats a 4K
+    // VP9/AV1 file that has to be transcoded before it can be cut.
+    args.push("-S", EDITOR_FORMAT_SORT);
   }
 
   if (!options.playlist) {
@@ -459,7 +588,10 @@ export function buildYtDlpArgs(
     args.push("--force-overwrites");
   }
 
-  if (options.mp3) {
+  if (options.audioFormat) {
+    args.push("-x", "--audio-format", options.audioFormat);
+    if (options.quality) args.push("--audio-quality", options.quality);
+  } else if (options.mp3) {
     args.push("-x", "--audio-format", "mp3", "--audio-quality", options.quality);
   }
 
@@ -490,6 +622,16 @@ export function buildYtDlpArgs(
         "ThumbnailsConvertor+ffmpeg_o:-c:v mjpeg -vf crop=\"'if(gt(ih,iw),iw,ih)':'if(gt(iw,ih),ih,iw)'\"",
       );
     }
+  }
+
+  if (options.writeThumbnail) {
+    args.push("--write-thumbnail");
+    // The audio cover-art path above already converts to JPEG.
+    if (!(options.embedThumbnail && !options.video)) args.push("--convert-thumbnails", "jpg");
+  }
+
+  if (options.infoJson) {
+    args.push("--write-info-json");
   }
 
   if (options.subs) {
@@ -524,16 +666,52 @@ export function buildYtDlpArgs(
     args.push("--retries", String(options.retries), "--fragment-retries", String(options.retries));
   }
 
+  // yt-dlp ORs repeated --match-filter flags, so every condition shares one.
+  const filters = [options.matchFilter, options.durationFilter].filter(Boolean);
+  if (filters.length > 0) {
+    args.push("--match-filter", filters.join(" & "));
+  }
+
   if (options.matchFilter) {
     // Take the first search result that passes the filter, then stop.
-    args.push("--match-filter", options.matchFilter, "--max-downloads", "1");
+    args.push("--max-downloads", "1");
+  }
+
+  if (options.items) {
+    args.push("--playlist-items", options.items);
+  }
+
+  if (options.maxItems) {
+    args.push("--playlist-end", String(options.maxItems));
+  }
+
+  if (options.dateAfter) {
+    args.push("--dateafter", options.dateAfter);
+  }
+
+  if (options.dateBefore) {
+    args.push("--datebefore", options.dateBefore);
+  }
+
+  if (options.waitForVideo) {
+    // Poll a premiere or scheduled live stream until it starts.
+    args.push("--wait-for-video", "60");
+  }
+
+  if (options.polite) {
+    args.push(...POLITE_SLEEP_ARGS);
   }
 
   for (const section of options.clips ?? []) {
     args.push("--download-sections", section);
   }
 
-  if ((options.clips ?? []).length > 0) {
+  // A section without a leading "*" is a chapter-title regex in yt-dlp.
+  for (const chapter of options.chapters ?? []) {
+    args.push("--download-sections", chapter);
+  }
+
+  if ((options.clips ?? []).length > 0 || (options.chapters ?? []).length > 0) {
     // Re-encode at the cut points so clips start exactly where asked instead
     // of at the previous keyframe.
     args.push("--force-keyframes-at-cuts");
@@ -613,11 +791,98 @@ function selectFormat(options) {
     return `bestvideo${cap}+bestaudio/best${cap}`;
   }
 
-  if (options.mp3) {
+  if (options.audioFormat === "m4a") {
+    // An AAC source converts to .m4a without re-encoding.
+    return "bestaudio[ext=m4a]/bestaudio";
+  }
+
+  if (options.audioFormat === "opus") {
+    return "bestaudio[acodec=opus]/bestaudio";
+  }
+
+  if (options.mp3 || options.audioFormat) {
     return "bestaudio";
   }
 
   return "bestaudio[ext=m4a]/bestaudio[ext=webm]/bestaudio";
+}
+
+function normalizeChoice(value, choices, name) {
+  const text = String(value).trim().toLowerCase();
+  if (choices.includes(text)) return text;
+  throw usageFailure(`Invalid ${name}: ${value}. Use one of: ${choices.join(", ")}.`);
+}
+
+function normalizeAudioFormat(value) {
+  return normalizeChoice(value, AUDIO_FORMATS, "--audio-format");
+}
+
+// A plain file name (no extension) for the output template. "%" is literal.
+function normalizeName(value) {
+  if (value == null) return null;
+  const name = String(value).trim().replace(MEDIA_EXTENSION, "");
+  const segments = name.split(/[\\/]/);
+  if (
+    name === "" ||
+    /^[\\/]|^[A-Za-z]:/.test(name) ||
+    segments.some((segment) => segment === "" || segment === "." || segment === "..") ||
+    /[\0-\x1f]/.test(name)
+  ) {
+    throw usageFailure(
+      `Invalid --name: ${value}. Use a file name like "interview-clip" (relative, no "..").`,
+    );
+  }
+  return name.replaceAll("%", "%%");
+}
+
+// Case-insensitive chapter-title match; the text is literal, not a regex.
+function normalizeChapter(value) {
+  const text = String(value).trim();
+  if (text === "") throw usageFailure("--chapter needs a chapter title (or part of one).");
+  return `(?i)${text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`;
+}
+
+function normalizeItems(value) {
+  const text = String(value).replace(/\s+/g, "");
+  if (/^(?:\d+(?:[-:]\d*)?|[-:]\d+)(?:,(?:\d+(?:[-:]\d*)?|[-:]\d+))*$/.test(text)) {
+    // yt-dlp uses ":" for ranges; "-" is accepted as the friendlier spelling.
+    return text.replace(/(\d)-(?=\d|,|$)/g, "$1:").replace(/^-(?=\d)/, ":").replace(/,-(?=\d)/g, ",:");
+  }
+  throw usageFailure(`Invalid --items: ${value}. Use positions like 1-5, 3,7,9, or 10-.`);
+}
+
+function normalizeDate(value, name) {
+  const text = String(value).trim().toLowerCase();
+  if (/^\d{8}$/.test(text)) return text;
+  const iso = /^(\d{4})-(\d{2})-(\d{2})$/.exec(text);
+  if (iso) return `${iso[1]}${iso[2]}${iso[3]}`;
+  if (/^(?:now|today|yesterday)(?:-\d+(?:day|week|month|year)s?)?$/.test(text)) return text;
+  throw usageFailure(`Invalid ${name}: ${value}. Use 2026-01-31, 20260131, or today-7days.`);
+}
+
+function durationSeconds(value, name) {
+  const text = String(value).trim();
+  if (isTimestamp(text)) return toSeconds(text);
+  throw usageFailure(`Invalid ${name}: ${value}. Use seconds (90) or a time like 1:30 or 1:02:00.`);
+}
+
+function buildDurationFilter(min, max) {
+  const low = min == null ? null : durationSeconds(min, "--min-duration");
+  const high = max == null ? null : durationSeconds(max, "--max-duration");
+  if (low != null && high != null && low > high) {
+    throw usageFailure("--min-duration must not be longer than --max-duration.");
+  }
+  // "?" lets media with unknown duration through instead of silently dropping it.
+  const parts = [];
+  if (low != null) parts.push(`duration >=? ${low}`);
+  if (high != null) parts.push(`duration <=? ${high}`);
+  return parts.length > 0 ? parts.join(" & ") : null;
+}
+
+function usageFailure(message) {
+  const error = new Error(message);
+  error.exitCode = 2;
+  return error;
 }
 
 export function formatCommand(command, args) {
@@ -663,6 +928,10 @@ Other sites: SoundCloud, Vimeo, Bandcamp, and anything yt-dlp supports.
 Grab just a slice of a long video:
   lyt --clip 1:10-2:45 "URL"        (repeat --clip for multiple slices)
 
+Video for an editing project (H.264 MP4 that editors import as-is):
+  lyt --editor --clip 1:10-2:45 --name broll-intro "URL"
+  lyt --profile edit "URL"
+
 Subcommands:
   lyt search "query"        Find YouTube candidates; never downloads media
                             (--limit 1-25; --json → lyt.search.v1)
@@ -685,7 +954,13 @@ Subcommands:
 Options:
   --mp3                     Convert extracted audio to MP3 with ffmpeg
   --native                  Save native audio stream when possible (default)
+  --audio-format <fmt>      Audio output: native, mp3, m4a, opus, wav, flac
   --video                   Download video (best video+audio, muxed to mp4)
+  --editor, --h264          Video for editing: prefer H.264 + AAC in MP4 so
+                            Premiere, Resolve, Final Cut, and CapCut import it
+                            without a transcode (often 1080p on YouTube)
+  --container <fmt>         Video container: mp4 (default), mkv, or mov
+  -n, --name <name>         Output file name without extension (one URL)
   --audio                   Download audio only (default)
   -q, --quality <value>     Audio: MP3 bitrate (128K/192K/320K) or VBR level
                             0-10 (0 = best). Video: a
@@ -694,6 +969,8 @@ Options:
   -L, --list-formats        List the qualities available for each URL and exit
   --clip <start-end>        Download only this section, e.g. 1:10-2:45, 90-180,
                             1:10- (to end), -2:45 (from start); repeatable
+  --chapter <text>          Download only chapters whose title contains this
+                            text (case-insensitive); repeatable
   --split-chapters          Split into one file per chapter, named by chapter
   --normalize               Loudness-normalize audio (EBU R128; implies --mp3)
   --no-normalize            Disable normalization inherited from config/profile
@@ -703,11 +980,13 @@ Options:
   --no-subs                 Disable subtitles inherited from config
   --sponsorblock            Cut sponsor, self-promo, and interaction segments
   --no-sponsorblock         Disable SponsorBlock inherited from config
+  --thumbnail               Save the thumbnail as a .jpg next to the media
+  --info-json               Save yt-dlp's .info.json metadata next to the media
   -p, --paste               Add media URL(s) from the clipboard (always;
                             interactive terminals also auto-read when no URL)
   --watch, --queue          Watch the clipboard and download every copied link
   -a, --batch-file <file>   Read URLs from a file, one per line (- for stdin)
-  --profile <name>          Preset bundle: music, podcast, or voice
+  --profile <name>          Preset bundle: music, podcast, voice, or edit
   --sync                    Spotify: renumber saved songs, move removed ones aside
   --redownload              Download even if the video is already in history
   --no-history              Skip recording this run in the download history
@@ -727,6 +1006,14 @@ Options:
   --cookies <file>          Use a Netscape-format cookies file
   --no-part                 Write directly to the output file (skip .part)
   --playlist                Allow playlists, channels, sets, and profiles
+  --items <list>            Playlist positions, e.g. 1-5,8 or 10- (with --playlist)
+  --max-items <n>           Stop after n playlist entries
+  --after <date>            Only media uploaded on/after 2026-01-31 or today-7days
+  --before <date>           Only media uploaded on/before a date
+  --min-duration <time>     Skip media shorter than this (90 or 1:30)
+  --max-duration <time>     Skip media longer than this
+  --wait                    Wait for a premiere or scheduled stream to start
+  --polite                  Pause between requests (helps with rate limits)
   --no-playlist             Download only the single video URL (default)
   --embed-metadata          Embed metadata; may add time
   --embed-thumbnail         Embed thumbnail; may add time

@@ -41,7 +41,10 @@ export function needsFfmpeg(options, items = []) {
   // SponsorBlock cuts. Spotify songs are tagged and get cover art.
   return Boolean(
     options.mp3 ||
+      options.audioFormat ||
       options.video ||
+      options.writeThumbnail ||
+      (options.chapters ?? []).length > 0 ||
       options.embedMetadata ||
       options.embedThumbnail ||
       options.normalize ||
