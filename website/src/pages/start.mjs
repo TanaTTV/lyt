@@ -20,8 +20,8 @@ export const commonTasks = [
   {
     id: "clip-for-edit",
     title: "Cut a clip for an edit",
-    text: "Saves only the part between 1:10 and 1:40 as an .mp4 you can drop into your editor. Change the times to the part you need.",
-    command: 'lyt --video -q 1080p --clip 1:10-1:40 "URL"',
+    text: "Saves only the part between 1:10 and 1:40 as an H.264 .mp4 that Premiere, Resolve, Final Cut, and CapCut open without converting. Change the times to the part you need.",
+    command: 'lyt --editor --clip 1:10-1:40 "URL"',
   },
   {
     id: "subtitles",

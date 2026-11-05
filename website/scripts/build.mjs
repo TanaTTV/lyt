@@ -383,6 +383,13 @@ Append --json when an agent needs the machine-readable result. Read saved paths 
 - Save audio as MP3: lyt --mp3 -q 192K "URL"
 - Save video at up to 1080p: lyt --video -q 1080p "URL"
 - Save one section: lyt --video --clip 1:10-2:45 "URL"
+- Video for an editing project (H.264 + AAC MP4): lyt --editor "URL"
+- Audio for an editor or DAW: lyt --audio-format wav "URL"
+- Only one chapter: lyt --chapter "chapter title" "URL"
+- Transcript or captions as text: lyt transcript --json "URL"
+- Find a video first: lyt search --json "query"
+- Newest saved files: lyt last --json
+- Run as an MCP server: lyt mcp
 - Save subtitles next to the media: lyt --subs --sub-langs en "URL"
 - Spotify playlist to MP3s (matched on YouTube): lyt "https://open.spotify.com/playlist/..."
 - Inspect without downloading: lyt info --no-download --json "URL"
@@ -399,6 +406,7 @@ Append --json when an agent needs the machine-readable result. Read saved paths 
 - 0: success
 - 1: runtime or download failure
 - 2: usage or validation error
+- 127: required tool unavailable or setup failed
 
 ## Common failures
 
@@ -409,6 +417,7 @@ Details: ${siteUrl}/help/
 - HTTP 429: the site is rate-limiting. Stop, wait, and retry one item at a time; do not loop retries.
 - ffmpeg missing: needed for MP3, video merging, and clips. lyt doctor --json reports it; lyt doctor --fix provisions it on Windows.
 - A result with status "skipped": read the reason (for example history or max-filesize) and report it; it is not a saved file.
+- Every failed result carries error.kind, error.retryable, and error.suggestion; act on those instead of parsing the message. A managed yt-dlp copy refreshes itself when it is a week old, and lyt retries once with a fresh copy after an outdated-tool or bot-check failure (turn off with lyt config set yt-dlp-auto-update false).
 
 ## Optional
 

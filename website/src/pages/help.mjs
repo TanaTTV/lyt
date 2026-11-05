@@ -62,6 +62,19 @@ const problems = [
         <p>lyt is an ordinary command-line tool, and every command on this site works the same when you type it yourself in a terminal. Whoever runs it, you are responsible for making sure the download is allowed.</p>`,
   },
   {
+    id: "editor-import",
+    group: "YouTube and other sites",
+    title: "My video editor won't open the file, or plays it without picture",
+    body: `
+        <p>YouTube's highest qualities often use the VP9 or AV1 video codec and Opus audio. Many editors, including Premiere Pro, Final Cut, and some versions of DaVinci Resolve and CapCut, can't import those without converting first.</p>
+        <ol>
+          <li>Download with the editor setting instead. It prefers H.264 video with AAC audio in an .mp4:${codeBlock('lyt --editor "URL"')}</li>
+          <li>Need only part of the video? Add a clip and a name:${codeBlock('lyt --editor --clip 1:10-1:40 --name broll "URL"')}</li>
+          <li>For audio in a DAW or editor, save a WAV:${codeBlock('lyt --audio-format wav "URL"')}</li>
+        </ol>
+        <p>On YouTube, H.264 is usually offered up to 1080p, so <code>--editor</code> picks a compatible 1080p file over a 4K one that would need converting.</p>`,
+  },
+  {
     id: "ffmpeg-missing",
     group: "Setup",
     title: "“ffmpeg not found” or MP3, video, or clips fail",
