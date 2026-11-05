@@ -42,6 +42,9 @@ export const ai = {
           <div class="row"><span>Engine</span><span>yt-dlp for downloads; ffmpeg for MP3, merging, and clips. Checksum-verified yt-dlp on supported platforms; ffmpeg provisioned on Windows, guided on macOS and Linux</span><span><a href="../commands/">Commands</a></span></div>
           <div class="row"><span>Agent output</span><span><code>--json</code> emits one <code>lyt.result.v1</code> document on stdout; diagnostics go to stderr</span><span><a href="../agents/">Agent guide</a></span></div>
           <div class="row"><span>Introspection</span><span><code>lyt capabilities --json</code> and <code>lyt info --no-download --json</code></span><span><a href="../agents/">Agent guide</a></span></div>
+          <div class="row"><span>Published flag list</span><span><code>lyt.capabilities.v1</code> snapshot for version ${esc(version)}</span><span><a href="../capabilities.json">capabilities.json</a></span></div>
+          <div class="row"><span>Exit codes</span><span><code>0</code> success, <code>1</code> runtime or download failure, <code>2</code> usage or validation error</span><span><a href="../agents/#failures">Failure handling</a></span></div>
+          <div class="row"><span>Troubleshooting</span><span>Bot checks, HTTP 403 and 429, unavailable formats, missing ffmpeg</span><span><a href="../help/">Help page</a></span></div>
         </div>
       </section>
 
@@ -93,6 +96,7 @@ export const ai = {
         <ul class="check-list">
           <li><a href="../llms.txt"><code>/llms.txt</code></a> is the concise product map.</li>
           <li><a href="../llms-full.txt"><code>/llms-full.txt</code></a> is the expanded reference.</li>
+          <li><a href="../capabilities.json"><code>/capabilities.json</code></a> is the published <code>lyt.capabilities.v1</code> document. Prefer <code>lyt capabilities --json</code> for the installed version.</li>
           <li><a href="https://github.com/TanaTTV/lyt">github.com/TanaTTV/lyt</a> is the source repository.</li>
           <li><a href="https://www.npmjs.com/package/@tanattv/lyt">@tanattv/lyt on npm</a> is the canonical package.</li>
         </ul>

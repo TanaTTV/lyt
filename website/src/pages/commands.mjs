@@ -1,3 +1,4 @@
+import { OPTIONS, SCHEMAS, EXIT_CODES } from "../../../src/capabilities.js";
 import { escapeHtml, renderFaq } from "../components.mjs";
 
 // Every flag and command below comes from `node bin/lyt.js --help` and
@@ -8,7 +9,7 @@ const groups = [
     title: "Audio &amp; MP3",
     intro: "Download audio, convert it to MP3, and set the bitrate or loudness.",
     recipes: [
-      ['lyt "https://www.youtube.com/watch?v=..."', "Download the audio stream. This is the default mode; --native keeps the native stream explicitly."],
+      ['lyt "https://www.youtube.com/watch?v=..."', "Download the audio stream. This is the default mode; --audio and --native say so explicitly."],
       ['lyt --mp3 -q 192K "https://www.youtube.com/watch?v=..."', "Convert the audio to MP3 at a fixed 192K bitrate. Also accepts 128K or 320K."],
       ['lyt --mp3 -q 0 "https://www.youtube.com/watch?v=..."', "Convert to MP3 at the best variable bitrate. VBR levels run from 0 (best) to 10."],
       ['lyt --normalize "https://www.youtube.com/watch?v=..."', "Loudness-normalize to EBU R128. Implies --mp3."],
@@ -55,7 +56,8 @@ const groups = [
       ["lyt --batch-file urls.txt", "Read URLs from a file, one per line. Use - to read from stdin."],
       ["lyt -j 4 --batch-file urls.txt", "Download up to 4 URLs in parallel."],
       ["lyt --paste", "Add the media URL from the clipboard."],
-      ["lyt --watch", "Watch the clipboard and download each link you copy."],
+      ["lyt --watch", "Watch the clipboard and download each link you copy. Alias: --queue."],
+      ["lyt", "With a link already copied, in an interactive terminal: download it from the clipboard."],
     ],
   },
   {
@@ -84,6 +86,8 @@ const groups = [
       ['lyt --force-overwrite "URL"', "Replace an existing file. Opt-in only."],
       ['lyt --redownload "URL"', "Download again even when the video is already in history."],
       ['lyt --no-history "URL"', "Skip recording this run in the download history."],
+      ['lyt --history "URL"', "Record history for this run even if your config turned it off."],
+      ['lyt -f 16 "URL"', "Download 16 fragments at once per download. The default is 8."],
       ['lyt -r 2M "URL"', "Cap the download speed at 2M. --limit-rate does the same."],
       ['lyt --retries 5 "URL"', "Retry downloads and fragments up to 5 times. Accepts 0 to 100."],
       ['lyt --downloader aria2c --downloader-args "-x16 -s16 -k1M" "URL"', "Use aria2c as the external downloader. Useful on throttled hosts."],
@@ -102,6 +106,7 @@ const groups = [
       ["lyt capabilities --json", "List commands, modes, flags, and result schemas as lyt.capabilities.v1."],
       ['lyt info "URL"', "Show media metadata and formats without downloading. Alias: lyt inspect."],
       ['lyt info --json "URL"', "Emit the same inspection as lyt.info.v1 JSON."],
+      ['lyt info --no-download --json "URL"', "Inspect using only tools already installed; never provisions yt-dlp."],
       ['lyt info --jobs 8 --json "URL"', "Inspect with 8 workers. Accepts 1 to 16; the default is 3."],
       ["lyt agent install all", "Install the lyt skill for both Codex and Claude Code."],
       ["lyt agent install claude", "Install the lyt skill for Claude Code only."],
@@ -117,13 +122,19 @@ const groups = [
       ["lyt doctor --fix", "Install missing tools."],
       ["lyt doctor --update", "Self-update yt-dlp."],
       ["lyt doctor --network", "Check that YouTube, Spotify, SoundCloud, and GitHub are reachable."],
+      ["lyt doctor --check-updates", "Refresh the cached check for a newer lyt release on npm."],
+      ["lyt doctor --json", "Emit the environment report as lyt.doctor.v1 JSON."],
       ['lyt -i "URL"', "Prompt for options interactively."],
       ["lyt config list", "Show the persistent defaults."],
       ["lyt config set update-check false", "Turn off the npm update check."],
+      ['lyt config set output-dir "D:/Music"', "Save to this folder by default."],
+      ["lyt config get output-dir", "Show one stored default."],
+      ["lyt config unset output-dir", "Remove a stored default."],
       ["lyt config path", "Show where the config file lives."],
       ["lyt history", "List past downloads."],
       ['lyt history "query"', "Search past downloads."],
       ["lyt history --clear", "Wipe the download history."],
+      ["lyt history --json --limit 50", "Emit the 50 most recent entries as lyt.history.v1 JSON."],
       ["lyt --version", "Show the version and any update hint."],
     ],
   },
@@ -142,8 +153,25 @@ const groupHtml = (group) => `
           <p>${escapeHtml(group.intro)}</p>${group.recipes.map(recipeHtml).join("")}
         </section>`;
 
-const navHtml = groups.map((group) => `
+const navHtml = [...groups, { id: "all-options", title: "All options" }].map((group) => `
         <a href="#${group.id}">${group.title}</a>`).join("");
+
+// Generated from src/capabilities.js at build time, so new download flags show
+// up here automatically when the CLI ships them.
+const optionsHtml = `
+        <section class="ref-group" id="all-options">
+          <h2>All options</h2>
+          <p>Every download flag that <code>lyt capabilities --json</code> reports for this version, plus the exit codes and JSON schemas. Clipboard and interactive flags (<code>--paste</code>, <code>--watch</code>, <code>-i</code>) and subcommand options are listed in the groups above.</p>
+          <div class="options-wrap">
+            <table class="options-table">
+              <thead><tr><th scope="col">Flag</th><th scope="col">Value</th><th scope="col">What it does</th></tr></thead>
+              <tbody>${OPTIONS.map((option) => `
+                <tr class="recipe-row"><td><code>${escapeHtml(option.flag)}</code></td><td>${option.takesValue ? "yes" : "no"}</td><td>${escapeHtml(option.summary)}</td></tr>`).join("")}
+              </tbody>
+            </table>
+          </div>
+          <p>Exit codes: ${Object.entries(EXIT_CODES).map(([code, meaning]) => `<code>${code}</code> ${escapeHtml(meaning)}`).join(", ")}. Schemas: ${SCHEMAS.map((schema) => `<code>${schema}</code>`).join(", ")}. Machine-readable copy: <a href="../capabilities.json">capabilities.json</a>.</p>
+        </section>`;
 
 export const faq = [
   {
@@ -184,8 +212,9 @@ export const commands = {
           </div>
         </nav>
 
-        <div>${groups.map(groupHtml).join("")}
+        <div>${groups.map(groupHtml).join("")}${optionsHtml}
           <p class="no-results">No commands match that search.</p>
+          <p class="ref-help">Seeing an error? <a href="../help/">Help and troubleshooting</a> covers bot checks, 403 and 429 errors, and unavailable formats. New to the terminal? <a href="../start/">Start here</a>.</p>
           <p class="legal-note">lyt does not bypass DRM, paywalls, or access controls. Check the rights for any media before you download it.</p>
         </div>
       </div>

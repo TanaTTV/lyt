@@ -84,6 +84,7 @@ lyt doctor</code></pre><button class="copy" data-copy="npm install --global @tan
           <li>If ffmpeg is missing for MP3 or video work, run <code>lyt doctor --fix</code>, or install it yourself with <code>winget install Gyan.FFmpeg</code>.</li>
           <li>When asking for help, include the exact error, but not private URLs, cookies, or personal paths.</li>
         </ul>
+        <p>More fixes, including YouTube bot checks and HTTP 403 or 429 errors, are on the <a href="../help/">help page</a>. New to PowerShell? Follow the <a href="../start/#windows">beginner Windows steps</a>.</p>
       </section>
 
       ${renderFaq(faq)}

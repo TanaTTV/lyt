@@ -38,6 +38,7 @@ export const install = {
       <div class="kicker">Install</div>
       <h1>Install lyt and save your first file.</h1>
       <p class="lede">lyt is a command-line tool for permitted audio and video downloads. Install it with one npm command. lyt provisions a checksum-verified yt-dlp for you, checks ffmpeg, and tells you what is still missing.</p>
+      <p class="note-link">Never used a terminal? The <a href="../start/">step-by-step beginner guide</a> walks through Windows and Mac in plain words.</p>
 
       <section>
         <h2>Requirements</h2>
@@ -115,6 +116,7 @@ lyt agent install all</code></pre><button class="copy" data-copy="npm install --
           <li>If a matching variant is skipped, check <code>lyt history</code>, then add <code>--redownload</code> only if another copy is intentional.</li>
           <li>When asking for help, share the exact error, not cookies, private URLs, tokens, or personal paths.</li>
         </ul>
+        <p>Download errors such as bot checks, HTTP 403 or 429, and unavailable formats are covered on the <a href="../help/">help page</a>.</p>
       </section>
 
       ${renderFaq(faq)}
